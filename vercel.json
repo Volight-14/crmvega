@@ -2,10 +2,6 @@
   "version": 2,
   "builds": [
     {
-      "src": "backend/api/**/*.js",
-      "use": "@vercel/node"
-    },
-    {
       "src": "backend/package.json",
       "use": "@vercel/node"
     },
@@ -20,7 +16,7 @@
   "routes": [
     {
       "src": "/api/bot/webhook",
-      "dest": "/backend/api/bot/webhook.js"
+      "dest": "/api/bot/webhook.js"
     },
     {
       "src": "/api/(.*)",

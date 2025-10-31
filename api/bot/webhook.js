@@ -98,7 +98,7 @@ async function sendMessageToCRM(telegramUserId, content) {
 }
 
 // Vercel serverless function
-module.exports = async function handler(req, res) {
+module.exports = async (req, res) => {
   if (req.method === 'GET') {
     return res.status(200).json({ status: 'ok', message: 'Telegram webhook endpoint' });
   }
@@ -139,4 +139,4 @@ module.exports = async function handler(req, res) {
     console.error('Webhook error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-}
+};
