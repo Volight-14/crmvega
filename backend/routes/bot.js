@@ -73,4 +73,25 @@ router.post('/send-message', auth, async (req, res) => {
   }
 });
 
+// Webhook endpoint для Telegram бота
+router.post('/webhook', async (req, res) => {
+  try {
+    const update = req.body;
+
+    // Импортируем функции бота
+    const botModule = require('../../bot/index');
+    await botModule.handleUpdate(update);
+
+    res.sendStatus(200);
+  } catch (error) {
+    console.error('Webhook error:', error);
+    res.sendStatus(500);
+  }
+});
+
+// Endpoint для проверки статуса webhook
+router.get('/webhook', (req, res) => {
+  res.json({ status: 'ok', message: 'Telegram webhook endpoint' });
+});
+
 module.exports = router;

@@ -146,15 +146,27 @@ async function sendMessageToUser(telegramUserId, message) {
   }
 }
 
-// Экспортируем функцию для использования в API
+// Функция для обработки webhook update
+async function handleUpdate(update) {
+  try {
+    await bot.handleUpdate(update);
+  } catch (error) {
+    console.error('Error handling update:', error);
+  }
+}
+
+// Экспортируем функции для использования в API
 module.exports = {
-  sendMessageToUser
+  sendMessageToUser,
+  handleUpdate
 };
 
-// Запуск бота
-bot.launch();
-console.log('Bot started');
+// Запуск бота только в development (не на Vercel)
+if (process.env.NODE_ENV !== 'production') {
+  bot.launch();
+  console.log('Bot started in polling mode');
 
-// Graceful shutdown
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+  // Graceful shutdown
+  process.once('SIGINT', () => bot.stop('SIGINT'));
+  process.once('SIGTERM', () => bot.stop('SIGTERM'));
+}
