@@ -1,10 +1,42 @@
 const { createClient } = require('@supabase/supabase-js');
-const botModule = require('../../../bot/index');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
 );
+
+// Функция для отправки сообщения пользователю через Telegram Bot API
+async function sendMessageToUser(telegramUserId, message) {
+  try {
+    const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+    if (!TELEGRAM_BOT_TOKEN) {
+      console.error('TELEGRAM_BOT_TOKEN не установлен');
+      return false;
+    }
+
+    const response = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        chat_id: telegramUserId,
+        text: message
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Telegram API error:', errorData);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error sending message to user:', error.message);
+    return false;
+  }
+}
 
 // Функция для отправки сообщения в CRM
 async function sendMessageToCRM(telegramUserId, content) {
@@ -66,7 +98,7 @@ async function sendMessageToCRM(telegramUserId, content) {
 }
 
 // Vercel serverless function
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method === 'GET') {
     return res.status(200).json({ status: 'ok', message: 'Telegram webhook endpoint' });
   }
@@ -87,7 +119,7 @@ export default async function handler(req, res) {
       if (messageText.startsWith('/')) {
         if (messageText === '/start') {
           // Обработка команды /start через webhook
-          await botModule.sendMessageToUser(telegramUserId, 'Привет! Я бот поддержки CRM системы. Напишите ваше сообщение, и менеджер свяжется с вами.');
+          await sendMessageToUser(telegramUserId, 'Привет! Я бот поддержки CRM системы. Напишите ваше сообщение, и менеджер свяжется с вами.');
         }
         return res.status(200).end();
       }
@@ -96,9 +128,9 @@ export default async function handler(req, res) {
       const leadId = await sendMessageToCRM(telegramUserId, messageText);
 
       if (leadId) {
-        await botModule.sendMessageToUser(telegramUserId, 'Ваше сообщение отправлено менеджеру. Ожидайте ответа.');
+        await sendMessageToUser(telegramUserId, 'Ваше сообщение отправлено менеджеру. Ожидайте ответа.');
       } else {
-        await botModule.sendMessageToUser(telegramUserId, 'Произошла ошибка при отправке сообщения. Попробуйте позже.');
+        await sendMessageToUser(telegramUserId, 'Произошла ошибка при отправке сообщения. Попробуйте позже.');
       }
     }
 
