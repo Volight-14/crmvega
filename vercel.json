@@ -1,19 +1,8 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "backend/package.json",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/backend/index.js"
-    },
-    {
-      "src": "/socket.io/(.*)",
-      "dest": "/backend/index.js"
-    }
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/backend/index.js" },
+    { "source": "/socket.io/(.*)", "destination": "/backend/index.js" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
