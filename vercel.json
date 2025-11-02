@@ -1,7 +1,4 @@
 {
-  "installCommand": "npm install",
-  "buildCommand": "npm run build",
-  "outputDirectory": "build",
   "functions": {
     "api/bot/webhook.js": {
       "maxDuration": 10
