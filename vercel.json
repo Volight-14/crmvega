@@ -1,34 +1,13 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "backend/package.json",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
+  "functions": {
+    "api/bot/webhook.js": {
+      "maxDuration": 10
     }
-  ],
-  "routes": [
-    {
-      "src": "/api/bot/webhook",
-      "dest": "/api/bot/webhook.js"
-    },
-    {
-      "src": "/api/(.*)",
-      "dest": "/backend/index.js"
-    },
-    {
-      "src": "/socket.io/(.*)",
-      "dest": "/backend/index.js"
-    },
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
+  },
+  "rewrites": [
+    { "source": "/api/bot/webhook", "destination": "/api/bot/webhook" },
+    { "source": "/api/(.*)", "destination": "/backend/index.js" },
+    { "source": "/socket.io/(.*)", "destination": "/backend/index.js" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
