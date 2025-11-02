@@ -15,11 +15,15 @@
   ],
   "routes": [
     {
-      "src": "/api/bot/webhook",
-      "dest": "/api/bot/webhook.js"
+      "src": "/api/leads/(.*)",
+      "dest": "/backend/index.js"
     },
     {
-      "src": "/api/(.*)",
+      "src": "/api/messages/(.*)",
+      "dest": "/backend/index.js"
+    },
+    {
+      "src": "/api/auth/(.*)",
       "dest": "/backend/index.js"
     },
     {

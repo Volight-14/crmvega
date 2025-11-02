@@ -1,0 +1,9 @@
+{
+  "name": "crm-vega",
+  "version": "1.0.0",
+  "description": "CRM system with Telegram bot",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.3"
+  }
+}
+
