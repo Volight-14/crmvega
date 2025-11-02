@@ -11,17 +11,9 @@
     {
       "src": "backend/package.json",
       "use": "@vercel/node"
-    },
-    {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
     }
   ],
   "routes": [
-    {
-      "src": "/api/bot/webhook",
-      "dest": "/api/bot/webhook.js"
-    },
     {
       "src": "/api/(.*)",
       "dest": "/backend/index.js"
