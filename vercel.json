@@ -29,10 +29,5 @@
       "src": "/(.*)",
       "dest": "/frontend/$1"
     }
-  ],
-  "functions": {
-    "api/bot/webhook.js": {
-      "maxDuration": 10
-    }
-  }
+  ]
 }
