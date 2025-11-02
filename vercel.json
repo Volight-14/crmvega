@@ -2,15 +2,6 @@
   "version": 2,
   "builds": [
     {
-      "src": "frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "build",
-        "buildCommand": "npm run build",
-        "outputDirectory": "build"
-      }
-    },
-    {
       "src": "backend/package.json",
       "use": "@vercel/node"
     }
@@ -23,13 +14,6 @@
     {
       "src": "/socket.io/(.*)",
       "dest": "/backend/index.js"
-    },
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/frontend/$1"
     }
   ]
 }
