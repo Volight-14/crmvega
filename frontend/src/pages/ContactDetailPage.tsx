@@ -175,10 +175,11 @@ const ContactDetailPage: React.FC = () => {
   };
 
   const handleCreateNote = async (values: any) => {
-    if (!id) return;
+    if (!id || !manager) return;
     try {
       await notesAPI.create({
         contact_id: parseInt(id),
+        manager_id: manager.id,
         content: values.content,
         priority: values.priority || 'info',
       });
