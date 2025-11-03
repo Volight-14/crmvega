@@ -150,7 +150,10 @@ const ContactsPage: React.FC = () => {
         <Space>
           <Avatar icon={<UserOutlined />} />
           <div>
-            <div style={{ fontWeight: 'bold', cursor: 'pointer' }} onClick={() => navigate(`/contacts/${record.id}`)}>
+            <div
+              style={{ fontWeight: 'bold', cursor: 'pointer', color: '#1890ff' }}
+              onClick={() => navigate(`/contact/${record.id}`)}
+            >
               {record.name}
             </div>
             {record.company && (
