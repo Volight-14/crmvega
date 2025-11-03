@@ -341,45 +341,55 @@ const ContactDetailPage: React.FC = () => {
       </Card>
 
       <Card style={{ marginTop: 24 }}>
-        <Tabs activeKey={activeTab} onChange={setActiveTab}>
-          <TabPane tab={<span><UserOutlined /> Контактные данные</span>} key="data">
-            <Form form={form} layout="vertical" onFinish={handleUpdateContact}>
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item name="name" label="Имя">
-                    <Input />
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={[
+            {
+              key: 'data',
+              label: (
+                <span>
+                  <UserOutlined /> Контактные данные
+                </span>
+              ),
+              children: (
+                <Form form={form} layout="vertical" onFinish={handleUpdateContact}>
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Form.Item name="name" label="Имя">
+                        <Input />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item name="phone" label="Телефон">
+                        <Input />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Form.Item name="email" label="Email">
+                        <Input type="email" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item name="company" label="Компания">
+                        <Input />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                  <Form.Item name="address" label="Адрес">
+                    <TextArea rows={2} />
                   </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item name="phone" label="Телефон">
-                    <Input />
+                  <Form.Item name="comment" label="Комментарий">
+                    <TextArea rows={3} />
                   </Form.Item>
-                </Col>
-              </Row>
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item name="email" label="Email">
-                    <Input type="email" />
+                  <Form.Item>
+                    <Button type="primary" htmlType="submit">
+                      Сохранить изменения
+                    </Button>
                   </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item name="company" label="Компания">
-                    <Input />
-                  </Form.Item>
-                </Col>
-              </Row>
-              <Form.Item name="address" label="Адрес">
-                <TextArea rows={2} />
-              </Form.Item>
-              <Form.Item name="comment" label="Комментарий">
-                <TextArea rows={3} />
-              </Form.Item>
-              <Form.Item>
-                <Button type="primary" htmlType="submit">
-                  Сохранить изменения
-                </Button>
-              </Form.Item>
-            </Form>
+                </Form>
               ),
             },
             {
