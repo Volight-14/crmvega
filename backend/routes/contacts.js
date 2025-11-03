@@ -1,6 +1,7 @@
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 const auth = require('../middleware/auth');
+const { runAutomations } = require('../services/automationRunner');
 
 const router = express.Router();
 const supabase = createClient(
@@ -167,6 +168,11 @@ router.patch('/:id', auth, async (req, res) => {
       .single();
 
     if (error) throw error;
+
+    // Запускаем автоматизации для нового контакта
+    runAutomations('contact_created', data).catch(err => {
+      console.error('Error running automations for contact_created:', err);
+    });
 
     res.json(data);
   } catch (error) {

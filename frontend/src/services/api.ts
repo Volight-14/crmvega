@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Manager, Lead, Message, Contact, Deal, Note, ApiResponse } from '../types';
+import { Manager, Lead, Message, Contact, Deal, Note, Automation, ApiResponse } from '../types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -151,6 +151,55 @@ export const contactMessagesAPI = {
   getByContactId: async (contactId: number, params?: { limit?: number; offset?: number }): Promise<Message[]> => {
     const response = await api.get(`/messages/contact/${contactId}`, { params });
     return response.data;
+  },
+
+  sendToContact: async (contactId: number, content: string, sender_type?: 'manager' | 'user'): Promise<Message> => {
+    const response = await api.post(`/messages/contact/${contactId}`, { content, sender_type });
+    return response.data;
+  },
+};
+
+// Analytics API
+export const analyticsAPI = {
+  getDealsAnalytics: async (params?: { startDate?: string; endDate?: string }) => {
+    const response = await api.get('/analytics/deals', { params });
+    return response.data;
+  },
+
+  getContactsAnalytics: async () => {
+    const response = await api.get('/analytics/contacts');
+    return response.data;
+  },
+};
+
+// Automations API
+export const automationsAPI = {
+  getAll: async (params?: { is_active?: boolean }): Promise<{ automations: Automation[] }> => {
+    const response = await api.get('/automations', { params });
+    return response.data;
+  },
+
+  getById: async (id: number): Promise<Automation> => {
+    const response = await api.get(`/automations/${id}`);
+    return response.data;
+  },
+
+  create: async (automation: Omit<Automation, 'id' | 'created_at' | 'updated_at' | 'manager'>): Promise<Automation> => {
+    const response = await api.post('/automations', automation);
+    return response.data;
+  },
+
+  update: async (id: number, automation: Partial<Automation>): Promise<Automation> => {
+    const response = await api.patch(`/automations/${id}`, automation);
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/automations/${id}`);
+  },
+
+  execute: async (id: number, entityType: string, entityId: number): Promise<void> => {
+    await api.post(`/automations/${id}/execute`, { entityType, entityId });
   },
 };
 

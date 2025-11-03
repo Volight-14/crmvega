@@ -94,7 +94,7 @@ export interface Deal {
   manager_id?: number;
   created_at: string;
   updated_at: string;
-  contact?: Contact;
+  contact?: Contact | { name?: string; email?: string; phone?: string } | null;
   manager?: Manager;
   tags?: Tag[];
 }
@@ -133,4 +133,40 @@ export const NOTE_PRIORITIES = {
   important: { label: 'Важно', color: 'orange', icon: '🟡' },
   info: { label: 'Информация', color: 'green', icon: '🟢' },
   reminder: { label: 'Напоминание', color: 'blue', icon: '🔵' },
+} as const;
+
+export interface Automation {
+  id: number;
+  name: string;
+  description?: string;
+  trigger_type: 'deal_created' | 'deal_status_changed' | 'contact_created' | 'message_received' | 'deal_amount_threshold';
+  trigger_conditions?: {
+    field?: string;
+    operator?: 'equals' | 'not_equals' | 'contains' | 'greater_than' | 'less_than';
+    value?: any;
+  };
+  action_type: 'assign_manager' | 'add_tag' | 'create_note' | 'update_status' | 'send_notification' | 'send_email';
+  action_config: Record<string, any>;
+  is_active: boolean;
+  manager_id?: number;
+  created_at: string;
+  updated_at: string;
+  manager?: Manager;
+}
+
+export const TRIGGER_TYPES = {
+  deal_created: { label: 'Сделка создана', icon: '📝' },
+  deal_status_changed: { label: 'Статус сделки изменен', icon: '🔄' },
+  contact_created: { label: 'Контакт создан', icon: '👤' },
+  message_received: { label: 'Получено сообщение', icon: '💬' },
+  deal_amount_threshold: { label: 'Сумма сделки превышена', icon: '💰' },
+} as const;
+
+export const ACTION_TYPES = {
+  assign_manager: { label: 'Назначить менеджера', icon: '👨‍💼' },
+  add_tag: { label: 'Добавить тег', icon: '🏷️' },
+  create_note: { label: 'Создать заметку', icon: '📄' },
+  update_status: { label: 'Изменить статус', icon: '🔄' },
+  send_notification: { label: 'Отправить уведомление', icon: '🔔' },
+  send_email: { label: 'Отправить email', icon: '📧' },
 } as const;

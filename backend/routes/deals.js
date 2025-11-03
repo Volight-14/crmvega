@@ -1,6 +1,7 @@
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 const auth = require('../middleware/auth');
+const { runAutomations } = require('../services/automationRunner');
 
 const router = express.Router();
 const supabase = createClient(
@@ -108,8 +109,22 @@ router.post('/', auth, async (req, res) => {
 
     if (error) throw error;
 
-    // Отправляем Socket.IO событие
+    // Получаем io для уведомлений
     const io = req.app.get('io');
+
+    // Запускаем автоматизации для новой сделки
+    runAutomations('deal_created', data, { io }).catch(err => {
+      console.error('Error running automations for deal_created:', err);
+    });
+
+    // Проверяем порог суммы для автоматизации
+    if (data.amount && parseFloat(data.amount) > 0) {
+      runAutomations('deal_amount_threshold', data, { io }).catch(err => {
+        console.error('Error running automations for deal_amount_threshold:', err);
+      });
+    }
+
+    // Отправляем Socket.IO событие
     if (io) {
       io.emit('new_deal', data);
     }
@@ -136,8 +151,15 @@ router.patch('/:id', auth, async (req, res) => {
 
     if (error) throw error;
 
-    // Отправляем Socket.IO событие
+    // Получаем io для уведомлений
     const io = req.app.get('io');
+
+    // Если изменился статус, запускаем автоматизации
+    if (updateData.status) {
+      runAutomations('deal_status_changed', data, { io }).catch(err => {
+        console.error('Error running automations for deal_status_changed:', err);
+      });
+    }
     if (io) {
       io.emit('deal_updated', data);
     }

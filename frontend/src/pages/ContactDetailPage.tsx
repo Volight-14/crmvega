@@ -36,7 +36,7 @@ import {
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Contact, Deal, Note, Message, NOTE_PRIORITIES, DEAL_STATUSES } from '../types';
-import { contactsAPI, dealsAPI, notesAPI, contactMessagesAPI, messagesAPI } from '../services/api';
+import { contactsAPI, dealsAPI, notesAPI, contactMessagesAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import io from 'socket.io-client';
 
@@ -96,10 +96,17 @@ const ContactDetailPage: React.FC = () => {
     });
 
     socketRef.current.on('new_message', (newMessage: Message) => {
-      if (newMessage.lead?.id) {
+      setMessages(prev => {
+        if (prev.some(msg => msg.id === newMessage.id)) return prev;
+        return [...prev, newMessage];
+      });
+    });
+
+    socketRef.current.on('contact_message', (data: { contact_id: number; message: Message }) => {
+      if (data.contact_id === parseInt(id || '0')) {
         setMessages(prev => {
-          if (prev.some(msg => msg.id === newMessage.id)) return prev;
-          return [...prev, newMessage];
+          if (prev.some(msg => msg.id === data.message.id)) return prev;
+          return [...prev, data.message];
         });
       }
     });
@@ -197,30 +204,21 @@ const ContactDetailPage: React.FC = () => {
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !id || !manager) return;
 
-    // Нужно найти активную сделку или создать новую
-    const activeDeal = deals.find(d => d.status !== 'closed' && d.status !== 'rejected');
-    
-    if (!activeDeal) {
-      message.warning('Сначала создайте сделку для отправки сообщения');
-      return;
-    }
-
-    // Находим связанный lead_id из активной сделки
-    // Пока используем первую сделку или создаем сообщение напрямую через API
-    
     setSending(true);
     try {
-      // Временное решение - нужно улучшить связь между deals и leads
-      // Пока отправляем сообщение через старый API
-      await messagesAPI.send({
-        lead_id: activeDeal.lead_id || 0, // Временное решение
-        content: newMessage.trim(),
-        sender_type: 'manager',
-      });
+      // Отправляем сообщение напрямую контакту (API автоматически создаст/найдет сделку)
+      const newMsg = await contactMessagesAPI.sendToContact(
+        parseInt(id),
+        newMessage.trim(),
+        'manager'
+      );
+      
+      // Добавляем сообщение в список для мгновенного отображения
+      setMessages(prev => [...prev, newMsg]);
       setNewMessage('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending message:', error);
-      message.error('Ошибка отправки сообщения');
+      message.error(error.response?.data?.error || 'Ошибка отправки сообщения');
     } finally {
       setSending(false);
     }
@@ -418,6 +416,11 @@ const ContactDetailPage: React.FC = () => {
                       <div style={{ fontSize: '12px', opacity: 0.7, marginTop: '4px' }}>
                         {new Date(msg.created_at).toLocaleString('ru-RU')}
                         {msg.sender?.name && ` • ${msg.sender.name}`}
+                        {(msg as any).deal_title && (
+                          <Tag size="small" style={{ marginLeft: 8 }}>
+                            Сделка: {(msg as any).deal_title}
+                          </Tag>
+                        )}
                       </div>
                     </div>
                   </div>

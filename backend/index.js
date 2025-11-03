@@ -78,6 +78,8 @@ app.use('/api/bot', require('./routes/bot'));
 app.use('/api/contacts', require('./routes/contacts'));
 app.use('/api/deals', require('./routes/deals'));
 app.use('/api/notes', require('./routes/notes'));
+app.use('/api/analytics', require('./routes/analytics'));
+app.use('/api/automations', require('./routes/automations'));
 
 // Socket.IO для real-time общения
 io.on('connection', (socket) => {
