@@ -1,0 +1,8 @@
+{
+  "buildCommand": "cd frontend && npm run vercel-build",
+  "outputDirectory": "frontend/build",
+  "env": {
+    "SKIP_ENV_VALIDATION": "true"
+  }
+}
+
