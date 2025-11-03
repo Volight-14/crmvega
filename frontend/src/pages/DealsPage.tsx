@@ -26,7 +26,7 @@ import {
   EyeOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Deal, DEAL_STATUSES, Contact } from '../types';
@@ -121,6 +121,10 @@ interface KanbanColumnProps {
 const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, deals, onDealClick }) => {
   const statusInfo = DEAL_STATUSES[status];
   const dealIds = deals.map(d => d.id);
+  
+  const { setNodeRef, isOver } = useDroppable({
+    id: status,
+  });
 
   return (
     <Card
@@ -135,6 +139,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, deals, onDealClick 
         height: 'calc(100vh - 250px)',
         display: 'flex',
         flexDirection: 'column',
+        backgroundColor: isOver ? '#f0f9ff' : undefined,
       }}
       bodyStyle={{
         flex: 1,
@@ -142,15 +147,17 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, deals, onDealClick 
         padding: '12px',
       }}
     >
-      <SortableContext items={dealIds} strategy={verticalListSortingStrategy}>
-        {deals.length === 0 ? (
-          <Empty description="Нет сделок" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-        ) : (
-          deals.map((deal) => (
-            <DealCard key={deal.id} deal={deal} onClick={() => onDealClick(deal)} />
-          ))
-        )}
-      </SortableContext>
+      <div ref={setNodeRef} style={{ height: '100%', minHeight: '200px' }}>
+        <SortableContext items={dealIds} strategy={verticalListSortingStrategy}>
+          {deals.length === 0 ? (
+            <Empty description="Нет сделок" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          ) : (
+            deals.map((deal) => (
+              <DealCard key={deal.id} deal={deal} onClick={() => onDealClick(deal)} />
+            ))
+          )}
+        </SortableContext>
+      </div>
     </Card>
   );
 };
@@ -208,18 +215,10 @@ const DealsPage: React.FC = () => {
     const socketUrl = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
     socketRef.current = io(socketUrl, {
       transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: 5,
     });
 
     socketRef.current.on('connect', () => {
       console.log('✅ Connected to socket for deals');
-    });
-
-    socketRef.current.on('connect_error', () => {
-      // Тихий режим для ошибок подключения - не показываем в консоли
-      // Сокет автоматически попытается переподключиться благодаря reconnection
     });
 
     socketRef.current.on('new_deal', (newDeal: Deal) => {
@@ -291,7 +290,11 @@ const DealsPage: React.FC = () => {
     ));
 
     try {
-      await dealsAPI.update(active.id, { status: newStatus });
+      const updatedDeal = await dealsAPI.update(active.id, { status: newStatus });
+      // Обновляем список сделок с данными из сервера
+      setDeals(prev => prev.map(d => 
+        d.id === active.id ? { ...updatedDeal, contact: activeDeal.contact } : d
+      ));
       message.success('Статус сделки обновлен');
     } catch (error) {
       // Откатываем изменение при ошибке

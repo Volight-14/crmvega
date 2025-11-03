@@ -279,6 +279,23 @@ router.post('/contact/:contactId', auth, async (req, res) => {
       });
     }
 
+    // Если сообщение от менеджера, отправляем через Telegram бота
+    if (sender_type === 'manager' && leadId) {
+      // Получаем информацию о заявке для отправки в Telegram
+      const { data: lead, error: leadError } = await supabase
+        .from('leads')
+        .select('telegram_user_id')
+        .eq('id', leadId)
+        .single();
+
+      if (!leadError && lead && lead.telegram_user_id) {
+        // Отправляем через бота (не ждем результата, чтобы не блокировать ответ)
+        sendMessageToTelegram(lead.telegram_user_id, content).catch(err => {
+          console.error('Failed to send message via bot:', err);
+        });
+      }
+    }
+
     // Отправляем Socket.IO событие
     if (io && leadId) {
       io.to(`lead_${leadId}`).emit('new_message', message);
