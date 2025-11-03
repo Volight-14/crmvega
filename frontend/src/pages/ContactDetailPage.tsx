@@ -89,10 +89,17 @@ const ContactDetailPage: React.FC = () => {
     const socketUrl = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
     socketRef.current = io(socketUrl, {
       transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5,
     });
 
     socketRef.current.on('connect', () => {
       socketRef.current?.emit('join_contact', id);
+    });
+
+    socketRef.current.on('connect_error', () => {
+      // Тихий режим для ошибок подключения
     });
 
     socketRef.current.on('new_message', (newMessage: Message) => {

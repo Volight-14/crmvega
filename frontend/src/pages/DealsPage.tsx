@@ -208,10 +208,18 @@ const DealsPage: React.FC = () => {
     const socketUrl = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
     socketRef.current = io(socketUrl, {
       transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5,
     });
 
     socketRef.current.on('connect', () => {
       console.log('✅ Connected to socket for deals');
+    });
+
+    socketRef.current.on('connect_error', (error) => {
+      // Тихий режим для ошибок подключения - не показываем в консоли
+      // Сокет автоматически попытается переподключиться благодаря reconnection
     });
 
     socketRef.current.on('new_deal', (newDeal: Deal) => {

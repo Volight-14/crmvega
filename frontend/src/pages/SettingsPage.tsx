@@ -134,10 +134,10 @@ const SettingsPage: React.FC = () => {
                     style={{ maxWidth: 500 }}
                   >
                     <Form.Item name="oldPassword" label="Текущий пароль" rules={[{ required: true }]}>
-                      <Input.Password prefix={<KeyOutlined />} />
+                      <Input.Password prefix={<KeyOutlined />} autoComplete="current-password" />
                     </Form.Item>
                     <Form.Item name="newPassword" label="Новый пароль" rules={[{ required: true, min: 6 }]}>
-                      <Input.Password prefix={<KeyOutlined />} />
+                      <Input.Password prefix={<KeyOutlined />} autoComplete="new-password" />
                     </Form.Item>
                     <Form.Item
                       name="confirmPassword"
@@ -154,7 +154,7 @@ const SettingsPage: React.FC = () => {
                         }),
                       ]}
                     >
-                      <Input.Password prefix={<KeyOutlined />} />
+                      <Input.Password prefix={<KeyOutlined />} autoComplete="new-password" />
                     </Form.Item>
                     <Form.Item>
                       <Button type="primary" htmlType="submit" loading={loading}>

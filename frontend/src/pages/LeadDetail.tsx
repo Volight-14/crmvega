@@ -69,8 +69,8 @@ const LeadDetail: React.FC = () => {
       console.log('❌ Disconnected from socket server:', reason);
     });
 
-    socketRef.current.on('connect_error', (error: Error) => {
-      console.error('❌ Socket.IO connection error:', error);
+    socketRef.current.on('connect_error', () => {
+      // Тихий режим для ошибок подключения - сокет автоматически попытается переподключиться
     });
 
     socketRef.current.on('new_message', (newMessage: Message) => {
