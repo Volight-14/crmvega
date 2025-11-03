@@ -217,7 +217,7 @@ const DealsPage: React.FC = () => {
       console.log('✅ Connected to socket for deals');
     });
 
-    socketRef.current.on('connect_error', (error) => {
+    socketRef.current.on('connect_error', () => {
       // Тихий режим для ошибок подключения - не показываем в консоли
       // Сокет автоматически попытается переподключиться благодаря reconnection
     });
