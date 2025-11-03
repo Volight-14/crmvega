@@ -29,7 +29,9 @@ const io = new Server(server, {
     },
     methods: ["GET", "POST"],
     credentials: true
-  }
+  },
+  transports: ['websocket', 'polling'],
+  allowEIO3: true
 });
 
 // Supabase client
@@ -76,7 +78,7 @@ app.use('/api/bot', require('./routes/bot'));
 
 // Socket.IO для real-time общения
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+  console.log('✅ User connected:', socket.id);
 
   // Присоединение к комнате пользователя
   socket.on('join_user', (userId) => {
@@ -116,8 +118,12 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
+  socket.on('disconnect', (reason) => {
+    console.log('❌ User disconnected:', socket.id, 'reason:', reason);
+  });
+
+  socket.on('error', (error) => {
+    console.error('Socket error:', error);
   });
 });
 

@@ -45,18 +45,36 @@ const LeadDetail: React.FC = () => {
   }, [messages]);
 
   const setupSocket = () => {
-    if (!id) return;
+    if (!id || !manager) {
+      return () => {};
+    }
     
     const socketUrl = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
-    socketRef.current = io(socketUrl);
+    console.log('Connecting to Socket.IO for lead:', id, 'URL:', socketUrl);
+    
+    socketRef.current = io(socketUrl, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5
+    });
 
     socketRef.current.on('connect', () => {
-      console.log('Connected to socket server');
-      socketRef.current?.emit('join_user', manager?.id);
+      console.log('✅ Connected to socket server for lead:', id);
+      socketRef.current?.emit('join_user', manager.id);
       socketRef.current?.emit('join_lead', id);
     });
 
+    socketRef.current.on('disconnect', (reason) => {
+      console.log('❌ Disconnected from socket server:', reason);
+    });
+
+    socketRef.current.on('connect_error', (error) => {
+      console.error('❌ Socket.IO connection error:', error);
+    });
+
     socketRef.current.on('new_message', (newMessage: Message) => {
+      console.log('📥 New message received:', newMessage);
       setMessages(prev => {
         // Проверяем, нет ли уже этого сообщения
         if (prev.some(msg => msg.id === newMessage.id)) {
@@ -67,10 +85,12 @@ const LeadDetail: React.FC = () => {
     });
 
     socketRef.current.on('message_error', (error: any) => {
+      console.error('Message error:', error);
       message.error(error.error);
     });
 
     return () => {
+      console.log('Disconnecting Socket.IO for lead:', id);
       socketRef.current?.disconnect();
     };
   };

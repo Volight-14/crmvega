@@ -38,19 +38,37 @@ const Dashboard: React.FC = () => {
   }, [statusFilter]);
 
   useEffect(() => {
+    if (!manager) return;
+
     // Настраиваем Socket.IO для real-time обновлений
     const socketUrl = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
-    socketRef.current = io(socketUrl);
+    console.log('Connecting to Socket.IO:', socketUrl);
+    
+    socketRef.current = io(socketUrl, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5
+    });
 
     socketRef.current.on('connect', () => {
-      console.log('Connected to socket server');
+      console.log('✅ Connected to socket server');
       if (manager?.id) {
         socketRef.current?.emit('join_user', manager.id);
       }
     });
 
+    socketRef.current.on('disconnect', (reason) => {
+      console.log('❌ Disconnected from socket server:', reason);
+    });
+
+    socketRef.current.on('connect_error', (error) => {
+      console.error('❌ Socket.IO connection error:', error);
+    });
+
     // Обработка новых заявок
     socketRef.current.on('new_lead', (newLead: Lead) => {
+      console.log('📥 New lead received:', newLead);
       setLeads(prev => {
         // Проверяем, нет ли уже этой заявки
         if (prev.some(lead => lead.id === newLead.id)) {
@@ -66,12 +84,14 @@ const Dashboard: React.FC = () => {
 
     // Обработка обновления заявок
     socketRef.current.on('lead_updated', (updatedLead: Lead) => {
+      console.log('📥 Lead updated:', updatedLead);
       setLeads(prev => prev.map(lead => 
         lead.id === updatedLead.id ? updatedLead : lead
       ));
     });
 
     return () => {
+      console.log('Disconnecting Socket.IO');
       socketRef.current?.disconnect();
     };
   }, [manager, statusFilter]);
