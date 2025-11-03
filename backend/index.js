@@ -65,6 +65,9 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Сохраняем io в app для доступа из routes
+app.set('io', io);
+
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/leads', require('./routes/leads'));
@@ -78,6 +81,11 @@ io.on('connection', (socket) => {
   // Присоединение к комнате пользователя
   socket.on('join_user', (userId) => {
     socket.join(`user_${userId}`);
+  });
+
+  // Присоединение к комнате заявки
+  socket.on('join_lead', (leadId) => {
+    socket.join(`lead_${leadId}`);
   });
 
   // Отправка сообщения

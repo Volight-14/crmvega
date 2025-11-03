@@ -95,6 +95,12 @@ router.post('/', auth, async (req, res) => {
       }
     }
 
+    // Отправляем событие о новом сообщении через Socket.IO
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`lead_${lead_id}`).emit('new_message', data);
+    }
+
     res.json(data);
   } catch (error) {
     console.error('Error sending message:', error);

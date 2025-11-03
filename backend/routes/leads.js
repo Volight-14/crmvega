@@ -8,6 +8,9 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
+// Функция для получения io из req
+const getIO = (req) => req.app.get('io');
+
 // Получить все заявки
 router.get('/', auth, async (req, res) => {
   try {
@@ -58,6 +61,12 @@ router.post('/', auth, async (req, res) => {
 
     if (error) throw error;
 
+    // Отправляем событие о новой заявке через Socket.IO
+    const io = getIO(req);
+    if (io) {
+      io.emit('new_lead', data);
+    }
+
     res.json(data);
   } catch (error) {
     console.error('Error creating lead:', error);
@@ -84,6 +93,12 @@ router.patch('/:id/status', auth, async (req, res) => {
       .single();
 
     if (error) throw error;
+
+    // Отправляем событие об обновлении заявки через Socket.IO
+    const io = getIO(req);
+    if (io) {
+      io.emit('lead_updated', data);
+    }
 
     res.json(data);
   } catch (error) {

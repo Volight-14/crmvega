@@ -81,12 +81,12 @@ router.post('/send-message', auth, async (req, res) => {
 // Функция для отправки сообщения в CRM
 async function sendMessageToCRM(telegramUserId, content) {
   try {
-    // Проверяем, есть ли активная заявка для этого пользователя
+    // Проверяем, есть ли заявка для этого пользователя (берем последнюю, независимо от статуса)
     const { data: leads, error: leadError } = await supabase
       .from('leads')
       .select('*')
       .eq('telegram_user_id', telegramUserId)
-      .eq('status', 'in_progress')
+      .order('created_at', { ascending: false })
       .limit(1);
 
     if (leadError) throw leadError;
@@ -108,28 +108,47 @@ async function sendMessageToCRM(telegramUserId, content) {
       if (createError) throw createError;
 
       // Отправляем первое сообщение
-      await supabase
+      const { data: savedMessage } = await supabase
         .from('messages')
         .insert({
           lead_id: lead.id,
           content: content,
           is_from_bot: true,
           sender_type: 'user'
-        });
+        })
+        .select()
+        .single();
+
+      // Отправляем Socket.IO события
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('new_lead', lead);
+        if (savedMessage) {
+          io.to(`lead_${lead.id}`).emit('new_message', savedMessage);
+        }
+      }
 
       return lead.id;
     } else {
       // Используем существующую заявку
       const leadId = leads[0].id;
 
-      await supabase
+      const { data: savedMessage } = await supabase
         .from('messages')
         .insert({
           lead_id: leadId,
           content: content,
           is_from_bot: true,
           sender_type: 'user'
-        });
+        })
+        .select()
+        .single();
+
+      // Отправляем Socket.IO событие о новом сообщении
+      const io = req.app.get('io');
+      if (io && savedMessage) {
+        io.to(`lead_${leadId}`).emit('new_message', savedMessage);
+      }
 
       return leadId;
     }

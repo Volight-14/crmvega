@@ -45,21 +45,34 @@ const LeadDetail: React.FC = () => {
   }, [messages]);
 
   const setupSocket = () => {
+    if (!id) return;
+    
     const socketUrl = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
     socketRef.current = io(socketUrl);
 
     socketRef.current.on('connect', () => {
       console.log('Connected to socket server');
       socketRef.current?.emit('join_user', manager?.id);
+      socketRef.current?.emit('join_lead', id);
     });
 
-    socketRef.current.on('new_message', (message: Message) => {
-      setMessages(prev => [...prev, message]);
+    socketRef.current.on('new_message', (newMessage: Message) => {
+      setMessages(prev => {
+        // Проверяем, нет ли уже этого сообщения
+        if (prev.some(msg => msg.id === newMessage.id)) {
+          return prev;
+        }
+        return [...prev, newMessage];
+      });
     });
 
     socketRef.current.on('message_error', (error: any) => {
       message.error(error.error);
     });
+
+    return () => {
+      socketRef.current?.disconnect();
+    };
   };
 
   const fetchLead = async () => {

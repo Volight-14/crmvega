@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Table, Select, Tag, Button, Space, Avatar, Typography, Card, Badge } from 'antd';
 import { MessageOutlined, UserOutlined, PhoneOutlined, MailOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import io from 'socket.io-client';
 import { Lead, LEAD_STATUSES } from '../types';
 import { leadsAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -13,6 +15,8 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const navigate = useNavigate();
+  const { manager } = useAuth();
+  const socketRef = useRef<ReturnType<typeof io> | null>(null);
 
   const fetchLeads = async () => {
     setLoading(true);
@@ -32,6 +36,45 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     fetchLeads();
   }, [statusFilter]);
+
+  useEffect(() => {
+    // Настраиваем Socket.IO для real-time обновлений
+    const socketUrl = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    socketRef.current = io(socketUrl);
+
+    socketRef.current.on('connect', () => {
+      console.log('Connected to socket server');
+      if (manager?.id) {
+        socketRef.current?.emit('join_user', manager.id);
+      }
+    });
+
+    // Обработка новых заявок
+    socketRef.current.on('new_lead', (newLead: Lead) => {
+      setLeads(prev => {
+        // Проверяем, нет ли уже этой заявки
+        if (prev.some(lead => lead.id === newLead.id)) {
+          return prev;
+        }
+        // Применяем фильтр
+        if (statusFilter && newLead.status !== statusFilter) {
+          return prev;
+        }
+        return [newLead, ...prev];
+      });
+    });
+
+    // Обработка обновления заявок
+    socketRef.current.on('lead_updated', (updatedLead: Lead) => {
+      setLeads(prev => prev.map(lead => 
+        lead.id === updatedLead.id ? updatedLead : lead
+      ));
+    });
+
+    return () => {
+      socketRef.current?.disconnect();
+    };
+  }, [manager, statusFilter]);
 
   const handleStatusChange = async (leadId: number, newStatus: Lead['status']) => {
     try {
