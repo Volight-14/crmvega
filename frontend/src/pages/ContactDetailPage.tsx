@@ -400,55 +400,57 @@ const ContactDetailPage: React.FC = () => {
                 </span>
               ),
               children: (
-            <div style={{ height: '500px', overflowY: 'auto', padding: '16px', background: '#fafafa', borderRadius: '8px', marginBottom: '16px' }}>
-              {messages.length === 0 ? (
-                <Empty description="Нет сообщений" />
-              ) : (
-                messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    style={{
-                      marginBottom: '16px',
-                      display: 'flex',
-                      justifyContent: msg.sender_type === 'manager' ? 'flex-end' : 'flex-start',
-                    }}
-                  >
-                    <div
-                      style={{
-                        maxWidth: '70%',
-                        padding: '12px',
-                        borderRadius: '8px',
-                        background: msg.sender_type === 'manager' ? '#1890ff' : '#f0f0f0',
-                        color: msg.sender_type === 'manager' ? 'white' : 'black',
-                      }}
-                    >
-                      <div>{msg.content}</div>
-                      <div style={{ fontSize: '12px', opacity: 0.7, marginTop: '4px' }}>
-                        {new Date(msg.created_at).toLocaleString('ru-RU')}
-                        {msg.sender?.name && ` • ${msg.sender.name}`}
-                        {(msg as any).deal_title && (
-                          <Tag size="small" style={{ marginLeft: 8 }}>
-                            Сделка: {(msg as any).deal_title}
-                          </Tag>
-                        )}
-                      </div>
-                    </div>
+                <>
+                  <div style={{ height: '500px', overflowY: 'auto', padding: '16px', background: '#fafafa', borderRadius: '8px', marginBottom: '16px' }}>
+                    {messages.length === 0 ? (
+                      <Empty description="Нет сообщений" />
+                    ) : (
+                      messages.map((msg) => (
+                        <div
+                          key={msg.id}
+                          style={{
+                            marginBottom: '16px',
+                            display: 'flex',
+                            justifyContent: msg.sender_type === 'manager' ? 'flex-end' : 'flex-start',
+                          }}
+                        >
+                          <div
+                            style={{
+                              maxWidth: '70%',
+                              padding: '12px',
+                              borderRadius: '8px',
+                              background: msg.sender_type === 'manager' ? '#1890ff' : '#f0f0f0',
+                              color: msg.sender_type === 'manager' ? 'white' : 'black',
+                            }}
+                          >
+                            <div>{msg.content}</div>
+                            <div style={{ fontSize: '12px', opacity: 0.7, marginTop: '4px' }}>
+                              {new Date(msg.created_at).toLocaleString('ru-RU')}
+                              {msg.sender?.name && ` • ${msg.sender.name}`}
+                              {(msg as any).deal_title && (
+                                <Tag size="small" style={{ marginLeft: 8 }}>
+                                  Сделка: {(msg as any).deal_title}
+                                </Tag>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                    <div ref={messagesEndRef} />
                   </div>
-                ))
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-            <Space.Compact style={{ width: '100%' }}>
-              <Input
-                placeholder="Напишите сообщение..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onPressEnter={handleSendMessage}
-              />
-              <Button type="primary" icon={<SendOutlined />} onClick={handleSendMessage} loading={sending}>
-                Отправить
-              </Button>
-            </Space.Compact>
+                  <Space.Compact style={{ width: '100%' }}>
+                    <Input
+                      placeholder="Напишите сообщение..."
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onPressEnter={handleSendMessage}
+                    />
+                    <Button type="primary" icon={<SendOutlined />} onClick={handleSendMessage} loading={sending}>
+                      Отправить
+                    </Button>
+                  </Space.Compact>
+                </>
               ),
             },
             {
@@ -459,18 +461,20 @@ const ContactDetailPage: React.FC = () => {
                 </span>
               ),
               children: (
-            <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
-              <Title level={4} style={{ margin: 0 }}>Сделки контакта</Title>
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate(`/deals?contact_id=${id}`)}>
-                Новая сделка
-              </Button>
-            </Space>
-            <Table
-              columns={dealColumns}
-              dataSource={deals}
-              rowKey="id"
-              pagination={false}
-            />
+                <>
+                  <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+                    <Title level={4} style={{ margin: 0 }}>Сделки контакта</Title>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate(`/deals?contact_id=${id}`)}>
+                      Новая сделка
+                    </Button>
+                  </Space>
+                  <Table
+                    columns={dealColumns}
+                    dataSource={deals}
+                    rowKey="id"
+                    pagination={false}
+                  />
+                </>
               ),
             },
             {
@@ -481,45 +485,47 @@ const ContactDetailPage: React.FC = () => {
                 </span>
               ),
               children: (
-            <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
-              <Title level={4} style={{ margin: 0 }}>Внутренние заметки</Title>
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsNoteModalVisible(true)}>
-                Добавить заметку
-              </Button>
-            </Space>
-            <List
-              dataSource={notes}
-              renderItem={(note) => {
-                const priorityInfo = NOTE_PRIORITIES[note.priority];
-                return (
-                  <List.Item>
-                    <List.Item.Meta
-                      title={
-                        <Space>
-                          <span>{priorityInfo.icon}</span>
-                          <span>{priorityInfo.label}</span>
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            {note.manager?.name} • {new Date(note.created_at).toLocaleString('ru-RU')}
-                          </Text>
-                          {note.manager_id === manager?.id && (
-                            <Button
-                              type="link"
-                              danger
-                              size="small"
-                              icon={<DeleteOutlined />}
-                              onClick={() => handleDeleteNote(note.id)}
-                            >
-                              Удалить
-                            </Button>
-                          )}
-                        </Space>
-                      }
-                      description={note.content}
-                    />
-                  </List.Item>
-                );
-              }}
-            />
+                <>
+                  <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+                    <Title level={4} style={{ margin: 0 }}>Внутренние заметки</Title>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsNoteModalVisible(true)}>
+                      Добавить заметку
+                    </Button>
+                  </Space>
+                  <List
+                    dataSource={notes}
+                    renderItem={(note) => {
+                      const priorityInfo = NOTE_PRIORITIES[note.priority];
+                      return (
+                        <List.Item>
+                          <List.Item.Meta
+                            title={
+                              <Space>
+                                <span>{priorityInfo.icon}</span>
+                                <span>{priorityInfo.label}</span>
+                                <Text type="secondary" style={{ fontSize: 12 }}>
+                                  {note.manager?.name} • {new Date(note.created_at).toLocaleString('ru-RU')}
+                                </Text>
+                                {note.manager_id === manager?.id && (
+                                  <Button
+                                    type="link"
+                                    danger
+                                    size="small"
+                                    icon={<DeleteOutlined />}
+                                    onClick={() => handleDeleteNote(note.id)}
+                                  >
+                                    Удалить
+                                  </Button>
+                                )}
+                              </Space>
+                            }
+                            description={note.content}
+                          />
+                        </List.Item>
+                      );
+                    }}
+                  />
+                </>
               ),
             },
             {
@@ -530,17 +536,19 @@ const ContactDetailPage: React.FC = () => {
                 </span>
               ),
               children: (
-            <Title level={4}>Теги контакта</Title>
-            <Space wrap>
-              {contact.tags?.map((tag) => (
-                <Tag key={tag.id} color={tag.color} style={{ fontSize: 14, padding: '4px 12px' }}>
-                  {tag.name}
-                </Tag>
-              ))}
-              {(!contact.tags || contact.tags.length === 0) && (
-                <Text type="secondary">Тегов нет</Text>
-              )}
-            </Space>
+                <>
+                  <Title level={4}>Теги контакта</Title>
+                  <Space wrap>
+                    {contact.tags?.map((tag) => (
+                      <Tag key={tag.id} color={tag.color} style={{ fontSize: 14, padding: '4px 12px' }}>
+                        {tag.name}
+                      </Tag>
+                    ))}
+                    {(!contact.tags || contact.tags.length === 0) && (
+                      <Text type="secondary">Тегов нет</Text>
+                    )}
+                  </Space>
+                </>
               ),
             },
             {
@@ -551,8 +559,10 @@ const ContactDetailPage: React.FC = () => {
                 </span>
               ),
               children: (
-            <Title level={4}>История действий</Title>
-            <Empty description="История действий пока не реализована" />
+                <>
+                  <Title level={4}>История действий</Title>
+                  <Empty description="История действий пока не реализована" />
+                </>
               ),
             },
           ]}
