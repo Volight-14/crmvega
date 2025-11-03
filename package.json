@@ -1,6 +1,8 @@
 {
   "name": "crm-vega",
   "version": "1.0.0",
-  "description": "CRM system with Telegram bot",
-  "dependencies": {}
+  "private": true,
+  "scripts": {
+    "build": "cd frontend && npm ci && npm run build"
+  }
 }
