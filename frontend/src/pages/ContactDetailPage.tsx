@@ -428,7 +428,7 @@ const ContactDetailPage: React.FC = () => {
                               {new Date(msg.created_at).toLocaleString('ru-RU')}
                               {msg.sender?.name && ` • ${msg.sender.name}`}
                               {(msg as any).deal_title && (
-                                <Tag size="small" style={{ marginLeft: 8 }}>
+                                <Tag style={{ marginLeft: 8, fontSize: '12px' }}>
                                   Сделка: {(msg as any).deal_title}
                                 </Tag>
                               )}
