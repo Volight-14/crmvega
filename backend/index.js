@@ -75,6 +75,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/leads', require('./routes/leads'));
 app.use('/api/messages', require('./routes/messages'));
 app.use('/api/bot', require('./routes/bot'));
+app.use('/api/contacts', require('./routes/contacts'));
 
 // Socket.IO для real-time общения
 io.on('connection', (socket) => {

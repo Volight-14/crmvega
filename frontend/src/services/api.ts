@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Manager, Lead, Message, ApiResponse } from '../types';
+import { Manager, Lead, Message, Contact, ApiResponse } from '../types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -62,6 +62,33 @@ export const messagesAPI = {
   send: async (message: { lead_id: number; content: string; sender_type?: 'manager' | 'user' }): Promise<Message> => {
     const response = await api.post('/messages', message);
     return response.data;
+  },
+};
+
+// Contacts API
+export const contactsAPI = {
+  getAll: async (params?: { search?: string; status?: string; limit?: number; offset?: number }): Promise<{ contacts: Contact[] }> => {
+    const response = await api.get('/contacts', { params });
+    return response.data;
+  },
+
+  getById: async (id: number): Promise<Contact> => {
+    const response = await api.get(`/contacts/${id}`);
+    return response.data;
+  },
+
+  create: async (contact: Omit<Contact, 'id' | 'created_at' | 'updated_at'>): Promise<Contact> => {
+    const response = await api.post('/contacts', contact);
+    return response.data;
+  },
+
+  update: async (id: number, contact: Partial<Contact>): Promise<Contact> => {
+    const response = await api.patch(`/contacts/${id}`, contact);
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/contacts/${id}`);
   },
 };
 
