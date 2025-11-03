@@ -79,9 +79,53 @@ router.post('/send-message', auth, async (req, res) => {
 });
 
 // Функция для отправки сообщения в CRM
-async function sendMessageToCRM(telegramUserId, content, req = null) {
+async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null, req = null) {
   try {
-    // Проверяем, есть ли заявка для этого пользователя (берем последнюю, независимо от статуса)
+    // Ищем существующий контакт по telegram_user_id
+    const { data: existingContact, error: contactError } = await supabase
+      .from('contacts')
+      .select('*')
+      .eq('telegram_user_id', telegramUserId)
+      .maybeSingle();
+
+    if (contactError && contactError.code !== 'PGRST116') { // PGRST116 = not found
+      throw contactError;
+    }
+
+    let contactId;
+    let contact;
+    let leadId;
+
+    if (!existingContact) {
+      // Создаем новый контакт
+      const contactName = telegramUserInfo?.first_name && telegramUserInfo?.last_name
+        ? `${telegramUserInfo.first_name} ${telegramUserInfo.last_name}`.trim()
+        : telegramUserInfo?.first_name || 
+          telegramUserInfo?.username || 
+          `Пользователь ${telegramUserId}`;
+      
+      const { data: newContact, error: createContactError } = await supabase
+        .from('contacts')
+        .insert({
+          name: contactName,
+          phone: null,
+          email: null,
+          telegram_user_id: telegramUserId,
+          status: 'active',
+          comment: 'Автоматически создан из Telegram бота'
+        })
+        .select()
+        .single();
+
+      if (createContactError) throw createContactError;
+      contactId = newContact.id;
+      contact = newContact;
+    } else {
+      contactId = existingContact.id;
+      contact = existingContact;
+    }
+
+    // Ищем или создаем Lead
     const { data: leads, error: leadError } = await supabase
       .from('leads')
       .select('*')
@@ -92,11 +136,13 @@ async function sendMessageToCRM(telegramUserId, content, req = null) {
     if (leadError) throw leadError;
 
     if (!leads || leads.length === 0) {
-      // Создаем новую заявку
-      const { data: lead, error: createError } = await supabase
+      // Создаем новый Lead
+      const { data: lead, error: createLeadError } = await supabase
         .from('leads')
         .insert({
-          name: `Пользователь ${telegramUserId}`,
+          name: contact.name,
+          phone: contact.phone,
+          email: contact.email,
           source: 'telegram_bot',
           description: 'Автоматически созданная заявка из Telegram бота',
           telegram_user_id: telegramUserId,
@@ -105,57 +151,122 @@ async function sendMessageToCRM(telegramUserId, content, req = null) {
         .select()
         .single();
 
-      if (createError) throw createError;
+      if (createLeadError) throw createLeadError;
+      leadId = lead.id;
 
-      // Отправляем первое сообщение
-      const { data: savedMessage } = await supabase
-        .from('messages')
+      // Создаем Deal, связанный с Contact и Lead
+      const { data: deal, error: createDealError } = await supabase
+        .from('deals')
         .insert({
-          lead_id: lead.id,
-          content: content,
-          is_from_bot: true,
-          sender_type: 'user'
+          contact_id: contactId,
+          lead_id: leadId,
+          title: `Заявка от ${contact.name}`,
+          amount: 0,
+          currency: 'RUB',
+          status: 'new',
+          source: 'telegram_bot',
+          description: 'Автоматически созданная сделка из Telegram бота'
         })
         .select()
         .single();
+
+      if (createDealError) {
+        console.error('Error creating deal:', createDealError);
+        // Не прерываем выполнение, если не удалось создать Deal
+      }
+
+      // Запускаем автоматизации для новой сделки
+      if (req && deal) {
+        const { runAutomations } = require('../services/automationRunner');
+        runAutomations('deal_created', deal, { io: req.app.get('io') }).catch(err => {
+          console.error('Error running automations for deal_created:', err);
+        });
+      }
 
       // Отправляем Socket.IO события
       if (req) {
         const io = req.app.get('io');
         if (io) {
+          io.emit('new_contact', contact);
           io.emit('new_lead', lead);
-          if (savedMessage) {
-            io.to(`lead_${lead.id}`).emit('new_message', savedMessage);
+          if (deal) {
+            io.emit('new_deal', deal);
           }
         }
       }
-
-      return lead.id;
     } else {
-      // Используем существующую заявку
-      const leadId = leads[0].id;
+      // Используем существующий Lead
+      leadId = leads[0].id;
 
-      const { data: savedMessage } = await supabase
-        .from('messages')
-        .insert({
-          lead_id: leadId,
-          content: content,
-          is_from_bot: true,
-          sender_type: 'user'
-        })
-        .select()
-        .single();
+      // Проверяем, есть ли активная Deal для этого контакта
+      const { data: activeDeal } = await supabase
+        .from('deals')
+        .select('id')
+        .eq('contact_id', contactId)
+        .eq('lead_id', leadId)
+        .in('status', ['new', 'negotiation', 'waiting', 'ready_to_close'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      // Отправляем Socket.IO событие о новом сообщении
-      if (req) {
-        const io = req.app.get('io');
-        if (io && savedMessage) {
-          io.to(`lead_${leadId}`).emit('new_message', savedMessage);
+      // Если нет активной Deal, создаем новую
+      if (!activeDeal) {
+        const { data: newDeal } = await supabase
+          .from('deals')
+          .insert({
+            contact_id: contactId,
+            lead_id: leadId,
+            title: `Заявка от ${contact.name}`,
+            amount: 0,
+            currency: 'RUB',
+            status: 'new',
+            source: 'telegram_bot',
+            description: 'Автоматически созданная сделка из Telegram бота'
+          })
+          .select()
+          .single();
+
+        if (req && newDeal) {
+          const io = req.app.get('io');
+          if (io) {
+            io.emit('new_deal', newDeal);
+          }
         }
       }
-
-      return leadId;
     }
+
+    // Создаем сообщение
+    const { data: savedMessage, error: messageError } = await supabase
+      .from('messages')
+      .insert({
+        lead_id: leadId,
+        content: content,
+        is_from_bot: true,
+        sender_type: 'user'
+      })
+      .select()
+      .single();
+
+    if (messageError) throw messageError;
+
+    // Запускаем автоматизации для нового сообщения
+    if (req) {
+      const { runAutomations } = require('../services/automationRunner');
+      runAutomations('message_received', savedMessage, { io: req.app.get('io') }).catch(err => {
+        console.error('Error running automations for message_received:', err);
+      });
+    }
+
+    // Отправляем Socket.IO событие о новом сообщении
+    if (req) {
+      const io = req.app.get('io');
+      if (io && savedMessage) {
+        io.to(`lead_${leadId}`).emit('new_message', savedMessage);
+        io.emit('contact_message', { contact_id: contactId, message: savedMessage });
+      }
+    }
+
+    return leadId;
   } catch (error) {
     console.error('Error sending message to CRM:', error);
     return null;
@@ -180,8 +291,9 @@ router.post('/webhook', async (req, res) => {
         return res.status(200).end();
       }
 
-      // Отправляем сообщение в CRM (передаем req для доступа к io)
-      const leadId = await sendMessageToCRM(telegramUserId, messageText, req);
+      // Отправляем сообщение в CRM (передаем req для доступа к io и информацию о пользователе)
+      const telegramUserInfo = update.message.from; // first_name, last_name, username
+      const leadId = await sendMessageToCRM(telegramUserId, messageText, telegramUserInfo, req);
 
       if (leadId) {
         await sendMessageToUser(telegramUserId, 'Ваше сообщение отправлено менеджеру. Ожидайте ответа.');
