@@ -68,15 +68,44 @@ const DealCard: React.FC<DealCardProps> = ({ deal, onClick }) => {
       style={{
         ...style,
         marginBottom: 8,
-        cursor: 'grab',
+        cursor: 'pointer',
+        position: 'relative',
       }}
-      {...attributes}
-      {...listeners}
       size="small"
       hoverable
-      onClick={onClick}
+      onClick={(e) => {
+        // Предотвращаем клик, если кликнули на drag handle
+        if ((e.target as HTMLElement).closest('.drag-handle')) {
+          return;
+        }
+        if (!isDragging && !transform) {
+          onClick();
+        }
+      }}
     >
-      <div>
+      {/* Область для drag - только на небольшой области в начале карточки */}
+      <div
+        className="drag-handle"
+        {...attributes}
+        {...listeners}
+        style={{
+          position: 'absolute',
+          left: 8,
+          top: 8,
+          width: 20,
+          height: 20,
+          cursor: 'grab',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10,
+        }}
+        onClick={(e) => e.stopPropagation()} // Предотвращаем клик на drag handle
+        onMouseDown={(e) => e.stopPropagation()} // Останавливаем всплытие событий мыши
+      >
+        <span style={{ fontSize: 12, opacity: 0.5 }}>⋮⋮</span>
+      </div>
+      <div style={{ paddingLeft: '28px', position: 'relative' }}>
         <div style={{ fontWeight: 'bold', marginBottom: 8, fontSize: 14 }}>
           {deal.title}
         </div>
@@ -178,7 +207,11 @@ const DealsPage: React.FC = () => {
   const socketRef = useRef<Socket | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Drag начинается только после движения мыши на 8px
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -275,13 +308,23 @@ const DealsPage: React.FC = () => {
     const { active, over } = event;
     setActiveId(null);
 
-    if (!over) return;
+    // Если нет over, значит элемент был отпущен не над колонкой - ничего не делаем
+    if (!over) {
+      return;
+    }
 
     const activeDeal = deals.find(d => d.id === active.id);
     if (!activeDeal) return;
 
+    // Проверяем, что over.id - это валидный статус сделки
+    const validStatuses = Object.keys(DEAL_STATUSES);
+    if (!validStatuses.includes(over.id)) {
+      return; // Не валидный статус, не обрабатываем
+    }
+
     const newStatus = over.id as Deal['status'];
     
+    // Если статус не изменился, не делаем ничего
     if (activeDeal.status === newStatus) return;
 
     // Оптимистичное обновление

@@ -131,7 +131,7 @@ export const notesAPI = {
     return response.data;
   },
 
-  create: async (note: Omit<Note, 'id' | 'created_at' | 'updated_at' | 'manager' | 'manager_id'> & { manager_id?: number }): Promise<Note> => {
+  create: async (note: Omit<Note, 'id' | 'created_at' | 'updated_at' | 'manager'>): Promise<Note> => {
     const response = await api.post('/notes', note);
     return response.data;
   },

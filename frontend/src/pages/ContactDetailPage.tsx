@@ -89,17 +89,10 @@ const ContactDetailPage: React.FC = () => {
     const socketUrl = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
     socketRef.current = io(socketUrl, {
       transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: 5,
     });
 
     socketRef.current.on('connect', () => {
       socketRef.current?.emit('join_contact', id);
-    });
-
-    socketRef.current.on('connect_error', () => {
-      // Тихий режим для ошибок подключения
     });
 
     socketRef.current.on('new_message', (newMessage: Message) => {
@@ -435,7 +428,7 @@ const ContactDetailPage: React.FC = () => {
                               {new Date(msg.created_at).toLocaleString('ru-RU')}
                               {msg.sender?.name && ` • ${msg.sender.name}`}
                               {(msg as any).deal_title && (
-                                <Tag style={{ marginLeft: 8, fontSize: '12px' }}>
+                                <Tag size="small" style={{ marginLeft: 8 }}>
                                   Сделка: {(msg as any).deal_title}
                                 </Tag>
                               )}

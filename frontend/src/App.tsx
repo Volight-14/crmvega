@@ -10,6 +10,7 @@ import LeadDetail from './pages/LeadDetail';
 import DealsPage from './pages/DealsPage';
 import ContactsPage from './pages/ContactsPage';
 import ContactDetailPage from './pages/ContactDetailPage';
+import DealDetailPage from './pages/DealDetailPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import AutomationPage from './pages/AutomationPage';
 import SettingsPage from './pages/SettingsPage';
@@ -65,6 +66,14 @@ const AppRoutes: React.FC = () => {
         element={
           <PrivateRoute>
             <ContactDetailPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/deal/:id"
+        element={
+          <PrivateRoute>
+            <DealDetailPage />
           </PrivateRoute>
         }
       />

@@ -37,9 +37,10 @@ router.get('/', auth, async (req, res) => {
 
     if (error) throw error;
 
-    // Преобразуем теги
+    // Преобразуем теги и amount (из строки в число)
     const deals = data.map(deal => ({
       ...deal,
+      amount: parseFloat(deal.amount) || 0,
       tags: deal.tags?.map(t => t.tag).filter(Boolean) || []
     }));
 
@@ -69,6 +70,7 @@ router.get('/:id', auth, async (req, res) => {
     if (error) throw error;
 
     data.tags = data.tags?.map(t => t.tag).filter(Boolean) || [];
+    data.amount = parseFloat(data.amount) || 0;
 
     res.json(data);
   } catch (error) {
