@@ -41,7 +41,6 @@ import { useAuth } from '../contexts/AuthContext';
 import io from 'socket.io-client';
 
 const { Title, Text } = Typography;
-const { TabPane } = Tabs;
 const { TextArea } = Input;
 const { Option } = Select;
 
@@ -383,9 +382,16 @@ const ContactDetailPage: React.FC = () => {
                 </Button>
               </Form.Item>
             </Form>
-          </TabPane>
-
-          <TabPane tab={<span><FileTextOutlined /> Сообщения</span>} key="messages">
+              ),
+            },
+            {
+              key: 'messages',
+              label: (
+                <span>
+                  <FileTextOutlined /> Сообщения
+                </span>
+              ),
+              children: (
             <div style={{ height: '500px', overflowY: 'auto', padding: '16px', background: '#fafafa', borderRadius: '8px', marginBottom: '16px' }}>
               {messages.length === 0 ? (
                 <Empty description="Нет сообщений" />
@@ -430,9 +436,16 @@ const ContactDetailPage: React.FC = () => {
                 Отправить
               </Button>
             </Space.Compact>
-          </TabPane>
-
-          <TabPane tab={<span><FileTextOutlined /> Сделки</span>} key="deals">
+              ),
+            },
+            {
+              key: 'deals',
+              label: (
+                <span>
+                  <FileTextOutlined /> Сделки
+                </span>
+              ),
+              children: (
             <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
               <Title level={4} style={{ margin: 0 }}>Сделки контакта</Title>
               <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate(`/deals?contact_id=${id}`)}>
@@ -445,9 +458,16 @@ const ContactDetailPage: React.FC = () => {
               rowKey="id"
               pagination={false}
             />
-          </TabPane>
-
-          <TabPane tab={<span><FileTextOutlined /> Заметки</span>} key="notes">
+              ),
+            },
+            {
+              key: 'notes',
+              label: (
+                <span>
+                  <FileTextOutlined /> Заметки
+                </span>
+              ),
+              children: (
             <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
               <Title level={4} style={{ margin: 0 }}>Внутренние заметки</Title>
               <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsNoteModalVisible(true)}>
@@ -487,9 +507,16 @@ const ContactDetailPage: React.FC = () => {
                 );
               }}
             />
-          </TabPane>
-
-          <TabPane tab={<span><TagOutlined /> Теги</span>} key="tags">
+              ),
+            },
+            {
+              key: 'tags',
+              label: (
+                <span>
+                  <TagOutlined /> Теги
+                </span>
+              ),
+              children: (
             <Title level={4}>Теги контакта</Title>
             <Space wrap>
               {contact.tags?.map((tag) => (
@@ -501,13 +528,22 @@ const ContactDetailPage: React.FC = () => {
                 <Text type="secondary">Тегов нет</Text>
               )}
             </Space>
-          </TabPane>
-
-          <TabPane tab={<span><HistoryOutlined /> История</span>} key="history">
+              ),
+            },
+            {
+              key: 'history',
+              label: (
+                <span>
+                  <HistoryOutlined /> История
+                </span>
+              ),
+              children: (
             <Title level={4}>История действий</Title>
             <Empty description="История действий пока не реализована" />
-          </TabPane>
-        </Tabs>
+              ),
+            },
+          ]}
+        />
       </Card>
 
       <Modal
