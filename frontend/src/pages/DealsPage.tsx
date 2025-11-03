@@ -160,6 +160,7 @@ const DealsPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { manager } = useAuth();
   const [deals, setDeals] = useState<Deal[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
