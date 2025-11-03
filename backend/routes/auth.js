@@ -22,8 +22,9 @@ router.post('/register', async (req, res) => {
       .from('managers')
       .insert({
         email,
-        password: hashedPassword,
-        name
+        password_hash: hashedPassword,
+        name,
+        username: email // Используем email как username для совместимости
       })
       .select()
       .single();
@@ -61,7 +62,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Проверяем пароль
-    const validPassword = await bcrypt.compare(password, manager.password);
+    const validPassword = await bcrypt.compare(password, manager.password_hash || manager.password);
     if (!validPassword) {
       return res.status(401).json({ error: 'Неверный email или пароль' });
     }
