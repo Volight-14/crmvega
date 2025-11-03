@@ -58,11 +58,11 @@ const Dashboard: React.FC = () => {
       }
     });
 
-    socketRef.current.on('disconnect', (reason) => {
+    socketRef.current.on('disconnect', (reason: string) => {
       console.log('❌ Disconnected from socket server:', reason);
     });
 
-    socketRef.current.on('connect_error', (error) => {
+    socketRef.current.on('connect_error', (error: Error) => {
       console.error('❌ Socket.IO connection error:', error);
     });
 
