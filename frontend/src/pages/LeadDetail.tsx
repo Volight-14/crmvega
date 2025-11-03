@@ -32,13 +32,13 @@ const LeadDetail: React.FC = () => {
     if (id) {
       fetchLead();
       fetchMessages();
-      setupSocket();
     }
-
-    return () => {
-      socketRef.current?.disconnect();
-    };
   }, [id]);
+
+  useEffect(() => {
+    const cleanup = setupSocket();
+    return cleanup;
+  }, [id, manager]);
 
   useEffect(() => {
     scrollToBottom();

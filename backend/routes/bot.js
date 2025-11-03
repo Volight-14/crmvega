@@ -79,7 +79,7 @@ router.post('/send-message', auth, async (req, res) => {
 });
 
 // Функция для отправки сообщения в CRM
-async function sendMessageToCRM(telegramUserId, content) {
+async function sendMessageToCRM(telegramUserId, content, req = null) {
   try {
     // Проверяем, есть ли заявка для этого пользователя (берем последнюю, независимо от статуса)
     const { data: leads, error: leadError } = await supabase
@@ -120,11 +120,13 @@ async function sendMessageToCRM(telegramUserId, content) {
         .single();
 
       // Отправляем Socket.IO события
-      const io = req.app.get('io');
-      if (io) {
-        io.emit('new_lead', lead);
-        if (savedMessage) {
-          io.to(`lead_${lead.id}`).emit('new_message', savedMessage);
+      if (req) {
+        const io = req.app.get('io');
+        if (io) {
+          io.emit('new_lead', lead);
+          if (savedMessage) {
+            io.to(`lead_${lead.id}`).emit('new_message', savedMessage);
+          }
         }
       }
 
@@ -145,9 +147,11 @@ async function sendMessageToCRM(telegramUserId, content) {
         .single();
 
       // Отправляем Socket.IO событие о новом сообщении
-      const io = req.app.get('io');
-      if (io && savedMessage) {
-        io.to(`lead_${leadId}`).emit('new_message', savedMessage);
+      if (req) {
+        const io = req.app.get('io');
+        if (io && savedMessage) {
+          io.to(`lead_${leadId}`).emit('new_message', savedMessage);
+        }
       }
 
       return leadId;
@@ -176,8 +180,8 @@ router.post('/webhook', async (req, res) => {
         return res.status(200).end();
       }
 
-      // Отправляем сообщение в CRM
-      const leadId = await sendMessageToCRM(telegramUserId, messageText);
+      // Отправляем сообщение в CRM (передаем req для доступа к io)
+      const leadId = await sendMessageToCRM(telegramUserId, messageText, req);
 
       if (leadId) {
         await sendMessageToUser(telegramUserId, 'Ваше сообщение отправлено менеджеру. Ожидайте ответа.');
