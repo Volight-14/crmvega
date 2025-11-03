@@ -7,16 +7,20 @@ require('dotenv').config();
 
 const app = express();
 const server = createServer(app);
+const getAllowedOrigins = () => {
+  const origins = [
+    process.env.FRONTEND_URL,
+    'http://localhost:3000',
+    'https://crmvega.vercel.app'
+  ].filter(Boolean);
+  return origins;
+};
+
 const io = new Server(server, {
   cors: {
-    origin: function (origin, callback) {
+    origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-      const allowedOrigins = [
-        process.env.FRONTEND_URL,
-        'http://localhost:3000',
-        'https://crmvega.vercel.app',
-        'https://*.vercel.app'
-      ].filter(Boolean);
+      const allowedOrigins = getAllowedOrigins();
       if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
         callback(null, true);
       } else {
