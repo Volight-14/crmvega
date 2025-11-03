@@ -3,9 +3,15 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ConfigProvider } from 'antd';
 import ruRU from 'antd/locale/ru_RU';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import MainLayout from './components/MainLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import LeadDetail from './pages/LeadDetail';
+import DealsPage from './pages/DealsPage';
+import ContactsPage from './pages/ContactsPage';
+import AnalyticsPage from './pages/AnalyticsPage';
+import AutomationPage from './pages/AutomationPage';
+import SettingsPage from './pages/SettingsPage';
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { manager, isLoading } = useAuth();
@@ -14,7 +20,7 @@ const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     return <div>Загрузка...</div>;
   }
 
-  return manager ? <>{children}</> : <Navigate to="/login" />;
+  return manager ? <MainLayout>{children}</MainLayout> : <Navigate to="/login" />;
 };
 
 const AppRoutes: React.FC = () => {
@@ -37,7 +43,47 @@ const AppRoutes: React.FC = () => {
           </PrivateRoute>
         }
       />
-      <Route path="/" element={<Navigate to="/dashboard" />} />
+      <Route
+        path="/deals"
+        element={
+          <PrivateRoute>
+            <DealsPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/contacts"
+        element={
+          <PrivateRoute>
+            <ContactsPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/analytics"
+        element={
+          <PrivateRoute>
+            <AnalyticsPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/automation"
+        element={
+          <PrivateRoute>
+            <AutomationPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <PrivateRoute>
+            <SettingsPage />
+          </PrivateRoute>
+        }
+      />
+      <Route path="/" element={<Navigate to="/deals" />} />
     </Routes>
   );
 };
