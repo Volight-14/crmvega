@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Manager, Lead, Message, Contact, ApiResponse } from '../types';
+import { Manager, Lead, Message, Contact, Deal, Note, ApiResponse } from '../types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -89,6 +89,68 @@ export const contactsAPI = {
 
   delete: async (id: number): Promise<void> => {
     await api.delete(`/contacts/${id}`);
+  },
+};
+
+// Deals API
+export const dealsAPI = {
+  getAll: async (params?: { contact_id?: number; status?: string; limit?: number; offset?: number }): Promise<{ deals: Deal[] }> => {
+    const response = await api.get('/deals', { params });
+    return response.data;
+  },
+
+  getById: async (id: number): Promise<Deal> => {
+    const response = await api.get(`/deals/${id}`);
+    return response.data;
+  },
+
+  create: async (deal: Omit<Deal, 'id' | 'created_at' | 'updated_at'>): Promise<Deal> => {
+    const response = await api.post('/deals', deal);
+    return response.data;
+  },
+
+  update: async (id: number, deal: Partial<Deal>): Promise<Deal> => {
+    const response = await api.patch(`/deals/${id}`, deal);
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/deals/${id}`);
+  },
+};
+
+// Notes API
+export const notesAPI = {
+  getByContactId: async (contactId: number): Promise<Note[]> => {
+    const response = await api.get(`/notes/contact/${contactId}`);
+    return response.data;
+  },
+
+  getByDealId: async (dealId: number): Promise<Note[]> => {
+    const response = await api.get(`/notes/deal/${dealId}`);
+    return response.data;
+  },
+
+  create: async (note: Omit<Note, 'id' | 'created_at' | 'updated_at' | 'manager'>): Promise<Note> => {
+    const response = await api.post('/notes', note);
+    return response.data;
+  },
+
+  update: async (id: number, note: Partial<Note>): Promise<Note> => {
+    const response = await api.patch(`/notes/${id}`, note);
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/notes/${id}`);
+  },
+};
+
+// Messages API - расширение для контактов
+export const contactMessagesAPI = {
+  getByContactId: async (contactId: number, params?: { limit?: number; offset?: number }): Promise<Message[]> => {
+    const response = await api.get(`/messages/contact/${contactId}`, { params });
+    return response.data;
   },
 };
 

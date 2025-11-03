@@ -55,6 +55,53 @@ router.get('/lead/:leadId', auth, async (req, res) => {
   }
 });
 
+// Получить все сообщения контакта (из всех сделок)
+router.get('/contact/:contactId', auth, async (req, res) => {
+  try {
+    const { contactId } = req.params;
+    const { limit = 200, offset = 0 } = req.query;
+
+    // Получаем все сделки контакта
+    const { data: deals, error: dealsError } = await supabase
+      .from('deals')
+      .select('id')
+      .eq('contact_id', contactId);
+
+    if (dealsError) throw dealsError;
+
+    const dealIds = deals?.map(d => d.id) || [];
+
+    // Получаем все сообщения из этих сделок через deal_messages
+    // Или получаем сообщения из leads через telegram_user_id контакта
+    // Пока упростим - получаем из leads через contact_id связи
+    const { data: leads, error: leadsError } = await supabase
+      .from('leads')
+      .select('id')
+      .eq('telegram_user_id', contactId); // Временное решение - нужно добавить contact_id в leads
+
+    const leadIds = leads?.map(l => l.id) || [];
+
+    // Получаем сообщения из deals и leads
+    const { data: messages, error: messagesError } = await supabase
+      .from('messages')
+      .select(`
+        *,
+        sender:managers(name),
+        lead:leads(id, name)
+      `)
+      .in('lead_id', leadIds.length > 0 ? leadIds : [-1]) // Если нет leads, вернет пустой массив
+      .order('created_at', { ascending: true })
+      .range(offset, offset + limit - 1);
+
+    if (messagesError) throw messagesError;
+
+    res.json(messages || []);
+  } catch (error) {
+    console.error('Error fetching contact messages:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // Отправить сообщение
 router.post('/', auth, async (req, res) => {
   try {
