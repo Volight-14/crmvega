@@ -3,13 +3,14 @@ import { Card, Typography, Space, Tag, Button, Input, Avatar, Divider, List, mes
 import { ArrowLeftOutlined, SendOutlined, UserOutlined, PhoneOutlined, MailOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
-import type { Socket } from 'socket.io-client';
 import { Lead, Message, LEAD_STATUSES } from '../types';
 import { leadsAPI, messagesAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
+
+type Socket = ReturnType<typeof io>;
 
 const LeadDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
