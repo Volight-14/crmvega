@@ -80,6 +80,11 @@ app.use('/api/deals', require('./routes/deals'));
 app.use('/api/notes', require('./routes/notes'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/automations', require('./routes/automations'));
+app.use('/api/webhook/bubble', require('./routes/bubble'));
+
+// Логирование всех зарегистрированных роутов
+console.log('✅ Routes registered:');
+console.log('  - /api/webhook/bubble');
 
 // Socket.IO для real-time общения
 io.on('connection', (socket) => {

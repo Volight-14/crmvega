@@ -9,8 +9,9 @@ const supabase = createClient(
  * Выполнить автоматизации для триггера
  * @param {string} triggerType - Тип триггера (deal_created, deal_status_changed, etc.)
  * @param {object} entity - Объект сущности (deal, contact, message)
+ * @param {object} options - Дополнительные опции (io для Socket.IO)
  */
-async function runAutomations(triggerType, entity) {
+async function runAutomations(triggerType, entity, options = {}) {
   try {
     // Получаем активные автоматизации для этого триггера
     const { data: automations, error } = await supabase
