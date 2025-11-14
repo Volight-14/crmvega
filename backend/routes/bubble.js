@@ -57,16 +57,8 @@ router.get('/', (req, res) => {
   });
 });
 
-// Применяем проверку токена ко всем POST и PATCH запросам
-router.use((req, res, next) => {
-  if (req.method === 'POST' || req.method === 'PATCH') {
-    return verifyWebhookToken(req, res, next);
-  }
-  next();
-});
-
 // Webhook для создания чата из Bubble
-router.post('/chat', async (req, res) => {
+router.post('/chat', verifyWebhookToken, async (req, res) => {
   try {
     const {
       status,
@@ -163,7 +155,7 @@ router.post('/chat', async (req, res) => {
 });
 
 // Webhook для создания сообщения из Bubble
-router.post('/message', async (req, res) => {
+router.post('/message', verifyWebhookToken, async (req, res) => {
   try {
     const {
       lead_id,
@@ -290,7 +282,7 @@ router.post('/message', async (req, res) => {
 });
 
 // Webhook для обновления чата из Bubble
-router.patch('/chat/:id', async (req, res) => {
+router.patch('/chat/:id', verifyWebhookToken, async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = { ...req.body };
@@ -324,7 +316,7 @@ router.patch('/chat/:id', async (req, res) => {
 });
 
 // Webhook для обновления сообщения из Bubble
-router.patch('/message/:id', async (req, res) => {
+router.patch('/message/:id', verifyWebhookToken, async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = { ...req.body };
