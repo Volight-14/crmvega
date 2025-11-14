@@ -8,7 +8,41 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
-// Тестовый endpoint для проверки
+// Middleware для проверки секретного токена
+const verifyWebhookToken = (req, res, next) => {
+  const token = req.headers['x-webhook-token'] || req.headers['authorization']?.replace('Bearer ', '');
+  const expectedToken = process.env.BUBBLE_WEBHOOK_SECRET;
+
+  if (!expectedToken) {
+    console.error('[Bubble Webhook] BUBBLE_WEBHOOK_SECRET не установлен в переменных окружения');
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Webhook secret not configured' 
+    });
+  }
+
+  if (!token || token !== expectedToken) {
+    console.warn(`[Bubble Webhook] Unauthorized access attempt from ${req.ip}`);
+    return res.status(401).json({ 
+      success: false, 
+      error: 'Unauthorized: Invalid webhook token' 
+    });
+  }
+
+  next();
+};
+
+// Middleware для логирования
+router.use((req, res, next) => {
+  console.log(`[Bubble Webhook] ${req.method} ${req.path}`, {
+    timestamp: new Date().toISOString(),
+    ip: req.ip,
+    hasToken: !!(req.headers['x-webhook-token'] || req.headers['authorization'])
+  });
+  next();
+});
+
+// Тестовый endpoint для проверки (без токена, только для диагностики)
 router.get('/', (req, res) => {
   res.json({ 
     success: true, 
@@ -18,17 +52,16 @@ router.get('/', (req, res) => {
       message: 'POST /api/webhook/bubble/message',
       updateChat: 'PATCH /api/webhook/bubble/chat/:id',
       updateMessage: 'PATCH /api/webhook/bubble/message/:id'
-    }
+    },
+    note: 'All POST/PATCH endpoints require X-Webhook-Token header'
   });
 });
 
-// Middleware для логирования
+// Применяем проверку токена ко всем POST и PATCH запросам
 router.use((req, res, next) => {
-  console.log(`[Bubble Webhook] ${req.method} ${req.path}`, {
-    timestamp: new Date().toISOString(),
-    ip: req.ip,
-    body: req.body
-  });
+  if (req.method === 'POST' || req.method === 'PATCH') {
+    return verifyWebhookToken(req, res, next);
+  }
   next();
 });
 
