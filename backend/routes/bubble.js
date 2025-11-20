@@ -184,10 +184,15 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       });
     }
 
-    if (!author_type || !['manager', 'user'].includes(author_type)) {
+    // Нормализуем author_type перед валидацией (trim + toLowerCase)
+    const normalizedAuthorType = author_type ? String(author_type).trim().toLowerCase() : null;
+    
+    if (!normalizedAuthorType || !['manager', 'user'].includes(normalizedAuthorType)) {
       return res.status(400).json({ 
         success: false, 
-        error: 'author_type is required and must be "manager" or "user"' 
+        error: 'author_type is required and must be "manager" or "user"',
+        received: author_type,
+        normalized: normalizedAuthorType
       });
     }
 
@@ -196,7 +201,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       lead_id: lead_id ? String(lead_id).trim() : null,
       content: content.trim(),
       'Created Date': createdDate || new Date().toISOString(),
-      author_type: author_type.toLowerCase(),
+      author_type: normalizedAuthorType,
       message_type: (message_type || 'text').toLowerCase(),
       message_id_tg: message_id_tg || null,
       timestamp: timestamp || null,
