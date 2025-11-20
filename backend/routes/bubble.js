@@ -184,33 +184,24 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       });
     }
 
-    // Маппинг ролей из Bubble на author_type
-    // Роли менеджеров: Админ, Менеджер, Оператор, Служба заботы, Бот
-    // Роль пользователя: Клиент
-    const managerRoles = ['админ', 'менеджер', 'оператор', 'служба заботы', 'бот'];
-    const userRoles = ['клиент'];
+    // Валидация author_type - принимаем значения из Bubble как есть
+    const allowedAuthorTypes = ['Админ', 'Менеджер', 'Оператор', 'Служба заботы', 'Бот', 'Клиент'];
     
-    // Нормализуем author_type (trim + toLowerCase)
-    const normalizedAuthorType = author_type ? String(author_type).trim().toLowerCase() : null;
-    
-    if (!normalizedAuthorType) {
+    if (!author_type || typeof author_type !== 'string') {
       return res.status(400).json({ 
         success: false, 
-        error: 'author_type is required',
+        error: 'author_type is required and must be a string',
         received: author_type
       });
     }
 
-    // Определяем тип автора на основе роли
-    let mappedAuthorType;
-    if (managerRoles.includes(normalizedAuthorType)) {
-      mappedAuthorType = 'manager';
-    } else if (userRoles.includes(normalizedAuthorType)) {
-      mappedAuthorType = 'user';
-    } else {
+    // Нормализуем (trim, но сохраняем регистр для точного соответствия)
+    const normalizedAuthorType = author_type.trim();
+    
+    if (!allowedAuthorTypes.includes(normalizedAuthorType)) {
       return res.status(400).json({ 
         success: false, 
-        error: `Unknown author_type: "${author_type}". Allowed values: Админ, Менеджер, Оператор, Служба заботы, Бот, Клиент`,
+        error: `Invalid author_type: "${author_type}". Allowed values: ${allowedAuthorTypes.join(', ')}`,
         received: author_type,
         normalized: normalizedAuthorType
       });
@@ -221,7 +212,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       lead_id: lead_id ? String(lead_id).trim() : null,
       content: content.trim(),
       'Created Date': createdDate || new Date().toISOString(),
-      author_type: mappedAuthorType,
+      author_type: normalizedAuthorType,
       message_type: (message_type || 'text').toLowerCase(),
       message_id_tg: message_id_tg || null,
       timestamp: timestamp || null,
