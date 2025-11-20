@@ -184,13 +184,33 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       });
     }
 
-    // Нормализуем author_type перед валидацией (trim + toLowerCase)
+    // Маппинг ролей из Bubble на author_type
+    // Роли менеджеров: Админ, Менеджер, Оператор, Служба заботы, Бот
+    // Роль пользователя: Клиент
+    const managerRoles = ['админ', 'менеджер', 'оператор', 'служба заботы', 'бот'];
+    const userRoles = ['клиент'];
+    
+    // Нормализуем author_type (trim + toLowerCase)
     const normalizedAuthorType = author_type ? String(author_type).trim().toLowerCase() : null;
     
-    if (!normalizedAuthorType || !['manager', 'user'].includes(normalizedAuthorType)) {
+    if (!normalizedAuthorType) {
       return res.status(400).json({ 
         success: false, 
-        error: 'author_type is required and must be "manager" or "user"',
+        error: 'author_type is required',
+        received: author_type
+      });
+    }
+
+    // Определяем тип автора на основе роли
+    let mappedAuthorType;
+    if (managerRoles.includes(normalizedAuthorType)) {
+      mappedAuthorType = 'manager';
+    } else if (userRoles.includes(normalizedAuthorType)) {
+      mappedAuthorType = 'user';
+    } else {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Unknown author_type: "${author_type}". Allowed values: Админ, Менеджер, Оператор, Служба заботы, Бот, Клиент`,
         received: author_type,
         normalized: normalizedAuthorType
       });
@@ -201,7 +221,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       lead_id: lead_id ? String(lead_id).trim() : null,
       content: content.trim(),
       'Created Date': createdDate || new Date().toISOString(),
-      author_type: normalizedAuthorType,
+      author_type: mappedAuthorType,
       message_type: (message_type || 'text').toLowerCase(),
       message_id_tg: message_id_tg || null,
       timestamp: timestamp || null,
