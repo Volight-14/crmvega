@@ -12,24 +12,25 @@ const supabase = createClient(
 const dataset = () => supabase.schema('Dataset');
 
 // ============================================
-// НАСТРОЙКИ AI (public.ai_settings)
+// НАСТРОЙКИ AI (через RPC)
 // ============================================
 
 // Получить все настройки
 router.get('/settings', auth, async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('ai_settings')
-      .select('*')
-      .order('key');
+    const { data, error } = await supabase.rpc('get_agent_config');
 
     if (error) throw error;
 
-    // Преобразуем в объект key: value
-    const settings = {};
-    data.forEach(item => {
-      settings[item.key] = item.value;
-    });
+    // Преобразуем в формат для фронтенда
+    const settings = {
+      model: data?.model || 'anthropic/claude-3.5-sonnet',
+      temperature: data?.temperature || 0.7,
+      max_tokens: data?.max_tokens || 1024,
+      system_prompt: data?.system_prompt || '',
+      auto_suggestions_enabled: data?.auto_suggestions_enabled ?? true,
+      min_delay_seconds: data?.min_delay_seconds || 5
+    };
 
     res.json({ settings, raw: data });
   } catch (error) {
@@ -41,23 +42,42 @@ router.get('/settings', auth, async (req, res) => {
 // Обновить настройку
 router.patch('/settings/:key', auth, async (req, res) => {
   try {
+    // Сначала получаем текущие настройки
+    const { data: current, error: getError } = await supabase.rpc('get_agent_config');
+    if (getError) throw getError;
+
     const { key } = req.params;
     const { value } = req.body;
 
-    const { data, error } = await supabase
-      .from('ai_settings')
-      .update({ 
-        value: value,
-        updated_at: new Date().toISOString(),
-        updated_by: req.manager.id
-      })
-      .eq('key', key)
-      .select()
-      .single();
+    // Обновляем через RPC с текущими значениями + изменённым
+    const params = {
+      p_model: current?.model || 'anthropic/claude-3.5-sonnet',
+      p_temperature: current?.temperature || 0.7,
+      p_max_tokens: current?.max_tokens || 1024,
+      p_system_prompt: current?.system_prompt || '',
+      p_auto_suggestions: current?.auto_suggestions_enabled ?? true,
+      p_min_delay_seconds: current?.min_delay_seconds || 5
+    };
+
+    // Обновляем нужный параметр
+    const keyMap = {
+      model: 'p_model',
+      temperature: 'p_temperature',
+      max_tokens: 'p_max_tokens',
+      system_prompt: 'p_system_prompt',
+      auto_suggestions_enabled: 'p_auto_suggestions',
+      min_delay_seconds: 'p_min_delay_seconds'
+    };
+
+    if (keyMap[key]) {
+      params[keyMap[key]] = value;
+    }
+
+    const { data, error } = await supabase.rpc('update_agent_config', params);
 
     if (error) throw error;
 
-    res.json(data);
+    res.json({ success: true, data });
   } catch (error) {
     console.error('Error updating AI setting:', error);
     res.status(400).json({ error: error.message });
@@ -67,19 +87,16 @@ router.patch('/settings/:key', auth, async (req, res) => {
 // Обновить несколько настроек сразу
 router.post('/settings/batch', auth, async (req, res) => {
   try {
-    const { settings } = req.body; // { key1: value1, key2: value2, ... }
+    const { settings } = req.body;
 
-    const updates = Object.entries(settings).map(([key, value]) => ({
-      key,
-      value,
-      updated_at: new Date().toISOString(),
-      updated_by: req.manager.id
-    }));
-
-    const { data, error } = await supabase
-      .from('ai_settings')
-      .upsert(updates, { onConflict: 'key' })
-      .select();
+    const { data, error } = await supabase.rpc('update_agent_config', {
+      p_model: settings.model || 'anthropic/claude-3.5-sonnet',
+      p_temperature: settings.temperature || 0.7,
+      p_max_tokens: settings.max_tokens || 1024,
+      p_system_prompt: settings.system_prompt || '',
+      p_auto_suggestions: settings.auto_suggestions_enabled ?? true,
+      p_min_delay_seconds: settings.min_delay_seconds || 5
+    });
 
     if (error) throw error;
 
@@ -762,22 +779,13 @@ router.post('/test-suggestion', auth, async (req, res) => {
 // Список доступных моделей OpenRouter
 router.get('/models', auth, async (req, res) => {
   try {
-    // Статический список популярных моделей OpenRouter
     const models = [
       { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', recommended: true },
-      { id: 'anthropic/claude-3-opus', name: 'Claude 3 Opus', provider: 'Anthropic' },
       { id: 'anthropic/claude-3-haiku', name: 'Claude 3 Haiku', provider: 'Anthropic' },
       { id: 'openai/gpt-4o', name: 'GPT-4o', provider: 'OpenAI', recommended: true },
       { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI' },
-      { id: 'openai/gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'OpenAI' },
-      { id: 'google/gemini-pro-1.5', name: 'Gemini Pro 1.5', provider: 'Google' },
-      { id: 'google/gemini-flash-1.5', name: 'Gemini Flash 1.5', provider: 'Google' },
+      { id: 'google/gemini-pro', name: 'Gemini Pro', provider: 'Google' },
       { id: 'meta-llama/llama-3.1-70b-instruct', name: 'Llama 3.1 70B', provider: 'Meta' },
-      { id: 'meta-llama/llama-3.1-8b-instruct', name: 'Llama 3.1 8B', provider: 'Meta' },
-      { id: 'mistralai/mistral-large', name: 'Mistral Large', provider: 'Mistral' },
-      { id: 'mistralai/mixtral-8x7b-instruct', name: 'Mixtral 8x7B', provider: 'Mistral' },
-      { id: 'deepseek/deepseek-chat', name: 'DeepSeek Chat', provider: 'DeepSeek' },
-      { id: 'qwen/qwen-2.5-72b-instruct', name: 'Qwen 2.5 72B', provider: 'Alibaba' },
     ];
 
     res.json({ models });
