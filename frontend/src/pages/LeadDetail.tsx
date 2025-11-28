@@ -108,7 +108,7 @@ const LeadDetail: React.FC = () => {
   const fetchMessages = async () => {
     if (!id) return;
     try {
-      const messagesData = await messagesAPI.getByLeadId(parseInt(id));
+      const messagesData = await messagesAPI.getByLeadId(id!);
       setMessages(messagesData);
     } catch (error) {
       console.error('Error fetching messages:', error);
@@ -121,7 +121,7 @@ const LeadDetail: React.FC = () => {
     setSending(true);
     try {
       await messagesAPI.send({
-        lead_id: parseInt(id),
+        lead_id: id!,
         content: newMessage.trim()
       });
 
@@ -144,7 +144,7 @@ const LeadDetail: React.FC = () => {
     return <div>Загрузка...</div>;
   }
 
-  const statusInfo = LEAD_STATUSES[lead.status];
+  const statusInfo = lead.status && LEAD_STATUSES[lead.status as keyof typeof LEAD_STATUSES] || LEAD_STATUSES.new;
 
   return (
     <div style={{ padding: '24px', height: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -156,7 +156,7 @@ const LeadDetail: React.FC = () => {
               Назад
             </Button>
             <div>
-              <Title level={3} style={{ margin: 0 }}>{lead.name}</Title>
+              <Title level={3} style={{ margin: 0 }}>{lead.name || lead.client || lead.chat_id || `Чат #${lead.id}`}</Title>
               <Space>
                 <Tag color={statusInfo.color}>{statusInfo.label}</Tag>
                 {lead.source && <Text type="secondary">Источник: {lead.source}</Text>}
@@ -173,7 +173,7 @@ const LeadDetail: React.FC = () => {
           <Space direction="vertical" style={{ width: '100%' }}>
             <div>
               <UserOutlined style={{ marginRight: '8px' }} />
-              <Text strong>Имя:</Text> {lead.name}
+              <Text strong>Имя:</Text> {lead.name || lead.client || lead.chat_id || `Чат #${lead.id}`}
             </div>
             {lead.phone && (
               <div>
@@ -196,7 +196,7 @@ const LeadDetail: React.FC = () => {
             )}
             <Divider />
             <div>
-              <Text strong>Создано:</Text> {new Date(lead.created_at).toLocaleString('ru-RU')}
+              <Text strong>Создано:</Text> {new Date(lead['Created Date'] || lead.created_at || '').toLocaleString('ru-RU')}
             </div>
             <div>
               <Text strong>Менеджер:</Text> {lead.manager?.name || 'Не назначен'}
@@ -221,13 +221,13 @@ const LeadDetail: React.FC = () => {
               dataSource={messages}
               renderItem={(msg) => (
                 <List.Item style={{
-                  justifyContent: msg.sender_type === 'manager' ? 'flex-end' : 'flex-start',
+                  justifyContent: (msg.author_type || msg.sender_type) === 'manager' ? 'flex-end' : 'flex-start',
                   padding: '8px 0'
                 }}>
                   <div style={{
                     maxWidth: '70%',
                     display: 'flex',
-                    flexDirection: msg.sender_type === 'manager' ? 'row-reverse' : 'row',
+                    flexDirection: (msg.author_type || msg.sender_type) === 'manager' ? 'row-reverse' : 'row',
                     alignItems: 'flex-start',
                     gap: '8px'
                   }}>
@@ -235,12 +235,12 @@ const LeadDetail: React.FC = () => {
                       size="small"
                       icon={<UserOutlined />}
                       style={{
-                        backgroundColor: msg.sender_type === 'manager' ? '#1890ff' : '#87d068'
+                        backgroundColor: (msg.author_type || msg.sender_type) === 'manager' ? '#1890ff' : '#87d068'
                       }}
                     />
                     <div style={{
-                      background: msg.sender_type === 'manager' ? '#1890ff' : '#f0f0f0',
-                      color: msg.sender_type === 'manager' ? 'white' : 'black',
+                      background: (msg.author_type || msg.sender_type) === 'manager' ? '#1890ff' : '#f0f0f0',
+                      color: (msg.author_type || msg.sender_type) === 'manager' ? 'white' : 'black',
                       padding: '8px 12px',
                       borderRadius: '8px',
                       wordWrap: 'break-word'
@@ -251,7 +251,7 @@ const LeadDetail: React.FC = () => {
                         opacity: 0.7,
                         marginTop: '4px'
                       }}>
-                        {new Date(msg.created_at).toLocaleTimeString('ru-RU', {
+                        {new Date(msg['Created Date'] || msg.created_at || '').toLocaleTimeString('ru-RU', {
                           hour: '2-digit',
                           minute: '2-digit'
                         })}

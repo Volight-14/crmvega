@@ -80,6 +80,7 @@ app.use('/api/deals', require('./routes/deals'));
 app.use('/api/notes', require('./routes/notes'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/automations', require('./routes/automations'));
+app.use('/api/ai', require('./routes/ai'));
 app.use('/api/webhook/bubble', require('./routes/bubble'));
 
 // Логирование всех зарегистрированных роутов

@@ -1,5 +1,9 @@
 import axios from 'axios';
-import { Manager, Lead, Message, Contact, Deal, Note, Automation, ApiResponse } from '../types';
+import { 
+  Manager, Lead, Message, Contact, Deal, Note, Automation, ApiResponse,
+  AISettings, AISettingsRaw, OperatorStyle, KnowledgeArticle, AnswerScript,
+  WebsiteContent, AISuggestion, SuccessfulResponse, AIAnalytics, AIModel
+} from '../types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -29,38 +33,38 @@ export const authAPI = {
   },
 };
 
-// Leads API
+// Chats API (было Leads)
 export const leadsAPI = {
   getAll: async (params?: { status?: string; limit?: number; offset?: number }): Promise<{ leads: Lead[]; total: number }> => {
-    const response = await api.get('/leads', { params });
+    const response = await api.get('/chats', { params });
     return response.data;
   },
 
   getById: async (id: number): Promise<Lead> => {
-    const response = await api.get(`/leads/${id}`);
+    const response = await api.get(`/chats/${id}`);
     return response.data;
   },
 
-  create: async (lead: Omit<Lead, 'id' | 'created_at' | 'updated_at'>): Promise<Lead> => {
-    const response = await api.post('/leads', lead);
+  create: async (lead: Omit<Lead, 'id' | 'Created Date' | 'Modified Date'>): Promise<Lead> => {
+    const response = await api.post('/chats', lead);
     return response.data;
   },
 
-  updateStatus: async (id: number, status: Lead['status'], managerId?: number): Promise<Lead> => {
-    const response = await api.patch(`/leads/${id}/status`, { status, manager_id: managerId });
+  updateStatus: async (id: number, status: string, managerId?: number): Promise<Lead> => {
+    const response = await api.patch(`/chats/${id}/status`, { status, manager_id: managerId });
     return response.data;
   },
 };
 
 // Messages API
 export const messagesAPI = {
-  getByLeadId: async (leadId: number, params?: { limit?: number; offset?: number }): Promise<Message[]> => {
+  getByLeadId: async (leadId: string | number, params?: { limit?: number; offset?: number }): Promise<Message[]> => {
     const response = await api.get(`/messages/lead/${leadId}`, { params });
     return response.data;
   },
 
-  send: async (message: { lead_id: number; content: string; sender_type?: 'manager' | 'user' }): Promise<Message> => {
-    const response = await api.post('/messages', message);
+  send: async (message: { lead_id: string | number; content: string; author_type?: 'manager' | 'user' }): Promise<Message> => {
+    const response = await api.post('/messages', { ...message, sender_type: message.author_type });
     return response.data;
   },
 };
@@ -153,8 +157,8 @@ export const contactMessagesAPI = {
     return response.data;
   },
 
-  sendToContact: async (contactId: number, content: string, sender_type?: 'manager' | 'user'): Promise<Message> => {
-    const response = await api.post(`/messages/contact/${contactId}`, { content, sender_type });
+  sendToContact: async (contactId: number, content: string, author_type?: 'manager' | 'user'): Promise<Message> => {
+    const response = await api.post(`/messages/contact/${contactId}`, { content, sender_type: author_type });
     return response.data;
   },
 };
@@ -200,6 +204,162 @@ export const automationsAPI = {
 
   execute: async (id: number, entityType: string, entityId: number): Promise<void> => {
     await api.post(`/automations/${id}/execute`, { entityType, entityId });
+  },
+};
+
+// AI Agent API
+export const aiAPI = {
+  // Настройки
+  getSettings: async (): Promise<{ settings: AISettings; raw: AISettingsRaw[] }> => {
+    const response = await api.get('/ai/settings');
+    return response.data;
+  },
+
+  updateSetting: async (key: string, value: any): Promise<AISettingsRaw> => {
+    const response = await api.patch(`/ai/settings/${key}`, { value });
+    return response.data;
+  },
+
+  updateSettingsBatch: async (settings: Partial<AISettings>): Promise<void> => {
+    await api.post('/ai/settings/batch', { settings });
+  },
+
+  // Модели
+  getModels: async (): Promise<{ models: AIModel[] }> => {
+    const response = await api.get('/ai/models');
+    return response.data;
+  },
+
+  // Операторы
+  getOperators: async (): Promise<{ operators: OperatorStyle[] }> => {
+    const response = await api.get('/ai/operators');
+    return response.data;
+  },
+
+  getOperator: async (id: number): Promise<OperatorStyle> => {
+    const response = await api.get(`/ai/operators/${id}`);
+    return response.data;
+  },
+
+  createOperator: async (operator: Partial<OperatorStyle>): Promise<OperatorStyle> => {
+    const response = await api.post('/ai/operators', operator);
+    return response.data;
+  },
+
+  updateOperator: async (id: number, operator: Partial<OperatorStyle>): Promise<OperatorStyle> => {
+    const response = await api.patch(`/ai/operators/${id}`, operator);
+    return response.data;
+  },
+
+  deleteOperator: async (id: number): Promise<void> => {
+    await api.delete(`/ai/operators/${id}`);
+  },
+
+  // База знаний
+  getKnowledge: async (params?: { category?: string; search?: string }): Promise<{ articles: KnowledgeArticle[] }> => {
+    const response = await api.get('/ai/knowledge', { params });
+    return response.data;
+  },
+
+  getKnowledgeArticle: async (id: number): Promise<KnowledgeArticle> => {
+    const response = await api.get(`/ai/knowledge/${id}`);
+    return response.data;
+  },
+
+  createKnowledgeArticle: async (article: Partial<KnowledgeArticle>): Promise<KnowledgeArticle> => {
+    const response = await api.post('/ai/knowledge', article);
+    return response.data;
+  },
+
+  updateKnowledgeArticle: async (id: number, article: Partial<KnowledgeArticle>): Promise<KnowledgeArticle> => {
+    const response = await api.patch(`/ai/knowledge/${id}`, article);
+    return response.data;
+  },
+
+  deleteKnowledgeArticle: async (id: number): Promise<void> => {
+    await api.delete(`/ai/knowledge/${id}`);
+  },
+
+  getKnowledgeCategories: async (): Promise<{ categories: string[] }> => {
+    const response = await api.get('/ai/knowledge-categories');
+    return response.data;
+  },
+
+  // Скрипты ответов
+  getScripts: async (params?: { search?: string }): Promise<{ scripts: AnswerScript[] }> => {
+    const response = await api.get('/ai/scripts', { params });
+    return response.data;
+  },
+
+  getScript: async (id: number): Promise<AnswerScript> => {
+    const response = await api.get(`/ai/scripts/${id}`);
+    return response.data;
+  },
+
+  createScript: async (script: Partial<AnswerScript>): Promise<AnswerScript> => {
+    const response = await api.post('/ai/scripts', script);
+    return response.data;
+  },
+
+  updateScript: async (id: number, script: Partial<AnswerScript>): Promise<AnswerScript> => {
+    const response = await api.patch(`/ai/scripts/${id}`, script);
+    return response.data;
+  },
+
+  deleteScript: async (id: number): Promise<void> => {
+    await api.delete(`/ai/scripts/${id}`);
+  },
+
+  // Контент сайта
+  getWebsiteContent: async (params?: { section?: string; search?: string }): Promise<{ content: WebsiteContent[] }> => {
+    const response = await api.get('/ai/website-content', { params });
+    return response.data;
+  },
+
+  getWebsiteContentItem: async (id: number): Promise<WebsiteContent> => {
+    const response = await api.get(`/ai/website-content/${id}`);
+    return response.data;
+  },
+
+  createWebsiteContent: async (content: Partial<WebsiteContent>): Promise<WebsiteContent> => {
+    const response = await api.post('/ai/website-content', content);
+    return response.data;
+  },
+
+  updateWebsiteContent: async (id: number, content: Partial<WebsiteContent>): Promise<WebsiteContent> => {
+    const response = await api.patch(`/ai/website-content/${id}`, content);
+    return response.data;
+  },
+
+  deleteWebsiteContent: async (id: number): Promise<void> => {
+    await api.delete(`/ai/website-content/${id}`);
+  },
+
+  getWebsiteSections: async (): Promise<{ sections: string[] }> => {
+    const response = await api.get('/ai/website-sections');
+    return response.data;
+  },
+
+  // Аналитика
+  getAnalytics: async (): Promise<AIAnalytics> => {
+    const response = await api.get('/ai/analytics');
+    return response.data;
+  },
+
+  getSuggestions: async (params?: { limit?: number; feedback?: string }): Promise<{ suggestions: AISuggestion[] }> => {
+    const response = await api.get('/ai/suggestions', { params });
+    return response.data;
+  },
+
+  getSuccessfulResponses: async (params?: { limit?: number }): Promise<{ responses: SuccessfulResponse[] }> => {
+    const response = await api.get('/ai/successful-responses', { params });
+    return response.data;
+  },
+
+  // Тестирование
+  testSuggestion: async (data: { client_message: string; lead_id?: string; operator_id?: number }): Promise<any> => {
+    const response = await api.post('/ai/test-suggestion', data);
+    return response.data;
   },
 };
 

@@ -110,11 +110,11 @@ const Dashboard: React.FC = () => {
       title: 'Клиент',
       dataIndex: 'name',
       key: 'name',
-      render: (name: string, record: Lead) => (
+      render: (name: string | undefined, record: Lead) => (
         <Space>
           <Avatar icon={<UserOutlined />} />
           <div>
-            <div style={{ fontWeight: 'bold' }}>{name}</div>
+            <div style={{ fontWeight: 'bold' }}>{name || record.client || record.chat_id || `Чат #${record.id}`}</div>
             {record.phone && (
               <div style={{ fontSize: '12px', color: '#666' }}>
                 <PhoneOutlined /> {record.phone}
@@ -125,6 +125,11 @@ const Dashboard: React.FC = () => {
                 <MailOutlined /> {record.email}
               </div>
             )}
+            {record.chat_id && (
+              <div style={{ fontSize: '12px', color: '#666' }}>
+                Chat ID: {record.chat_id}
+              </div>
+            )}
           </div>
         </Space>
       ),
@@ -133,19 +138,19 @@ const Dashboard: React.FC = () => {
       title: 'Источник',
       dataIndex: 'source',
       key: 'source',
-      render: (source: string) => source || 'Не указан',
+      render: (source: string | undefined) => source || 'Не указан',
     },
     {
       title: 'Статус',
       dataIndex: 'status',
       key: 'status',
-      render: (status: Lead['status']) => {
-        const statusInfo = LEAD_STATUSES[status];
+      render: (status: string, record: Lead) => {
+        const statusInfo = status && LEAD_STATUSES[status as keyof typeof LEAD_STATUSES];
         return (
           <Select
-            value={status}
+            value={status || 'new'}
             style={{ width: 140 }}
-            onChange={(value) => handleStatusChange(leads.find(l => l.status === status)?.id!, value)}
+            onChange={(value) => handleStatusChange(record.id, value as any)}
           >
             {Object.entries(LEAD_STATUSES).map(([key, info]) => (
               <Option key={key} value={key}>
@@ -174,9 +179,9 @@ const Dashboard: React.FC = () => {
     },
     {
       title: 'Дата создания',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      render: (date: string) => new Date(date).toLocaleDateString('ru-RU'),
+      dataIndex: 'Created Date',
+      key: 'Created Date',
+      render: (date: string, record: Lead) => new Date(date || record.created_at || '').toLocaleDateString('ru-RU'),
     },
     {
       title: 'Действия',

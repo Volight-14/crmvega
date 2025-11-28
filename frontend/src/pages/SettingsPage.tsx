@@ -27,8 +27,10 @@ import {
   ApiOutlined,
   ExportOutlined,
   KeyOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
+import AISettingsTab from '../components/AISettingsTab';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -233,6 +235,15 @@ const SettingsPage: React.FC = () => {
                   </Space>
                 </div>
               ),
+            },
+            {
+              key: 'ai',
+              label: (
+                <span>
+                  <RobotOutlined /> AI Агент
+                </span>
+              ),
+              children: <AISettingsTab />,
             },
             {
               key: 'users',

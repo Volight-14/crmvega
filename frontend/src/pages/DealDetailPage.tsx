@@ -384,13 +384,13 @@ const DealDetailPage: React.FC = () => {
                   dataSource={messages}
                   renderItem={(msg) => (
                     <List.Item style={{
-                      justifyContent: msg.sender_type === 'manager' ? 'flex-end' : 'flex-start',
+                      justifyContent: (msg.author_type || msg.sender_type) === 'manager' ? 'flex-end' : 'flex-start',
                       padding: '8px 0'
                     }}>
                       <div style={{
                         maxWidth: '70%',
                         display: 'flex',
-                        flexDirection: msg.sender_type === 'manager' ? 'row-reverse' : 'row',
+                        flexDirection: (msg.author_type || msg.sender_type) === 'manager' ? 'row-reverse' : 'row',
                         alignItems: 'flex-start',
                         gap: '8px'
                       }}>
@@ -398,12 +398,12 @@ const DealDetailPage: React.FC = () => {
                           size="small"
                           icon={<UserOutlined />}
                           style={{
-                            backgroundColor: msg.sender_type === 'manager' ? '#1890ff' : '#87d068'
+                            backgroundColor: (msg.author_type || msg.sender_type) === 'manager' ? '#1890ff' : '#87d068'
                           }}
                         />
                         <div style={{
-                          background: msg.sender_type === 'manager' ? '#1890ff' : '#f0f0f0',
-                          color: msg.sender_type === 'manager' ? 'white' : 'black',
+                          background: (msg.author_type || msg.sender_type) === 'manager' ? '#1890ff' : '#f0f0f0',
+                          color: (msg.author_type || msg.sender_type) === 'manager' ? 'white' : 'black',
                           padding: '8px 12px',
                           borderRadius: '8px',
                           wordWrap: 'break-word'
@@ -414,7 +414,7 @@ const DealDetailPage: React.FC = () => {
                             opacity: 0.7,
                             marginTop: '4px'
                           }}>
-                            {new Date(msg.created_at).toLocaleTimeString('ru-RU', {
+                            {new Date(msg['Created Date'] || msg.created_at || '').toLocaleTimeString('ru-RU', {
                               hour: '2-digit',
                               minute: '2-digit'
                             })}

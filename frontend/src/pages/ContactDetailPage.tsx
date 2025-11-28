@@ -412,7 +412,7 @@ const ContactDetailPage: React.FC = () => {
                           style={{
                             marginBottom: '16px',
                             display: 'flex',
-                            justifyContent: msg.sender_type === 'manager' ? 'flex-end' : 'flex-start',
+                            justifyContent: (msg.author_type || msg.sender_type) === 'manager' ? 'flex-end' : 'flex-start',
                           }}
                         >
                           <div
@@ -420,13 +420,13 @@ const ContactDetailPage: React.FC = () => {
                               maxWidth: '70%',
                               padding: '12px',
                               borderRadius: '8px',
-                              background: msg.sender_type === 'manager' ? '#1890ff' : '#f0f0f0',
-                              color: msg.sender_type === 'manager' ? 'white' : 'black',
+                              background: (msg.author_type || msg.sender_type) === 'manager' ? '#1890ff' : '#f0f0f0',
+                              color: (msg.author_type || msg.sender_type) === 'manager' ? 'white' : 'black',
                             }}
                           >
                             <div>{msg.content}</div>
                             <div style={{ fontSize: '12px', opacity: 0.7, marginTop: '4px' }}>
-                              {new Date(msg.created_at).toLocaleString('ru-RU')}
+                              {new Date(msg['Created Date'] || msg.created_at || '').toLocaleString('ru-RU')}
                               {msg.sender?.name && ` • ${msg.sender.name}`}
                               {(msg as any).deal_title && (
                                 <Tag style={{ marginLeft: 8, fontSize: '12px' }}>

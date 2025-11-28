@@ -5,32 +5,59 @@ export interface Manager {
   created_at: string;
 }
 
-export interface Lead {
+export interface Chat {
   id: number;
-  name: string;
+  status?: string;
+  'Created Date'?: string;
+  AMOid_new?: number;
+  lead_id?: string;
+  client?: string;
+  chat_id?: string;
+  amojo_id_client?: string;
+  talk_id?: string;
+  'Modified Date'?: string;
+  'Created By'?: string;
+  messages?: Message[];
+  // Для обратной совместимости
+  name?: string;
   phone?: string;
   email?: string;
   source?: string;
   description?: string;
-  status: 'new' | 'contacted' | 'in_progress' | 'qualified' | 'lost' | 'won';
+  created_at?: string;
+  updated_at?: string;
   manager_id?: number;
   telegram_user_id?: number;
-  created_at: string;
-  updated_at: string;
-  messages?: Message[];
   manager?: Manager;
 }
 
+// Алиас для обратной совместимости
+export type Lead = Chat;
+
 export interface Message {
   id: number;
-  lead_id: number;
-  sender_id: number;
-  sender_type: 'manager' | 'user';
+  lead_id: string;
+  author_type: 'manager' | 'user';
   content: string;
-  message_type: 'text' | 'image' | 'file';
-  telegram_message_id?: number;
-  created_at: string;
+  message_type?: 'text' | 'image' | 'file';
+  message_id_tg?: number | string;
+  timestamp?: number;
+  'Modified Date'?: string;
+  'Created By'?: string;
+  author_amojo_id?: string;
+  message_id_amo?: string;
+  user?: string;
+  reply_to_mess_id_tg?: number | string;
+  caption?: string;
+  conversation_id?: string;
+  order_status?: string;
+  'Created Date'?: string;
+  created_at?: string;
   sender?: Manager;
+  // Для обратной совместимости
+  sender_type?: 'manager' | 'user';
+  sender_id?: number;
+  telegram_message_id?: number;
 }
 
 export interface AuthContextType {
@@ -170,3 +197,123 @@ export const ACTION_TYPES = {
   send_notification: { label: 'Отправить уведомление', icon: '🔔' },
   send_email: { label: 'Отправить email', icon: '📧' },
 } as const;
+
+// ============================================
+// AI AGENT TYPES
+// ============================================
+
+export interface AISettings {
+  model: string;
+  temperature: number;
+  max_tokens: number;
+  system_prompt: string;
+  auto_suggestions_enabled: boolean;
+  min_delay_seconds: number;
+}
+
+export interface AISettingsRaw {
+  id: number;
+  key: string;
+  value: any;
+  description?: string;
+  updated_at: string;
+  updated_by?: number;
+}
+
+export interface OperatorStyle {
+  id: number;
+  operator_id: string;
+  operator_name: string;
+  telegram_user_id?: number;
+  role?: string;
+  style_data: {
+    summary?: string;
+    tone?: string;
+    patterns?: string;
+    phrases?: string;
+    [key: string]: any;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KnowledgeArticle {
+  id: number;
+  title?: string;
+  category?: string;
+  subcategory?: string;
+  content?: string;
+  priority?: string;
+  status?: string;
+  tags?: string;
+  target_audience?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AnswerScript {
+  id: number;
+  question_number?: number;
+  question?: string;
+  answer?: string;
+  note?: string;
+  created_at: string;
+}
+
+export interface WebsiteContent {
+  id: number;
+  title?: string;
+  content?: string;
+  section?: string;
+  created_at: string;
+}
+
+export interface AISuggestion {
+  id: number;
+  lead_id: string;
+  message_id?: number;
+  operator_id: string;
+  client_message: string;
+  suggested_response: string;
+  context_summary?: string;
+  knowledge_used?: any;
+  qc_issues?: any;
+  feedback?: string;
+  sent_to_telegram: boolean;
+  sent_at?: string;
+  operator_used: boolean;
+  created_at: string;
+}
+
+export interface SuccessfulResponse {
+  id: number;
+  lead_id?: string;
+  client_message: string;
+  operator_response: string;
+  operator_id?: number;
+  operator_name?: string;
+  source?: string;
+  original_suggestion_id?: number;
+  feedback_type?: string;
+  created_at: string;
+}
+
+export interface AIAnalytics {
+  total: number;
+  sent: number;
+  feedbackStats: {
+    good: number;
+    bad: number;
+    edited: number;
+    no_feedback: number;
+  };
+  dailyStats: Array<{ date: string; count: number }>;
+  successfulResponsesCount: number;
+}
+
+export interface AIModel {
+  id: string;
+  name: string;
+  provider: string;
+  recommended?: boolean;
+}
