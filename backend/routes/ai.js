@@ -8,8 +8,11 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
+// Хелпер для работы со схемой Dataset
+const dataset = () => supabase.schema('Dataset');
+
 // ============================================
-// НАСТРОЙКИ AI
+// НАСТРОЙКИ AI (public.ai_settings)
 // ============================================
 
 // Получить все настройки
@@ -94,7 +97,7 @@ router.post('/settings/batch', auth, async (req, res) => {
 // Получить всех операторов
 router.get('/operators', auth, async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await dataset()
       .from('operator_styles')
       .select('*')
       .order('operator_name');
@@ -113,7 +116,7 @@ router.get('/operators/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data, error } = await supabase
+    const { data, error } = await dataset()
       .from('operator_styles')
       .select('*')
       .eq('id', id)
@@ -139,7 +142,7 @@ router.post('/operators', auth, async (req, res) => {
       style_data
     } = req.body;
 
-    const { data, error } = await supabase
+    const { data, error } = await dataset()
       .from('operator_styles')
       .insert({
         operator_name,
@@ -166,7 +169,7 @@ router.patch('/operators/:id', auth, async (req, res) => {
     const { id } = req.params;
     const updateData = { ...req.body, updated_at: new Date().toISOString() };
 
-    const { data, error } = await supabase
+    const { data, error } = await dataset()
       .from('operator_styles')
       .update(updateData)
       .eq('id', id)
@@ -187,7 +190,7 @@ router.delete('/operators/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { error } = await supabase
+    const { error } = await dataset()
       .from('operator_styles')
       .delete()
       .eq('id', id);
@@ -210,7 +213,7 @@ router.get('/knowledge', auth, async (req, res) => {
   try {
     const { category, search, limit = 100 } = req.query;
 
-    let query = supabase
+    let query = dataset()
       .from('knowledge_base')
       .select('id, title, category, subcategory, content, priority, status, tags, created_at, updated_at')
       .order('created_at', { ascending: false })
@@ -240,7 +243,7 @@ router.get('/knowledge/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data, error } = await supabase
+    const { data, error } = await dataset()
       .from('knowledge_base')
       .select('*')
       .eq('id', id)
@@ -268,7 +271,7 @@ router.post('/knowledge', auth, async (req, res) => {
       tags
     } = req.body;
 
-    const { data, error } = await supabase
+    const { data, error } = await dataset()
       .from('knowledge_base')
       .insert({
         title,
@@ -303,7 +306,7 @@ router.patch('/knowledge/:id', auth, async (req, res) => {
       updated_at: new Date().toISOString()
     };
 
-    const { data, error } = await supabase
+    const { data, error } = await dataset()
       .from('knowledge_base')
       .update(updateData)
       .eq('id', id)
@@ -324,7 +327,7 @@ router.delete('/knowledge/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { error } = await supabase
+    const { error } = await dataset()
       .from('knowledge_base')
       .delete()
       .eq('id', id);
@@ -341,7 +344,7 @@ router.delete('/knowledge/:id', auth, async (req, res) => {
 // Получить категории базы знаний
 router.get('/knowledge-categories', auth, async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await dataset()
       .from('knowledge_base')
       .select('category')
       .not('category', 'is', null);
@@ -365,7 +368,7 @@ router.get('/scripts', auth, async (req, res) => {
   try {
     const { search, limit = 100 } = req.query;
 
-    let query = supabase
+    let query = dataset()
       .from('answer_scripts')
       .select('id, question_number, question, answer, note, created_at')
       .order('question_number');
@@ -394,7 +397,7 @@ router.get('/scripts/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data, error } = await supabase
+    const { data, error } = await dataset()
       .from('answer_scripts')
       .select('*')
       .eq('id', id)
@@ -414,7 +417,7 @@ router.post('/scripts', auth, async (req, res) => {
   try {
     const { question_number, question, answer, note } = req.body;
 
-    const { data, error } = await supabase
+    const { data, error } = await dataset()
       .from('answer_scripts')
       .insert({
         question_number,
@@ -439,7 +442,7 @@ router.patch('/scripts/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data, error } = await supabase
+    const { data, error } = await dataset()
       .from('answer_scripts')
       .update(req.body)
       .eq('id', id)
@@ -460,7 +463,7 @@ router.delete('/scripts/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { error } = await supabase
+    const { error } = await dataset()
       .from('answer_scripts')
       .delete()
       .eq('id', id);
@@ -483,7 +486,7 @@ router.get('/website-content', auth, async (req, res) => {
   try {
     const { section, search } = req.query;
 
-    let query = supabase
+    let query = dataset()
       .from('website_content')
       .select('id, title, content, section, created_at')
       .order('created_at', { ascending: false });
@@ -512,7 +515,7 @@ router.get('/website-content/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data, error } = await supabase
+    const { data, error } = await dataset()
       .from('website_content')
       .select('*')
       .eq('id', id)
@@ -532,7 +535,7 @@ router.post('/website-content', auth, async (req, res) => {
   try {
     const { title, content, section } = req.body;
 
-    const { data, error } = await supabase
+    const { data, error } = await dataset()
       .from('website_content')
       .insert({ title, content, section })
       .select()
@@ -552,7 +555,7 @@ router.patch('/website-content/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data, error } = await supabase
+    const { data, error } = await dataset()
       .from('website_content')
       .update(req.body)
       .eq('id', id)
@@ -573,7 +576,7 @@ router.delete('/website-content/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { error } = await supabase
+    const { error } = await dataset()
       .from('website_content')
       .delete()
       .eq('id', id);
@@ -590,7 +593,7 @@ router.delete('/website-content/:id', auth, async (req, res) => {
 // Получить секции контента
 router.get('/website-sections', auth, async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await dataset()
       .from('website_content')
       .select('section')
       .not('section', 'is', null);
@@ -613,14 +616,14 @@ router.get('/website-sections', auth, async (req, res) => {
 router.get('/analytics', auth, async (req, res) => {
   try {
     // Общая статистика
-    const { data: suggestions, error: sugError } = await supabase
+    const { data: suggestions, error: sugError } = await dataset()
       .from('ai_suggestions')
       .select('id, feedback, sent_to_telegram, created_at');
 
     if (sugError) throw sugError;
 
     // Успешные ответы
-    const { data: successfulResponses, error: srError } = await supabase
+    const { data: successfulResponses, error: srError } = await dataset()
       .from('successful_responses')
       .select('id, feedback_type, created_at');
 
@@ -668,7 +671,7 @@ router.get('/suggestions', auth, async (req, res) => {
   try {
     const { limit = 20, feedback } = req.query;
 
-    let query = supabase
+    let query = dataset()
       .from('ai_suggestions')
       .select('*')
       .order('created_at', { ascending: false })
@@ -694,7 +697,7 @@ router.get('/successful-responses', auth, async (req, res) => {
   try {
     const { limit = 50 } = req.query;
 
-    const { data, error } = await supabase
+    const { data, error } = await dataset()
       .from('successful_responses')
       .select('*')
       .order('created_at', { ascending: false })
@@ -785,4 +788,3 @@ router.get('/models', auth, async (req, res) => {
 });
 
 module.exports = router;
-
