@@ -97,6 +97,7 @@ const Dashboard: React.FC = () => {
   }, [manager, statusFilter]);
 
   const handleStatusChange = async (leadId: number, newStatus: Lead['status']) => {
+    if (!newStatus) return;
     try {
       await leadsAPI.updateStatus(leadId, newStatus);
       fetchLeads(); // Перезагрузить список
