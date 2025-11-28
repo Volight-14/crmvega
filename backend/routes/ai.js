@@ -1,5 +1,6 @@
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
+const axios = require('axios');
 const auth = require('../middleware/auth');
 
 const router = express.Router();
@@ -22,17 +23,20 @@ router.get('/settings', auth, async (req, res) => {
 
     if (error) throw error;
 
+    // RPC возвращает данные — берём напрямую или из вложенного объекта
+    const config = data || {};
+
     // Преобразуем в формат для фронтенда
     const settings = {
-      model: data?.model || 'anthropic/claude-3.5-sonnet',
-      temperature: data?.temperature || 0.7,
-      max_tokens: data?.max_tokens || 1024,
-      system_prompt: data?.system_prompt || '',
-      auto_suggestions_enabled: data?.auto_suggestions_enabled ?? true,
-      min_delay_seconds: data?.min_delay_seconds || 5
+      model: config.model || 'anthropic/claude-3.5-sonnet',
+      temperature: config.temperature || 0.7,
+      max_tokens: config.max_tokens || 1024,
+      system_prompt: config.system_prompt || '',
+      auto_suggestions_enabled: config.auto_suggestions ?? true,
+      min_delay_seconds: config.min_delay_seconds || 5
     };
 
-    res.json({ settings, raw: data });
+    res.json({ settings, raw: config });
   } catch (error) {
     console.error('Error fetching AI settings:', error);
     res.status(400).json({ error: error.message });
@@ -89,17 +93,20 @@ router.post('/settings/batch', auth, async (req, res) => {
   try {
     const { settings } = req.body;
 
+    console.log('[AI Settings] Updating config:', settings);
+
     const { data, error } = await supabase.rpc('update_agent_config', {
       p_model: settings.model || 'anthropic/claude-3.5-sonnet',
-      p_temperature: settings.temperature || 0.7,
-      p_max_tokens: settings.max_tokens || 1024,
+      p_temperature: parseFloat(settings.temperature) || 0.7,
+      p_max_tokens: parseInt(settings.max_tokens) || 1024,
       p_system_prompt: settings.system_prompt || '',
       p_auto_suggestions: settings.auto_suggestions_enabled ?? true,
-      p_min_delay_seconds: settings.min_delay_seconds || 5
+      p_min_delay_seconds: parseInt(settings.min_delay_seconds) || 5
     });
 
     if (error) throw error;
 
+    console.log('[AI Settings] Config updated successfully');
     res.json({ success: true, data });
   } catch (error) {
     console.error('Error batch updating AI settings:', error);
@@ -733,46 +740,77 @@ router.get('/successful-responses', auth, async (req, res) => {
 // ТЕСТИРОВАНИЕ AI (вызов Edge Function)
 // ============================================
 
-// Тестовая генерация подсказки
+// Тестовая генерация подсказки (прямой вызов OpenRouter)
 router.post('/test-suggestion', auth, async (req, res) => {
   try {
-    const { client_message, lead_id, operator_id } = req.body;
+    const { client_message, operator_id } = req.body;
 
     if (!client_message) {
       return res.status(400).json({ error: 'client_message is required' });
     }
 
-    // Вызываем Edge Function напрямую
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const response = await fetch(`${supabaseUrl}/functions/v1/on-new-message`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY}`
-      },
-      body: JSON.stringify({
-        type: 'INSERT',
-        record: {
-          lead_id: lead_id || 'test_' + Date.now(),
-          author_type: 'Клиент',
-          content: client_message,
-          timestamp: Math.floor(Date.now() / 1000),
-          telegram_user_id: operator_id
-        },
-        test_mode: true // Флаг для тестового режима
-      })
-    });
+    // Получаем конфиг
+    const { data: config, error: configError } = await supabase.rpc('get_agent_config');
+    if (configError) throw configError;
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Edge function error: ${errorText}`);
+    const model = config?.model || 'openai/gpt-4o-mini';
+    const temperature = config?.temperature || 0.7;
+    const max_tokens = config?.max_tokens || 500;
+    const system_prompt = config?.system_prompt || 'Ты — AI-помощник оператора службы поддержки.';
+
+    console.log('[Test Suggestion] Config:', { model, temperature, max_tokens });
+
+    // Получаем стиль оператора если указан
+    let styleInfo = '';
+    if (operator_id) {
+      const { data: styleData } = await dataset()
+        .from('operator_styles')
+        .select('operator_name, style_data')
+        .eq('telegram_user_id', operator_id)
+        .single();
+      
+      if (styleData) {
+        const s = styleData.style_data || {};
+        styleInfo = `\n\nСтиль оператора ${styleData.operator_name}:\nТон: ${s.tone || 'профессиональный'}\nПаттерны: ${s.patterns || ''}\nФразы: ${s.phrases || ''}`;
+      }
     }
 
-    const result = await response.json();
-    res.json(result);
+    // Генерируем ответ через OpenRouter
+    const openrouterKey = process.env.OPENROUTER_API_KEY;
+    if (!openrouterKey) {
+      return res.status(500).json({ error: 'OPENROUTER_API_KEY not configured' });
+    }
+
+    console.log('[Test Suggestion] Calling OpenRouter with model:', model);
+
+    const orResponse = await axios.post('https://openrouter.ai/api/v1/chat/completions', {
+      model: model,
+      messages: [
+        { role: 'system', content: system_prompt + styleInfo },
+        { role: 'user', content: `Сообщение клиента: ${client_message}\n\nПредложи ответ:` }
+      ],
+      max_tokens: max_tokens,
+      temperature: temperature
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${openrouterKey}`
+      }
+    });
+
+    const suggestion = orResponse.data?.choices?.[0]?.message?.content || '';
+
+    console.log('[Test Suggestion] Generated suggestion:', suggestion.substring(0, 100) + '...');
+
+    res.json({
+      success: true,
+      suggested_response: suggestion,
+      config_used: { model, temperature, max_tokens },
+      client_message: client_message
+    });
   } catch (error) {
-    console.error('Error testing suggestion:', error);
-    res.status(400).json({ error: error.message });
+    console.error('Error testing suggestion:', error.response?.data || error.message);
+    res.status(400).json({ error: error.response?.data?.error?.message || error.message });
   }
 });
 
