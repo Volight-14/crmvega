@@ -14,6 +14,7 @@ import DealDetailPage from './pages/DealDetailPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import AutomationPage from './pages/AutomationPage';
 import SettingsPage from './pages/SettingsPage';
+import AIAgentPage from './pages/AIAgentPage';
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { manager, isLoading } = useAuth();
@@ -98,6 +99,14 @@ const AppRoutes: React.FC = () => {
         element={
           <PrivateRoute>
             <SettingsPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/ai-agent"
+        element={
+          <PrivateRoute>
+            <AIAgentPage />
           </PrivateRoute>
         }
       />

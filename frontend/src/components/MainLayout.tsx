@@ -51,6 +51,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       label: 'Автоматизация',
     },
     {
+      key: '/ai-agent',
+      icon: <RobotOutlined style={{ color: '#52c41a' }} />,
+      label: 'AI Агент',
+    },
+    {
       key: '/settings',
       icon: <SettingOutlined />,
       label: 'Настройки',
