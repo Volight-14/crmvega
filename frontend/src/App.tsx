@@ -15,6 +15,7 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import AutomationPage from './pages/AutomationPage';
 import SettingsPage from './pages/SettingsPage';
 import AIAgentPage from './pages/AIAgentPage';
+import ResetPassword from './pages/ResetPassword';
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { manager, isLoading } = useAuth();
@@ -30,6 +31,7 @@ const AppRoutes: React.FC = () => {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route
         path="/dashboard"
         element={

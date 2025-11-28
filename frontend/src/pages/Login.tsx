@@ -3,6 +3,7 @@ import { Form, Input, Button, Card, message, Tabs, Modal, Alert, Typography, Spa
 import { UserOutlined, LockOutlined, MailOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { authAPI } from '../services/api';
 
 const { TabPane } = Tabs;
 const { Text, Title } = Typography;
@@ -79,16 +80,11 @@ const Login: React.FC = () => {
   const handleResetPassword = async (values: { email: string }) => {
     setResetLoading(true);
     try {
-      // TODO: Реализовать API для сброса пароля
-      // await authAPI.resetPassword(values.email);
-      
-      // Пока просто имитируем отправку
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
+      await authAPI.forgotPassword(values.email);
       setResetSent(true);
       message.success('Инструкции отправлены на указанный email');
     } catch (error: any) {
-      message.error('Не удалось отправить инструкции. Проверьте email.');
+      message.error(error.response?.data?.error || 'Не удалось отправить инструкции');
     } finally {
       setResetLoading(false);
     }
