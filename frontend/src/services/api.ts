@@ -21,6 +21,24 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Автоматический logout при 401 (невалидный/просроченный токен)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Токен невалидный или просрочен — разлогиниваем
+      const currentPath = window.location.pathname;
+      // Не редиректим если уже на странице логина или сброса пароля
+      if (!currentPath.includes('/login') && !currentPath.includes('/reset-password')) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('manager');
+        window.location.href = '/login?expired=1';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Auth API
 export const authAPI = {
   login: async (email: string, password: string): Promise<{ token: string; manager: Manager }> => {

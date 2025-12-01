@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Form, Input, Button, Card, message, Tabs, Modal, Alert, Typography, Space, Divider } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authAPI } from '../services/api';
 
 const { TabPane } = Tabs;
@@ -14,9 +14,21 @@ const Login: React.FC = () => {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [resetForm] = Form.useForm();
   const { login, register } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Проверяем если пришли с expired=1 (сессия истекла)
+  useEffect(() => {
+    if (searchParams.get('expired') === '1') {
+      setSessionExpired(true);
+      message.warning('Сессия истекла. Войдите снова.');
+      // Убираем параметр из URL
+      window.history.replaceState({}, '', '/login');
+    }
+  }, [searchParams]);
 
   const getErrorMessage = (error: any): string => {
     const serverError = error.response?.data?.error;
@@ -115,6 +127,18 @@ const Login: React.FC = () => {
           <Title level={3} style={{ margin: 0, color: '#1890ff' }}>MINI CRM</Title>
           <Text type="secondary">Система управления клиентами</Text>
         </div>
+
+        {sessionExpired && (
+          <Alert
+            message="Сессия истекла"
+            description="Ваша сессия завершилась. Пожалуйста, войдите снова."
+            type="warning"
+            showIcon
+            closable
+            onClose={() => setSessionExpired(false)}
+            style={{ marginBottom: 16 }}
+          />
+        )}
 
         {loginError && (
           <Alert
