@@ -44,8 +44,10 @@ import {
   ThunderboltOutlined,
   CopyOutlined,
   SafetyOutlined,
+  LineChartOutlined,
 } from '@ant-design/icons';
 import AIInstructionsTab from './AIInstructionsTab';
+import PromptAnalyticsDashboard from './PromptAnalyticsDashboard';
 import { aiAPI } from '../services/api';
 import {
   AISettings,
@@ -1253,6 +1255,15 @@ const AISettingsTab: React.FC = () => {
               </span>
             ),
             children: <AIAnalyticsPanel />,
+          },
+          {
+            key: 'prompt-analytics',
+            label: (
+              <span>
+                <LineChartOutlined /> Качество подсказок
+              </span>
+            ),
+            children: <PromptAnalyticsDashboard />,
           },
           {
             key: 'testing',

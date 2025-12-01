@@ -451,6 +451,59 @@ export const aiAPI = {
     const response = await api.get('/ai/instructions-categories');
     return response.data;
   },
+
+  // ============================================
+  // АНАЛИТИКА КОРРЕКТИРОВОК
+  // ============================================
+
+  // Получить аналитику корректировок промптов
+  getPromptAnalytics: async (params?: { days?: number }): Promise<{
+    current: {
+      date: string;
+      edit_rate: number;
+      acceptance_rate: number;
+      total_suggestions: number;
+      used_suggestions: number;
+      edited_suggestions: number;
+      avg_similarity: number;
+      edit_type_distribution: Record<string, number>;
+    };
+    target: {
+      edit_rate: number;
+      met: boolean;
+      gap: number;
+    };
+    trend: Array<{ date: string; edit_rate: number; acceptance_rate: number; total: number }>;
+    recommendations: string;
+    daily_stats: any[];
+  }> => {
+    const response = await api.get('/ai/prompt-analytics', { params });
+    return response.data;
+  },
+
+  // Получить рекомендации по улучшению
+  getPromptImprovements: async (params?: { status?: string; limit?: number }): Promise<{ improvements: any[] }> => {
+    const response = await api.get('/ai/prompt-improvements', { params });
+    return response.data;
+  },
+
+  // Обновить статус рекомендации
+  updatePromptImprovement: async (id: number, data: { status: string }): Promise<any> => {
+    const response = await api.patch(`/ai/prompt-improvements/${id}`, data);
+    return response.data;
+  },
+
+  // Запустить анализ вручную
+  runDailyAnalysis: async (date?: string): Promise<any> => {
+    const response = await api.post('/ai/run-daily-analysis', { date });
+    return response.data;
+  },
+
+  // Получить примеры корректировок
+  getEditExamples: async (params?: { limit?: number; edit_type?: string }): Promise<{ examples: any[] }> => {
+    const response = await api.get('/ai/edit-examples', { params });
+    return response.data;
+  },
 };
 
 export default api;

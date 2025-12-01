@@ -1165,4 +1165,209 @@ function canDeleteInstruction(role, level, userId = null, createdBy = null) {
   return false;
 }
 
+// ============================================
+// АНАЛИТИКА КОРРЕКТИРОВОК ПРОМПТОВ
+// ============================================
+
+// Получить статистику корректировок за период
+router.get('/prompt-analytics', auth, async (req, res) => {
+  try {
+    const { days = 30 } = req.query;
+
+    // Общая статистика за период
+    const { data: dailyStats, error: statsError } = await dataset()
+      .from('prompt_analysis')
+      .select('*')
+      .order('analysis_date', { ascending: false })
+      .limit(days);
+
+    if (statsError) throw statsError;
+
+    // Текущие показатели (последний анализ)
+    const latest = dailyStats?.[0] || {};
+    
+    // Тренд edit_rate за период
+    const editRateTrend = dailyStats
+      ?.filter(d => d.edit_rate !== null)
+      .map(d => ({
+        date: d.analysis_date,
+        edit_rate: d.edit_rate,
+        acceptance_rate: d.acceptance_rate,
+        total: d.total_suggestions
+      }))
+      .reverse() || [];
+
+    // Цель
+    const targetEditRate = 0.05; // 5%
+    const currentEditRate = latest.edit_rate || 0;
+    const targetMet = currentEditRate <= targetEditRate;
+
+    res.json({
+      current: {
+        date: latest.analysis_date,
+        edit_rate: latest.edit_rate,
+        acceptance_rate: latest.acceptance_rate,
+        total_suggestions: latest.total_suggestions,
+        used_suggestions: latest.used_suggestions,
+        edited_suggestions: latest.edited_suggestions,
+        avg_similarity: latest.avg_similarity_score,
+        edit_type_distribution: latest.edit_type_distribution
+      },
+      target: {
+        edit_rate: targetEditRate,
+        met: targetMet,
+        gap: Math.max(0, currentEditRate - targetEditRate)
+      },
+      trend: editRateTrend,
+      recommendations: latest.ai_recommendations,
+      daily_stats: dailyStats
+    });
+  } catch (error) {
+    console.error('Error fetching prompt analytics:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Получить рекомендации по улучшению промптов
+router.get('/prompt-improvements', auth, async (req, res) => {
+  try {
+    const { status = 'pending', limit = 20 } = req.query;
+
+    let query = dataset()
+      .from('prompt_improvements')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (status !== 'all') {
+      query = query.eq('status', status);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    res.json({ improvements: data });
+  } catch (error) {
+    console.error('Error fetching prompt improvements:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Применить/отклонить рекомендацию
+router.patch('/prompt-improvements/:id', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const userId = req.manager.id;
+
+    const updateData = {
+      status,
+      ...(status === 'applied' && { 
+        applied_at: new Date().toISOString(),
+        applied_by: userId
+      })
+    };
+
+    const { data, error } = await dataset()
+      .from('prompt_improvements')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json(data);
+  } catch (error) {
+    console.error('Error updating prompt improvement:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Запустить ежедневный анализ вручную
+router.post('/run-daily-analysis', auth, async (req, res) => {
+  try {
+    const { date } = req.body;
+    
+    // Вызываем Edge Function
+    const response = await axios.post(
+      `${process.env.SUPABASE_URL}/functions/v1/daily-prompt-analysis`,
+      { date },
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error('Error running daily analysis:', error.response?.data || error.message);
+    res.status(400).json({ error: error.response?.data?.error || error.message });
+  }
+});
+
+// Получить примеры корректировок для обучения
+router.get('/edit-examples', auth, async (req, res) => {
+  try {
+    const { limit = 50, edit_type } = req.query;
+
+    let query = dataset()
+      .from('ai_suggestions')
+      .select('id, lead_id, client_message, suggested_response, actual_response, similarity_score, edit_type, created_at')
+      .not('actual_response', 'is', null)
+      .eq('was_edited', true)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (edit_type) {
+      query = query.eq('edit_type', edit_type);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    res.json({ examples: data });
+  } catch (error) {
+    console.error('Error fetching edit examples:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Трекинг ответа оператора (вызывается из messages route)
+router.post('/track-response', auth, async (req, res) => {
+  try {
+    const { lead_id, content, author_type, timestamp } = req.body;
+
+    // Вызываем Edge Function
+    const response = await axios.post(
+      `${process.env.SUPABASE_URL}/functions/v1/track-operator-response`,
+      {
+        type: 'INSERT',
+        record: {
+          lead_id,
+          content,
+          author_type,
+          timestamp
+        }
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error('Error tracking response:', error.response?.data || error.message);
+    // Не падаем с ошибкой — это фоновая операция
+    res.json({ tracked: false, error: error.message });
+  }
+});
+
 module.exports = router;

@@ -31,6 +31,40 @@ async function sendMessageToTelegram(telegramUserId, message) {
   }
 }
 
+// Функция для отслеживания ответа оператора (сравнение с AI подсказкой)
+async function trackOperatorResponse(leadId, content) {
+  try {
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+      return;
+    }
+
+    await axios.post(
+      `${process.env.SUPABASE_URL}/functions/v1/track-operator-response`,
+      {
+        type: 'INSERT',
+        record: {
+          lead_id: leadId,
+          content: content,
+          author_type: 'Оператор',
+          timestamp: Math.floor(Date.now() / 1000)
+        }
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 5000 // 5 секунд таймаут, не блокируем основной запрос
+      }
+    );
+
+    console.log(`[TrackResponse] Tracked operator response for lead ${leadId}`);
+  } catch (error) {
+    // Не критичная ошибка - просто логируем
+    console.error('Error tracking operator response:', error.message);
+  }
+}
+
 // Получить сообщения для заявки
 router.get('/lead/:leadId', auth, async (req, res) => {
   try {
@@ -279,7 +313,7 @@ router.post('/contact/:contactId', auth, async (req, res) => {
       });
     }
 
-    // Если сообщение от менеджера, отправляем через Telegram бота
+    // Если сообщение от менеджера, отправляем через Telegram бота и трекаем
     if (sender_type === 'manager' && leadId) {
       // Получаем информацию о заявке для отправки в Telegram
       const { data: lead, error: leadError } = await supabase
@@ -294,6 +328,11 @@ router.post('/contact/:contactId', auth, async (req, res) => {
           console.error('Failed to send message via bot:', err);
         });
       }
+
+      // Трекаем ответ для аналитики AI
+      trackOperatorResponse(leadId, content).catch(err => {
+        console.error('Failed to track operator response:', err);
+      });
     }
 
     // Отправляем Socket.IO событие
@@ -344,7 +383,7 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
-    // Если сообщение от менеджера, отправляем через бота
+    // Если сообщение от менеджера, отправляем через бота и трекаем для AI аналитики
     if (sender_type === 'manager') {
       // Получаем информацию о заявке
       const { data: lead, error: leadError } = await supabase
@@ -359,6 +398,11 @@ router.post('/', auth, async (req, res) => {
           console.error('Failed to send message via bot:', err);
         });
       }
+
+      // Трекаем ответ для аналитики AI (сравнение с подсказкой)
+      trackOperatorResponse(lead_id, content).catch(err => {
+        console.error('Failed to track operator response:', err);
+      });
     }
 
     // Отправляем событие о новом сообщении через Socket.IO
