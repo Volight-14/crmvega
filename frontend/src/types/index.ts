@@ -1,7 +1,10 @@
+export type ManagerRole = 'admin' | 'manager' | 'operator';
+
 export interface Manager {
   id: number;
   email: string;
   name: string;
+  role?: ManagerRole;
   created_at: string;
 }
 
@@ -317,3 +320,50 @@ export interface AIModel {
   provider: string;
   recommended?: boolean;
 }
+
+// ============================================
+// AI INSTRUCTIONS TYPES
+// ============================================
+
+export type InstructionLevel = 1 | 2 | 3;
+
+export interface InstructionLevelInfo {
+  name: 'law' | 'priority' | 'normal';
+  label: string;
+  description: string;
+}
+
+export interface AIInstruction {
+  id: number;
+  level: InstructionLevel;
+  title: string;
+  content: string;
+  category?: string;
+  is_active: boolean;
+  sort_order: number;
+  created_by?: number;
+  created_at: string;
+  updated_at: string;
+  // Дополнительные поля от API
+  level_info?: InstructionLevelInfo;
+  can_edit?: boolean;
+  can_delete?: boolean;
+}
+
+export const INSTRUCTION_LEVELS: Record<InstructionLevel, InstructionLevelInfo> = {
+  1: { name: 'law', label: 'Закон', description: 'Неизменяемые правила, нарушать запрещено' },
+  2: { name: 'priority', label: 'Приоритетная', description: 'Важные инструкции от администрации' },
+  3: { name: 'normal', label: 'Обычная', description: 'Дополнительные инструкции для тонкой настройки' }
+};
+
+export const INSTRUCTION_LEVEL_COLORS: Record<InstructionLevel, string> = {
+  1: 'red',
+  2: 'orange', 
+  3: 'blue'
+};
+
+export const INSTRUCTION_LEVEL_ICONS: Record<InstructionLevel, string> = {
+  1: '⚖️',
+  2: '⭐',
+  3: '📝'
+};

@@ -43,7 +43,9 @@ import {
   SendOutlined,
   ThunderboltOutlined,
   CopyOutlined,
+  SafetyOutlined,
 } from '@ant-design/icons';
+import AIInstructionsTab from './AIInstructionsTab';
 import { aiAPI } from '../services/api';
 import {
   AISettings,
@@ -1186,9 +1188,18 @@ const AISettingsTab: React.FC = () => {
       </Text>
 
       <Tabs
-        defaultActiveKey="model"
+        defaultActiveKey="instructions"
         type="card"
         items={[
+          {
+            key: 'instructions',
+            label: (
+              <span>
+                <SafetyOutlined /> Инструкции
+              </span>
+            ),
+            children: <AIInstructionsTab />,
+          },
           {
             key: 'model',
             label: (

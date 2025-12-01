@@ -2,7 +2,8 @@ import axios from 'axios';
 import { 
   Manager, Lead, Message, Contact, Deal, Note, Automation, ApiResponse,
   AISettings, AISettingsRaw, OperatorStyle, KnowledgeArticle, AnswerScript,
-  WebsiteContent, AISuggestion, SuccessfulResponse, AIAnalytics, AIModel
+  WebsiteContent, AISuggestion, SuccessfulResponse, AIAnalytics, AIModel,
+  AIInstruction, InstructionLevel, InstructionLevelInfo
 } from '../types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -374,6 +375,62 @@ export const aiAPI = {
   // Тестирование
   testSuggestion: async (data: { client_message: string; lead_id?: string; operator_id?: number }): Promise<any> => {
     const response = await api.post('/ai/test-suggestion', data);
+    return response.data;
+  },
+
+  // ============================================
+  // ИНСТРУКЦИИ AI
+  // ============================================
+
+  // Получить все инструкции
+  getInstructions: async (params?: { 
+    level?: InstructionLevel; 
+    is_active?: boolean; 
+    category?: string 
+  }): Promise<{ 
+    instructions: AIInstruction[]; 
+    levels: Record<InstructionLevel, InstructionLevelInfo>;
+    user_role: string;
+  }> => {
+    const response = await api.get('/ai/instructions', { params });
+    return response.data;
+  },
+
+  // Получить инструкцию по ID
+  getInstruction: async (id: number): Promise<AIInstruction> => {
+    const response = await api.get(`/ai/instructions/${id}`);
+    return response.data;
+  },
+
+  // Создать инструкцию
+  createInstruction: async (instruction: Partial<AIInstruction>): Promise<AIInstruction> => {
+    const response = await api.post('/ai/instructions', instruction);
+    return response.data;
+  },
+
+  // Обновить инструкцию
+  updateInstruction: async (id: number, instruction: Partial<AIInstruction>): Promise<AIInstruction> => {
+    const response = await api.patch(`/ai/instructions/${id}`, instruction);
+    return response.data;
+  },
+
+  // Удалить инструкцию
+  deleteInstruction: async (id: number): Promise<void> => {
+    await api.delete(`/ai/instructions/${id}`);
+  },
+
+  // Получить инструкции для промпта (форматированный текст)
+  getInstructionsForPrompt: async (): Promise<{ 
+    prompt_text: string; 
+    counts: { laws: number; priority: number; normal: number } 
+  }> => {
+    const response = await api.get('/ai/instructions/for-prompt');
+    return response.data;
+  },
+
+  // Получить категории инструкций
+  getInstructionCategories: async (): Promise<{ categories: string[] }> => {
+    const response = await api.get('/ai/instructions-categories');
     return response.data;
   },
 };

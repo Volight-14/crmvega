@@ -833,4 +833,336 @@ router.get('/models', auth, async (req, res) => {
   }
 });
 
+// ============================================
+// ИНСТРУКЦИИ AI (Dataset.ai_instructions)
+// Уровни: 1 = Законы (неизменяемые), 2 = Приоритетные (админ), 3 = Обычные (все)
+// ============================================
+
+const INSTRUCTION_LEVELS = {
+  1: { name: 'law', label: 'Закон', description: 'Неизменяемые правила, нарушать запрещено' },
+  2: { name: 'priority', label: 'Приоритетная', description: 'Важные инструкции от администрации' },
+  3: { name: 'normal', label: 'Обычная', description: 'Дополнительные инструкции для тонкой настройки' }
+};
+
+// Получить все инструкции (с фильтрацией по уровню)
+router.get('/instructions', auth, async (req, res) => {
+  try {
+    const { level, is_active, category } = req.query;
+    const userRole = req.manager.role || 'operator';
+
+    let query = dataset()
+      .from('ai_instructions')
+      .select('*')
+      .order('level', { ascending: true })
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: false });
+
+    if (level) {
+      query = query.eq('level', parseInt(level));
+    }
+
+    if (is_active !== undefined) {
+      query = query.eq('is_active', is_active === 'true');
+    }
+
+    if (category) {
+      query = query.eq('category', category);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    // Добавляем информацию о правах редактирования
+    const instructions = data.map(inst => ({
+      ...inst,
+      level_info: INSTRUCTION_LEVELS[inst.level],
+      can_edit: canEditInstruction(userRole, inst.level),
+      can_delete: canDeleteInstruction(userRole, inst.level)
+    }));
+
+    res.json({ 
+      instructions,
+      levels: INSTRUCTION_LEVELS,
+      user_role: userRole
+    });
+  } catch (error) {
+    console.error('Error fetching instructions:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Получить инструкции для промпта AI (активные, отсортированные по уровню)
+router.get('/instructions/for-prompt', auth, async (req, res) => {
+  try {
+    const { data, error } = await dataset()
+      .from('ai_instructions')
+      .select('level, title, content')
+      .eq('is_active', true)
+      .order('level', { ascending: true })
+      .order('sort_order', { ascending: true });
+
+    if (error) throw error;
+
+    // Группируем по уровням
+    const grouped = {
+      laws: data.filter(i => i.level === 1).map(i => `• ${i.title}: ${i.content}`),
+      priority: data.filter(i => i.level === 2).map(i => `• ${i.title}: ${i.content}`),
+      normal: data.filter(i => i.level === 3).map(i => `• ${i.title}: ${i.content}`)
+    };
+
+    // Формируем текст для промпта
+    let promptText = '';
+    
+    if (grouped.laws.length > 0) {
+      promptText += `\n\n=== ЗАКОНЫ (НАРУШАТЬ ЗАПРЕЩЕНО) ===\n${grouped.laws.join('\n')}`;
+    }
+    
+    if (grouped.priority.length > 0) {
+      promptText += `\n\n=== ПРИОРИТЕТНЫЕ ИНСТРУКЦИИ ===\n${grouped.priority.join('\n')}`;
+    }
+    
+    if (grouped.normal.length > 0) {
+      promptText += `\n\n=== ДОПОЛНИТЕЛЬНЫЕ ИНСТРУКЦИИ ===\n${grouped.normal.join('\n')}`;
+    }
+
+    res.json({ 
+      prompt_text: promptText,
+      counts: {
+        laws: grouped.laws.length,
+        priority: grouped.priority.length,
+        normal: grouped.normal.length
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching instructions for prompt:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Получить инструкцию по ID
+router.get('/instructions/:id', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data, error } = await dataset()
+      .from('ai_instructions')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+
+    const userRole = req.manager.role || 'operator';
+
+    res.json({
+      ...data,
+      level_info: INSTRUCTION_LEVELS[data.level],
+      can_edit: canEditInstruction(userRole, data.level),
+      can_delete: canDeleteInstruction(userRole, data.level)
+    });
+  } catch (error) {
+    console.error('Error fetching instruction:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Создать инструкцию
+router.post('/instructions', auth, async (req, res) => {
+  try {
+    const { level, title, content, category, is_active, sort_order } = req.body;
+    const userRole = req.manager.role || 'operator';
+    const userId = req.manager.id;
+
+    // Проверка прав
+    if (!canCreateInstruction(userRole, level)) {
+      return res.status(403).json({ 
+        error: `Недостаточно прав для создания инструкций уровня ${level}. Требуется роль: ${level <= 2 ? 'admin' : 'любая'}` 
+      });
+    }
+
+    // Уровень 1 (законы) можно создавать только если нет существующих или по спец. разрешению
+    if (level === 1 && userRole !== 'admin') {
+      return res.status(403).json({ error: 'Только администратор может создавать законы AI' });
+    }
+
+    const { data, error } = await dataset()
+      .from('ai_instructions')
+      .insert({
+        level: level || 3,
+        title,
+        content,
+        category,
+        is_active: is_active !== false,
+        sort_order: sort_order || 0,
+        created_by: userId
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log(`[AI Instructions] Created level ${level} instruction "${title}" by user ${userId}`);
+
+    res.json({
+      ...data,
+      level_info: INSTRUCTION_LEVELS[data.level]
+    });
+  } catch (error) {
+    console.error('Error creating instruction:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Обновить инструкцию
+router.patch('/instructions/:id', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userRole = req.manager.role || 'operator';
+    const userId = req.manager.id;
+
+    // Получаем текущую инструкцию
+    const { data: existing, error: fetchError } = await dataset()
+      .from('ai_instructions')
+      .select('level, created_by')
+      .eq('id', id)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    // Проверка прав на редактирование
+    if (!canEditInstruction(userRole, existing.level, userId, existing.created_by)) {
+      return res.status(403).json({ 
+        error: `Недостаточно прав для редактирования инструкции уровня ${existing.level}` 
+      });
+    }
+
+    // Запрещаем менять уровень на более высокий без соответствующих прав
+    if (req.body.level && req.body.level < existing.level && userRole !== 'admin') {
+      return res.status(403).json({ error: 'Только администратор может повышать уровень инструкции' });
+    }
+
+    const updateData = {
+      ...req.body,
+      updated_at: new Date().toISOString()
+    };
+
+    // Удаляем поля которые нельзя менять напрямую
+    delete updateData.id;
+    delete updateData.created_by;
+    delete updateData.created_at;
+
+    const { data, error } = await dataset()
+      .from('ai_instructions')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log(`[AI Instructions] Updated instruction ${id} by user ${userId}`);
+
+    res.json({
+      ...data,
+      level_info: INSTRUCTION_LEVELS[data.level]
+    });
+  } catch (error) {
+    console.error('Error updating instruction:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Удалить инструкцию
+router.delete('/instructions/:id', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userRole = req.manager.role || 'operator';
+    const userId = req.manager.id;
+
+    // Получаем инструкцию
+    const { data: existing, error: fetchError } = await dataset()
+      .from('ai_instructions')
+      .select('level, created_by, title')
+      .eq('id', id)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    // Проверка прав на удаление
+    if (!canDeleteInstruction(userRole, existing.level, userId, existing.created_by)) {
+      return res.status(403).json({ 
+        error: `Недостаточно прав для удаления инструкции уровня ${existing.level}` 
+      });
+    }
+
+    // Законы (уровень 1) нельзя удалять
+    if (existing.level === 1) {
+      return res.status(403).json({ error: 'Законы AI нельзя удалять. Можно только деактивировать.' });
+    }
+
+    const { error } = await dataset()
+      .from('ai_instructions')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    console.log(`[AI Instructions] Deleted instruction ${id} "${existing.title}" by user ${userId}`);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting instruction:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Получить категории инструкций
+router.get('/instructions-categories', auth, async (req, res) => {
+  try {
+    const { data, error } = await dataset()
+      .from('ai_instructions')
+      .select('category')
+      .not('category', 'is', null);
+
+    if (error) throw error;
+
+    const categories = [...new Set(data.map(d => d.category))].filter(Boolean);
+    res.json({ categories });
+  } catch (error) {
+    console.error('Error fetching instruction categories:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Хелперы для проверки прав
+function canCreateInstruction(role, level) {
+  if (role === 'admin') return true;
+  if (level === 1) return false; // Законы только админ
+  if (level === 2) return false; // Приоритетные только админ
+  return true; // Уровень 3 могут все
+}
+
+function canEditInstruction(role, level, userId = null, createdBy = null) {
+  if (role === 'admin') return true;
+  if (level === 1) return false; // Законы только админ
+  if (level === 2) return false; // Приоритетные только админ
+  // Уровень 3: админ или создатель
+  if (level === 3) {
+    return role === 'admin' || (userId && userId === createdBy);
+  }
+  return false;
+}
+
+function canDeleteInstruction(role, level, userId = null, createdBy = null) {
+  if (level === 1) return false; // Законы нельзя удалять
+  if (role === 'admin') return true;
+  if (level === 2) return false; // Приоритетные только админ
+  // Уровень 3: админ или создатель
+  if (level === 3) {
+    return role === 'admin' || (userId && userId === createdBy);
+  }
+  return false;
+}
+
 module.exports = router;

@@ -18,28 +18,37 @@ router.post('/register', async (req, res) => {
     // Хэшируем пароль
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Создаем менеджера
+    // Создаем менеджера (новые пользователи получают роль operator по умолчанию)
     const { data, error } = await supabase
       .from('managers')
       .insert({
         email,
         password_hash: hashedPassword,
         name,
-        username: email // Используем email как username для совместимости
+        username: email, // Используем email как username для совместимости
+        role: 'operator' // По умолчанию оператор
       })
       .select()
       .single();
 
     if (error) throw error;
 
-    // Создаем JWT токен
+    // Создаем JWT токен с ролью
     const token = jwt.sign(
-      { id: data.id, email: data.email },
+      { id: data.id, email: data.email, role: data.role || 'operator' },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    res.json({ token, manager: { id: data.id, email: data.email, name: data.name } });
+    res.json({ 
+      token, 
+      manager: { 
+        id: data.id, 
+        email: data.email, 
+        name: data.name,
+        role: data.role || 'operator'
+      } 
+    });
   } catch (error) {
     console.error('Registration error:', error);
     res.status(400).json({ error: error.message });
@@ -68,9 +77,9 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Неверный email или пароль' });
     }
 
-    // Создаем JWT токен
+    // Создаем JWT токен с ролью
     const token = jwt.sign(
-      { id: manager.id, email: manager.email },
+      { id: manager.id, email: manager.email, role: manager.role || 'operator' },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -80,7 +89,8 @@ router.post('/login', async (req, res) => {
       manager: {
         id: manager.id,
         email: manager.email,
-        name: manager.name
+        name: manager.name,
+        role: manager.role || 'operator'
       }
     });
   } catch (error) {
