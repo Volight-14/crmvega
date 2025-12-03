@@ -109,6 +109,42 @@ export const LEAD_STATUSES = {
   won: { label: 'Выиграна', color: 'green' },
 } as const;
 
+// Статусы сделок (этапы воронки)
+export const DEAL_STATUSES = {
+  // Начальные этапы
+  unsorted: { label: 'Неразобранное', color: 'default', icon: '📥', order: 0 },
+  
+  // Принято операторами
+  accepted_anna: { label: 'Принято Анна', color: 'cyan', icon: '👩', order: 1 },
+  accepted_kostya: { label: 'Принято Костя', color: 'cyan', icon: '👨', order: 2 },
+  accepted_stas: { label: 'Принято Стас', color: 'cyan', icon: '👨', order: 3 },
+  accepted_lusi: { label: 'Принято Люси', color: 'cyan', icon: '👩', order: 4 },
+  
+  // Рабочие этапы
+  in_progress: { label: 'Работа с клиентом', color: 'blue', icon: '💼', order: 5 },
+  survey: { label: 'Опрос', color: 'purple', icon: '📋', order: 6 },
+  
+  // Передано исполнителям
+  transferred_nikita: { label: 'Передано Никите', color: 'orange', icon: '🚀', order: 7 },
+  transferred_val: { label: 'Передано Вал Александру', color: 'orange', icon: '🚀', order: 8 },
+  transferred_ben: { label: 'Передано Бен Александру', color: 'orange', icon: '🚀', order: 9 },
+  transferred_fin: { label: 'Передано Фин Александру', color: 'orange', icon: '🚀', order: 10 },
+  
+  // Финальные этапы
+  partially_completed: { label: 'Частично исполнена', color: 'lime', icon: '⏳', order: 11 },
+  postponed: { label: 'Перенос на завтра', color: 'gold', icon: '📅', order: 12 },
+  
+  // Закрытые
+  client_rejected: { label: 'Отказ клиента', color: 'red', icon: '❌', order: 13 },
+  scammer: { label: 'Мошенник', color: 'magenta', icon: '🚫', order: 14 },
+  moderation: { label: 'На модерации', color: 'geekblue', icon: '🔍', order: 15 },
+  
+  // Успешно закрыта
+  completed: { label: 'Исполнена', color: 'green', icon: '✅', order: 16 },
+} as const;
+
+export type DealStatus = keyof typeof DEAL_STATUSES;
+
 // Новые типы для расширенной CRM
 export interface Contact {
   id: number;
@@ -139,7 +175,7 @@ export interface Deal {
   title: string;
   amount: number;
   currency: string;
-  status: 'new' | 'negotiation' | 'waiting' | 'ready_to_close' | 'rejected' | 'closed';
+  status: DealStatus;
   source?: string;
   description?: string;
   due_date?: string;
@@ -172,15 +208,6 @@ export interface Tag {
   category?: string;
   created_at: string;
 }
-
-export const DEAL_STATUSES = {
-  new: { label: 'Новая', color: 'blue', icon: '📝' },
-  negotiation: { label: 'Переговоры', color: 'orange', icon: '💬' },
-  waiting: { label: 'Ожидание', color: 'gold', icon: '⏳' },
-  ready_to_close: { label: 'Готова к закрытию', color: 'lime', icon: '✅' },
-  rejected: { label: 'Отказ', color: 'red', icon: '❌' },
-  closed: { label: 'Закрыта', color: 'default', icon: '🏁' },
-} as const;
 
 export const NOTE_PRIORITIES = {
   urgent: { label: 'Срочно', color: 'red', icon: '🔴' },

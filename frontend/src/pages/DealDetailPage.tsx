@@ -165,7 +165,7 @@ const DealDetailPage: React.FC = () => {
     );
   }
 
-  const statusInfo = DEAL_STATUSES[deal.status];
+  const statusInfo = DEAL_STATUSES[deal.status] || DEAL_STATUSES.unsorted;
 
   return (
     <div style={{ 
