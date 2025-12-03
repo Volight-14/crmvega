@@ -3,7 +3,7 @@ import {
   Manager, Lead, Message, Contact, Deal, Note, Automation, ApiResponse,
   AISettings, AISettingsRaw, OperatorStyle, KnowledgeArticle, AnswerScript,
   WebsiteContent, AISuggestion, SuccessfulResponse, AIAnalytics, AIModel,
-  AIInstruction, InstructionLevel, InstructionLevelInfo
+  AIInstruction, InstructionLevel, InstructionLevelInfo, InternalMessage
 } from '../types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -193,6 +193,95 @@ export const contactMessagesAPI = {
 
   sendToContact: async (contactId: number, content: string, author_type?: 'manager' | 'user'): Promise<Message> => {
     const response = await api.post(`/messages/contact/${contactId}`, { content, sender_type: author_type });
+    return response.data;
+  },
+};
+
+// Deal Messages API - для чата внутри сделки
+export const dealMessagesAPI = {
+  // Получить сообщения клиента (из Telegram)
+  getClientMessages: async (dealId: number, params?: { limit?: number; offset?: number }): Promise<{
+    messages: Message[];
+    total: number;
+    chatLeadId?: string;
+  }> => {
+    const response = await api.get(`/deal-messages/${dealId}/client`, { params });
+    return response.data;
+  },
+
+  // Отправить текстовое сообщение клиенту
+  sendClientMessage: async (dealId: number, content: string, replyToMessageId?: number): Promise<Message> => {
+    const response = await api.post(`/deal-messages/${dealId}/client`, {
+      content,
+      reply_to_message_id: replyToMessageId,
+    });
+    return response.data;
+  },
+
+  // Отправить файл клиенту
+  sendClientFile: async (dealId: number, file: File, caption?: string, replyToMessageId?: number): Promise<Message> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (caption) formData.append('caption', caption);
+    if (replyToMessageId) formData.append('reply_to_message_id', replyToMessageId.toString());
+
+    const response = await api.post(`/deal-messages/${dealId}/client/file`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  // Отправить голосовое сообщение клиенту
+  sendClientVoice: async (dealId: number, voice: Blob, duration?: number, replyToMessageId?: number): Promise<Message> => {
+    const formData = new FormData();
+    formData.append('voice', voice, 'voice.ogg');
+    if (duration) formData.append('duration', duration.toString());
+    if (replyToMessageId) formData.append('reply_to_message_id', replyToMessageId.toString());
+
+    const response = await api.post(`/deal-messages/${dealId}/client/voice`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  // Получить внутренние сообщения
+  getInternalMessages: async (dealId: number, params?: { limit?: number; offset?: number }): Promise<{
+    messages: InternalMessage[];
+    total: number;
+  }> => {
+    const response = await api.get(`/deal-messages/${dealId}/internal`, { params });
+    return response.data;
+  },
+
+  // Отправить внутреннее сообщение
+  sendInternalMessage: async (dealId: number, content: string, replyToId?: number): Promise<InternalMessage> => {
+    const response = await api.post(`/deal-messages/${dealId}/internal`, {
+      content,
+      reply_to_id: replyToId,
+    });
+    return response.data;
+  },
+
+  // Отправить внутренний файл
+  sendInternalFile: async (dealId: number, file: File, replyToId?: number): Promise<InternalMessage> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (replyToId) formData.append('reply_to_id', replyToId.toString());
+
+    const response = await api.post(`/deal-messages/${dealId}/internal/file`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  // Отметить как прочитанные
+  markAsRead: async (dealId: number, messageIds?: number[]): Promise<void> => {
+    await api.post(`/deal-messages/${dealId}/internal/read`, { message_ids: messageIds });
+  },
+
+  // Получить количество непрочитанных
+  getUnreadCount: async (dealId: number): Promise<{ count: number }> => {
+    const response = await api.get(`/deal-messages/${dealId}/internal/unread`);
     return response.data;
   },
 };

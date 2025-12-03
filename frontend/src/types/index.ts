@@ -40,9 +40,9 @@ export type Lead = Chat;
 export interface Message {
   id: number;
   lead_id: string;
-  author_type: 'manager' | 'user';
+  author_type: 'manager' | 'user' | 'Клиент' | 'Оператор' | 'Бот' | 'Админ' | 'Менеджер' | 'Служба заботы';
   content: string;
-  message_type?: 'text' | 'image' | 'file';
+  message_type?: 'text' | 'image' | 'file' | 'voice';
   message_id_tg?: number | string;
   timestamp?: number;
   'Modified Date'?: string;
@@ -57,10 +57,34 @@ export interface Message {
   'Created Date'?: string;
   created_at?: string;
   sender?: Manager;
+  // Для файлов и голосовых
+  file_url?: string;
+  file_name?: string;
+  voice_duration?: number;
   // Для обратной совместимости
   sender_type?: 'manager' | 'user';
   sender_id?: number;
   telegram_message_id?: number;
+}
+
+export interface InternalMessage {
+  id: number;
+  deal_id: number;
+  sender_id: number;
+  content: string;
+  reply_to_id?: number;
+  attachment_url?: string;
+  attachment_type?: 'file' | 'image' | 'voice';
+  attachment_name?: string;
+  is_read: boolean;
+  created_at: string;
+  updated_at: string;
+  sender?: Manager;
+  reply_to?: {
+    id: number;
+    content: string;
+    sender?: { name: string };
+  };
 }
 
 export interface AuthContextType {

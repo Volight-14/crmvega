@@ -17,6 +17,7 @@ import {
   Empty,
   Row,
   Col,
+  Tabs,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -26,15 +27,16 @@ import {
   DollarOutlined,
   CalendarOutlined,
   EditOutlined,
-  SendOutlined,
-  FileTextOutlined,
   PlusOutlined,
+  MessageOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Deal, Note, Message, DEAL_STATUSES, NOTE_PRIORITIES } from '../types';
-import { dealsAPI, notesAPI, contactMessagesAPI } from '../services/api';
+import { Deal, Note, DEAL_STATUSES, NOTE_PRIORITIES } from '../types';
+import { dealsAPI, notesAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import io from 'socket.io-client';
+import DealChat from '../components/DealChat';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -48,13 +50,10 @@ const DealDetailPage: React.FC = () => {
   const { manager } = useAuth();
   const [deal, setDeal] = useState<Deal | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
-  const [newMessage, setNewMessage] = useState('');
-  const [sending, setSending] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [activeInfoTab, setActiveInfoTab] = useState<'info' | 'notes'>('info');
   const socketRef = useRef<Socket | null>(null);
   const [form] = Form.useForm();
   const [noteForm] = Form.useForm();
@@ -63,7 +62,6 @@ const DealDetailPage: React.FC = () => {
     if (id) {
       fetchDeal();
       fetchNotes();
-      fetchMessages();
       setupSocket();
     }
 
@@ -71,10 +69,6 @@ const DealDetailPage: React.FC = () => {
       socketRef.current?.disconnect();
     };
   }, [id]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
   const setupSocket = () => {
     if (!id || !manager) return;
@@ -85,16 +79,7 @@ const DealDetailPage: React.FC = () => {
     });
 
     socketRef.current.on('connect', () => {
-      if (deal?.contact_id) {
-        socketRef.current?.emit('join_contact', deal.contact_id.toString());
-      }
-    });
-
-    socketRef.current.on('new_message', (newMessage: Message) => {
-      setMessages(prev => {
-        if (prev.some(msg => msg.id === newMessage.id)) return prev;
-        return [...prev, newMessage];
-      });
+      socketRef.current?.emit('join_deal', id);
     });
 
     socketRef.current.on('deal_updated', (updatedDeal: Deal) => {
@@ -102,10 +87,6 @@ const DealDetailPage: React.FC = () => {
         setDeal(updatedDeal);
       }
     });
-  };
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const fetchDeal = async () => {
@@ -133,23 +114,6 @@ const DealDetailPage: React.FC = () => {
     }
   };
 
-  const fetchMessages = async () => {
-    if (!deal?.contact_id) return;
-    try {
-      const messagesData = await contactMessagesAPI.getByContactId(deal.contact_id);
-      setMessages(messagesData);
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-    }
-  };
-
-  useEffect(() => {
-    if (deal?.contact_id) {
-      fetchMessages();
-      setupSocket();
-    }
-  }, [deal?.contact_id]);
-
   const handleUpdateDeal = async (values: any) => {
     if (!id) return;
     try {
@@ -159,26 +123,6 @@ const DealDetailPage: React.FC = () => {
       fetchDeal();
     } catch (error: any) {
       message.error(error.response?.data?.error || 'Ошибка обновления сделки');
-    }
-  };
-
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !deal?.contact_id || !manager) return;
-
-    setSending(true);
-    try {
-      const newMsg = await contactMessagesAPI.sendToContact(
-        deal.contact_id,
-        newMessage.trim(),
-        'manager'
-      );
-      setMessages(prev => [...prev, newMsg]);
-      setNewMessage('');
-    } catch (error: any) {
-      console.error('Error sending message:', error);
-      message.error(error.response?.data?.error || 'Ошибка отправки сообщения');
-    } finally {
-      setSending(false);
     }
   };
 
@@ -201,264 +145,338 @@ const DealDetailPage: React.FC = () => {
   };
 
   if (!deal) {
-    return <div>Загрузка...</div>;
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      }}>
+        <div style={{ 
+          background: 'white', 
+          padding: 40, 
+          borderRadius: 16,
+          boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+        }}>
+          <Title level={4} style={{ margin: 0 }}>Загрузка сделки...</Title>
+        </div>
+      </div>
+    );
   }
 
   const statusInfo = DEAL_STATUSES[deal.status];
 
   return (
-    <div style={{ padding: '24px', height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ 
+      height: '100vh', 
+      display: 'flex', 
+      flexDirection: 'column',
+      background: '#f0f2f5',
+    }}>
       {/* Header */}
-      <Card style={{ marginBottom: '16px' }}>
-        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Space>
-            <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/deals')}>
+      <div style={{ 
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        padding: '16px 24px',
+        color: 'white',
+        boxShadow: '0 2px 8px rgba(102, 126, 234, 0.4)',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Space size="middle">
+            <Button 
+              ghost 
+              icon={<ArrowLeftOutlined />} 
+              onClick={() => navigate('/deals')}
+              style={{ border: '1px solid rgba(255,255,255,0.5)' }}
+            >
               Назад
             </Button>
             <div>
-              <Title level={3} style={{ margin: 0 }}>{deal.title}</Title>
-              <Space>
-                <Tag color={statusInfo.color}>{statusInfo.icon} {statusInfo.label}</Tag>
+              <Title level={3} style={{ margin: 0, color: 'white' }}>
+                {deal.title}
+              </Title>
+              <Space style={{ marginTop: 4 }}>
+                <Tag 
+                  color={statusInfo.color}
+                  style={{ 
+                    borderRadius: 12, 
+                    padding: '2px 12px',
+                    fontSize: 13,
+                  }}
+                >
+                  {statusInfo.icon} {statusInfo.label}
+                </Tag>
                 {deal.amount > 0 && (
-                  <Text strong style={{ fontSize: 16 }}>
+                  <span style={{ 
+                    background: 'rgba(255,255,255,0.2)', 
+                    padding: '4px 12px', 
+                    borderRadius: 12,
+                    fontSize: 14,
+                    fontWeight: 600,
+                  }}>
                     <DollarOutlined /> {deal.amount.toLocaleString('ru-RU')} {deal.currency || 'RUB'}
-                  </Text>
+                  </span>
                 )}
               </Space>
             </div>
           </Space>
-          <Button icon={<EditOutlined />} onClick={() => setIsEditModalVisible(true)}>
+          <Button 
+            type="primary" 
+            icon={<EditOutlined />} 
+            onClick={() => setIsEditModalVisible(true)}
+            style={{ 
+              background: 'rgba(255,255,255,0.2)', 
+              border: 'none',
+              borderRadius: 8,
+            }}
+          >
             Редактировать
           </Button>
-        </Space>
-      </Card>
+        </div>
+      </div>
 
-      <div style={{ display: 'flex', flex: 1, gap: '16px', overflow: 'hidden' }}>
-        {/* Left Column - Deal Info */}
-        <div style={{ width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Deal Details */}
-          <Card title="Информация о сделке">
-            <Descriptions column={1} size="small">
-              <Descriptions.Item label="Статус">
-                <Tag color={statusInfo.color}>{statusInfo.icon} {statusInfo.label}</Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Сумма">
-                <Text strong>{deal.amount.toLocaleString('ru-RU') || 0} {deal.currency || 'RUB'}</Text>
-              </Descriptions.Item>
-              {deal.due_date && (
-                <Descriptions.Item label="Крайний срок">
-                  <CalendarOutlined /> {new Date(deal.due_date).toLocaleDateString('ru-RU')}
-                </Descriptions.Item>
-              )}
-              {deal.source && (
-                <Descriptions.Item label="Источник">
-                  {deal.source}
-                </Descriptions.Item>
-              )}
-              {deal.manager && (
-                <Descriptions.Item label="Менеджер">
-                  {deal.manager.name}
-                </Descriptions.Item>
-              )}
-              <Descriptions.Item label="Создано">
-                {new Date(deal.created_at).toLocaleString('ru-RU')}
-              </Descriptions.Item>
-              {deal.closed_date && (
-                <Descriptions.Item label="Закрыто">
-                  {new Date(deal.closed_date).toLocaleDateString('ru-RU')}
-                </Descriptions.Item>
-              )}
-            </Descriptions>
-            {deal.description && (
-              <>
-                <Divider />
-                <div>
-                  <Text strong>Описание:</Text>
-                  <div style={{ marginTop: 8 }}>
-                    <Text>{deal.description}</Text>
-                  </div>
-                </div>
-              </>
-            )}
-          </Card>
-
-          {/* Contact Info */}
-          {deal.contact && (
-            <Card 
-              title="Контакт"
-              extra={
-                <Button 
-                  type="link" 
-                  onClick={() => navigate(`/contact/${deal.contact_id}`)}
-                >
-                  Открыть
-                </Button>
-              }
-            >
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <div>
-                  <UserOutlined style={{ marginRight: '8px' }} />
-                  <Text strong>{deal.contact.name}</Text>
-                </div>
-                {deal.contact.phone && (
-                  <div>
-                    <PhoneOutlined style={{ marginRight: '8px' }} />
-                    <Text>{deal.contact.phone}</Text>
-                  </div>
-                )}
-                {deal.contact.email && (
-                  <div>
-                    <MailOutlined style={{ marginRight: '8px' }} />
-                    <Text>{deal.contact.email}</Text>
-                  </div>
-                )}
-              </Space>
-            </Card>
-          )}
-
-          {/* Notes */}
-          <Card 
-            title="Заметки"
-            extra={
-              <Button 
-                type="link" 
-                icon={<PlusOutlined />} 
-                onClick={() => setIsNoteModalVisible(true)}
-              >
-                Добавить
-              </Button>
-            }
-            style={{ flex: 1, overflow: 'auto' }}
+      {/* Main Content */}
+      <div style={{ 
+        display: 'flex', 
+        flex: 1, 
+        padding: 16, 
+        gap: 16, 
+        overflow: 'hidden',
+        minHeight: 0,
+      }}>
+        {/* Left Sidebar - Deal Info */}
+        <div style={{ 
+          width: 320, 
+          flexShrink: 0, 
+          display: 'flex', 
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}>
+          <Card
+            style={{ 
+              flex: 1, 
+              display: 'flex', 
+              flexDirection: 'column',
+              borderRadius: 12,
+              overflow: 'hidden',
+            }}
+            bodyStyle={{ 
+              flex: 1, 
+              display: 'flex', 
+              flexDirection: 'column',
+              padding: 0,
+              overflow: 'hidden',
+            }}
           >
-            {notes.length === 0 ? (
-              <Empty description="Нет заметок" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-            ) : (
-              <List
-                dataSource={notes}
-                renderItem={(note) => (
-                  <List.Item>
-                    <div style={{ width: '100%' }}>
-                      <div style={{ marginBottom: 4 }}>
-                        <Tag color={NOTE_PRIORITIES[note.priority]?.color}>
-                          {NOTE_PRIORITIES[note.priority]?.label}
-                        </Tag>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          {new Date(note.created_at).toLocaleString('ru-RU')}
-                        </Text>
-                      </div>
-                      <Text>{note.content}</Text>
-                      {note.manager && (
-                        <div style={{ marginTop: 4 }}>
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            {note.manager.name}
-                          </Text>
-                        </div>
+            <Tabs
+              activeKey={activeInfoTab}
+              onChange={(key) => setActiveInfoTab(key as 'info' | 'notes')}
+              style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+              tabBarStyle={{ padding: '0 16px', margin: 0 }}
+              items={[
+                {
+                  key: 'info',
+                  label: (
+                    <span>
+                      <InfoCircleOutlined /> Информация
+                    </span>
+                  ),
+                  children: (
+                    <div style={{ padding: 16, overflowY: 'auto', flex: 1 }}>
+                      {/* Deal Info */}
+                      <Descriptions column={1} size="small" style={{ marginBottom: 16 }}>
+                        <Descriptions.Item label="Статус">
+                          <Tag color={statusInfo.color}>{statusInfo.icon} {statusInfo.label}</Tag>
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Сумма">
+                          <Text strong>{deal.amount.toLocaleString('ru-RU') || 0} {deal.currency || 'RUB'}</Text>
+                        </Descriptions.Item>
+                        {deal.due_date && (
+                          <Descriptions.Item label="Крайний срок">
+                            <CalendarOutlined /> {new Date(deal.due_date).toLocaleDateString('ru-RU')}
+                          </Descriptions.Item>
+                        )}
+                        {deal.source && (
+                          <Descriptions.Item label="Источник">
+                            {deal.source}
+                          </Descriptions.Item>
+                        )}
+                        {deal.manager && (
+                          <Descriptions.Item label="Менеджер">
+                            {deal.manager.name}
+                          </Descriptions.Item>
+                        )}
+                        <Descriptions.Item label="Создано">
+                          {new Date(deal.created_at).toLocaleString('ru-RU')}
+                        </Descriptions.Item>
+                        {deal.closed_date && (
+                          <Descriptions.Item label="Закрыто">
+                            {new Date(deal.closed_date).toLocaleDateString('ru-RU')}
+                          </Descriptions.Item>
+                        )}
+                      </Descriptions>
+
+                      {deal.description && (
+                        <>
+                          <Divider style={{ margin: '12px 0' }} />
+                          <div>
+                            <Text strong style={{ fontSize: 13 }}>Описание:</Text>
+                            <div style={{ marginTop: 8, color: '#595959' }}>
+                              <Text>{deal.description}</Text>
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {/* Contact Card */}
+                      {deal.contact && (
+                        <>
+                          <Divider style={{ margin: '16px 0' }} />
+                          <div style={{
+                            background: 'linear-gradient(135deg, #f6f8fc 0%, #eef2f7 100%)',
+                            borderRadius: 12,
+                            padding: 16,
+                          }}>
+                            <div style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              alignItems: 'center',
+                              marginBottom: 12,
+                            }}>
+                              <Text strong style={{ fontSize: 14 }}>Контакт</Text>
+                              <Button 
+                                type="link" 
+                                size="small"
+                                onClick={() => navigate(`/contact/${deal.contact_id}`)}
+                              >
+                                Открыть
+                              </Button>
+                            </div>
+                            <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <Avatar 
+                                  style={{ backgroundColor: '#667eea' }} 
+                                  icon={<UserOutlined />}
+                                  size={32}
+                                />
+                                <Text strong>{deal.contact.name}</Text>
+                              </div>
+                              {deal.contact.phone && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#595959' }}>
+                                  <PhoneOutlined />
+                                  <Text copyable>{deal.contact.phone}</Text>
+                                </div>
+                              )}
+                              {deal.contact.email && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#595959' }}>
+                                  <MailOutlined />
+                                  <Text copyable>{deal.contact.email}</Text>
+                                </div>
+                              )}
+                            </Space>
+                          </div>
+                        </>
                       )}
                     </div>
-                  </List.Item>
-                )}
-              />
-            )}
+                  ),
+                },
+                {
+                  key: 'notes',
+                  label: (
+                    <span>
+                      <MessageOutlined /> Заметки ({notes.length})
+                    </span>
+                  ),
+                  children: (
+                    <div style={{ padding: 16, overflowY: 'auto', flex: 1 }}>
+                      <Button
+                        type="dashed"
+                        icon={<PlusOutlined />}
+                        onClick={() => setIsNoteModalVisible(true)}
+                        block
+                        style={{ marginBottom: 16, borderRadius: 8 }}
+                      >
+                        Добавить заметку
+                      </Button>
+                      {notes.length === 0 ? (
+                        <Empty 
+                          description="Нет заметок" 
+                          image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        />
+                      ) : (
+                        <List
+                          dataSource={notes}
+                          renderItem={(note) => (
+                            <div style={{
+                              background: '#fafafa',
+                              borderRadius: 8,
+                              padding: 12,
+                              marginBottom: 8,
+                              borderLeft: `3px solid ${NOTE_PRIORITIES[note.priority]?.color === 'red' ? '#ff4d4f' : 
+                                NOTE_PRIORITIES[note.priority]?.color === 'orange' ? '#fa8c16' :
+                                NOTE_PRIORITIES[note.priority]?.color === 'blue' ? '#1890ff' : '#52c41a'}`,
+                            }}>
+                              <div style={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'center',
+                                marginBottom: 8,
+                              }}>
+                                <Tag color={NOTE_PRIORITIES[note.priority]?.color} style={{ margin: 0 }}>
+                                  {NOTE_PRIORITIES[note.priority]?.icon} {NOTE_PRIORITIES[note.priority]?.label}
+                                </Tag>
+                                <Text type="secondary" style={{ fontSize: 11 }}>
+                                  {new Date(note.created_at).toLocaleString('ru-RU')}
+                                </Text>
+                              </div>
+                              <Text style={{ fontSize: 13 }}>{note.content}</Text>
+                              {note.manager && (
+                                <div style={{ marginTop: 8 }}>
+                                  <Text type="secondary" style={{ fontSize: 11 }}>
+                                    — {note.manager.name}
+                                  </Text>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        />
+                      )}
+                    </div>
+                  ),
+                },
+              ]}
+            />
           </Card>
         </div>
 
-        {/* Right Column - Messages */}
-        {deal.contact_id ? (
-          <Card 
-            style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
-            title="Сообщения"
-          >
-            {/* Messages List */}
-            <div style={{
-              flex: 1,
-              overflowY: 'auto',
-              padding: '16px',
-              background: '#fafafa',
-              borderRadius: '8px',
-              marginBottom: '16px'
+        {/* Right Side - Chat */}
+        <div style={{ 
+          flex: 1, 
+          display: 'flex', 
+          flexDirection: 'column',
+          minWidth: 0,
+          overflow: 'hidden',
+        }}>
+          {deal.contact_id || deal.lead_id ? (
+            <DealChat 
+              dealId={deal.id} 
+              contactName={deal.contact?.name}
+            />
+          ) : (
+            <Card style={{ 
+              flex: 1, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              borderRadius: 12,
             }}>
-              {messages.length === 0 ? (
-                <Empty description="Нет сообщений" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-              ) : (
-                <List
-                  dataSource={messages}
-                  renderItem={(msg) => (
-                    <List.Item style={{
-                      justifyContent: (msg.author_type || msg.sender_type) === 'manager' ? 'flex-end' : 'flex-start',
-                      padding: '8px 0'
-                    }}>
-                      <div style={{
-                        maxWidth: '70%',
-                        display: 'flex',
-                        flexDirection: (msg.author_type || msg.sender_type) === 'manager' ? 'row-reverse' : 'row',
-                        alignItems: 'flex-start',
-                        gap: '8px'
-                      }}>
-                        <Avatar
-                          size="small"
-                          icon={<UserOutlined />}
-                          style={{
-                            backgroundColor: (msg.author_type || msg.sender_type) === 'manager' ? '#1890ff' : '#87d068'
-                          }}
-                        />
-                        <div style={{
-                          background: (msg.author_type || msg.sender_type) === 'manager' ? '#1890ff' : '#f0f0f0',
-                          color: (msg.author_type || msg.sender_type) === 'manager' ? 'white' : 'black',
-                          padding: '8px 12px',
-                          borderRadius: '8px',
-                          wordWrap: 'break-word'
-                        }}>
-                          {msg.content}
-                          <div style={{
-                            fontSize: '12px',
-                            opacity: 0.7,
-                            marginTop: '4px'
-                          }}>
-                            {new Date(msg['Created Date'] || msg.created_at || '').toLocaleTimeString('ru-RU', {
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    </List.Item>
-                  )}
-                />
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Message Input */}
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <TextArea
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                placeholder="Напишите сообщение..."
-                autoSize={{ minRows: 2, maxRows: 4 }}
-                style={{ flex: 1 }}
+              <Empty 
+                description="У сделки нет связанного контакта" 
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
               />
-              <Button
-                type="primary"
-                icon={<SendOutlined />}
-                onClick={handleSendMessage}
-                loading={sending}
-                disabled={!newMessage.trim()}
-              >
-                Отправить
-              </Button>
-            </div>
-          </Card>
-        ) : (
-          <Card style={{ flex: 1 }}>
-            <Empty description="У сделки нет связанного контакта" />
-          </Card>
-        )}
+            </Card>
+          )}
+        </div>
       </div>
 
       {/* Edit Deal Modal */}
@@ -471,6 +489,10 @@ const DealDetailPage: React.FC = () => {
         }}
         onOk={() => form.submit()}
         width={600}
+        styles={{
+          header: { borderRadius: '12px 12px 0 0' },
+          body: { paddingTop: 24 },
+        }}
       >
         <Form form={form} layout="vertical" onFinish={handleUpdateDeal}>
           <Form.Item name="title" label="Название сделки" rules={[{ required: true }]}>
@@ -488,6 +510,7 @@ const DealDetailPage: React.FC = () => {
                   <Option value="RUB">₽ RUB</Option>
                   <Option value="USD">$ USD</Option>
                   <Option value="EUR">€ EUR</Option>
+                  <Option value="USDT">₮ USDT</Option>
                 </Select>
               </Form.Item>
             </Col>
@@ -519,6 +542,9 @@ const DealDetailPage: React.FC = () => {
           noteForm.resetFields();
         }}
         onOk={() => noteForm.submit()}
+        styles={{
+          header: { borderRadius: '12px 12px 0 0' },
+        }}
       >
         <Form form={noteForm} layout="vertical" onFinish={handleCreateNote}>
           <Form.Item name="content" label="Содержание" rules={[{ required: true }]}>
@@ -540,4 +566,3 @@ const DealDetailPage: React.FC = () => {
 };
 
 export default DealDetailPage;
-
