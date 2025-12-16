@@ -3,7 +3,7 @@ const axios = require('axios');
 require('dotenv').config();
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.API_BASE_URL || 'https://crmvega.vercel.app/api';
 
 // Хранение состояний пользователей (в продакшене использовать базу данных)
 const userStates = new Map();

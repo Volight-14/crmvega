@@ -1,12 +1,12 @@
 import axios from 'axios';
-import { 
+import {
   Manager, Lead, Message, Contact, Deal, Note, Automation, ApiResponse,
   AISettings, AISettingsRaw, OperatorStyle, KnowledgeArticle, AnswerScript,
   WebsiteContent, AISuggestion, SuccessfulResponse, AIAnalytics, AIModel,
   AIInstruction, InstructionLevel, InstructionLevelInfo, InternalMessage
 } from '../types';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://crmvega.vercel.app/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -490,12 +490,12 @@ export const aiAPI = {
   // ============================================
 
   // Получить все инструкции
-  getInstructions: async (params?: { 
-    level?: InstructionLevel; 
-    is_active?: boolean; 
-    category?: string 
-  }): Promise<{ 
-    instructions: AIInstruction[]; 
+  getInstructions: async (params?: {
+    level?: InstructionLevel;
+    is_active?: boolean;
+    category?: string
+  }): Promise<{
+    instructions: AIInstruction[];
     levels: Record<InstructionLevel, InstructionLevelInfo>;
     user_role: string;
   }> => {
@@ -527,9 +527,9 @@ export const aiAPI = {
   },
 
   // Получить инструкции для промпта (форматированный текст)
-  getInstructionsForPrompt: async (): Promise<{ 
-    prompt_text: string; 
-    counts: { laws: number; priority: number; normal: number } 
+  getInstructionsForPrompt: async (): Promise<{
+    prompt_text: string;
+    counts: { laws: number; priority: number; normal: number }
   }> => {
     const response = await api.get('/ai/instructions/for-prompt');
     return response.data;

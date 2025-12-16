@@ -45,14 +45,14 @@ const corsOptions = {
   origin: function (origin, callback) {
     // Разрешаем запросы без origin (например, мобильные приложения, Postman)
     if (!origin) return callback(null, true);
-    
+
     const allowedOrigins = [
       process.env.FRONTEND_URL,
       'http://localhost:3000',
       'https://crmvega.vercel.app',
       'https://*.vercel.app'
     ].filter(Boolean);
-    
+
     // Проверяем точное совпадение или домены Vercel
     if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
       callback(null, true);
@@ -156,7 +156,7 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
