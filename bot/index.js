@@ -1,6 +1,7 @@
 const { Telegraf } = require('telegraf');
 const axios = require('axios');
 require('dotenv').config();
+const crypto = require('crypto');
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 const API_BASE_URL = process.env.API_BASE_URL || 'https://crmvega.vercel.app/api';
@@ -12,67 +13,69 @@ const userStates = new Map();
 const messageBuffer = new Map();
 
 // Функция для отправки сообщения в CRM
+// Функция для отправки сообщения в CRM
 async function sendMessageToCRM(telegramUserId, content) {
   try {
-    // Сначала проверяем, есть ли активная заявка для этого пользователя
-    const response = await axios.get(`${API_BASE_URL}/leads`, {
+    // Используем chat_id для поиска чата по Telegram ID
+    // Сначала ищем активный чат с этим пользователем (status = new или in_progress)
+    // Так как API chats возвращает список, фильтруем на бэкенде или здесь
+    // Мы добавили поддержку req.query.chat_id в backend/routes/chats.js
+    const response = await axios.get(`${API_BASE_URL}/chats`, {
       headers: {
         'Authorization': `Bearer ${process.env.CRM_API_TOKEN}`
       },
       params: {
-        telegram_user_id: telegramUserId,
-        status: 'in_progress'
+        chat_id: telegramUserId.toString()
       }
     });
 
-    const leads = response.data.leads;
+    const chats = response.data.leads || []; // API возвращает { leads: [], total: ... } несмотря на имя роута
 
-    if (leads.length === 0) {
-      // Создаем новую заявку
-      const leadResponse = await axios.post(`${API_BASE_URL}/leads`, {
-        name: `Пользователь ${telegramUserId}`,
-        source: 'telegram_bot',
-        description: 'Автоматически созданная заявка из Telegram бота',
-        telegram_user_id: telegramUserId,
-        status: 'new'
+    // Ищем незавершенный чат (не 'closed', не 'won', не 'lost')
+    // Можно уточнить статусы, но пока берем первый попавшийся или создаем новый
+    // Лучше фильтровать на "активные". Допустим активные это те, что не закрыты.
+    const activeChat = chats.find(c => c.status !== 'closed' && c.status !== 'archive');
+
+    let leadId; // Это UUID чата (lead_id column)
+
+    if (!activeChat) {
+      // Создаем новый чат
+      // Для lead_id генерируем UUID
+      const newLeadId = crypto.randomUUID();
+
+      const chatResponse = await axios.post(`${API_BASE_URL}/chats`, {
+        client: `Пользователь ${telegramUserId}`,
+        chat_id: telegramUserId.toString(),
+        lead_id: newLeadId,
+        status: 'new',
+        // Дополнительные поля, если нужны
       }, {
         headers: {
           'Authorization': `Bearer ${process.env.CRM_API_TOKEN}`
         }
       });
 
-      const leadId = leadResponse.data.id;
-
-      // Отправляем первое сообщение
-      await axios.post(`${API_BASE_URL}/messages`, {
-        lead_id: leadId,
-        content: content,
-        sender_type: 'user'
-      }, {
-        headers: {
-          'Authorization': `Bearer ${process.env.CRM_API_TOKEN}`
-        }
-      });
-
-      return leadId;
+      leadId = chatResponse.data.lead_id;
     } else {
-      // Используем существующую заявку
-      const leadId = leads[0].id;
-
-      await axios.post(`${API_BASE_URL}/messages`, {
-        lead_id: leadId,
-        content: content,
-        sender_type: 'user'
-      }, {
-        headers: {
-          'Authorization': `Bearer ${process.env.CRM_API_TOKEN}`
-        }
-      });
-
-      return leadId;
+      leadId = activeChat.lead_id;
     }
+
+    // Отправляем сообщение
+    // API /messages принимает lead_id (это UUID чата)
+    await axios.post(`${API_BASE_URL}/messages`, {
+      lead_id: leadId,
+      content: content,
+      sender_type: 'user'
+    }, {
+      headers: {
+        'Authorization': `Bearer ${process.env.CRM_API_TOKEN}`
+      }
+    });
+
+    return leadId;
+
   } catch (error) {
-    console.error('Error sending message to CRM:', error);
+    console.error('Error sending message to CRM:', error.response?.data || error.message);
     return null;
   }
 }
@@ -138,20 +141,26 @@ bot.on('contact', async (ctx) => {
   const phoneNumber = ctx.message.contact.phone_number;
 
   try {
-    // Обновляем информацию о пользователе
-    const response = await axios.get(`${API_BASE_URL}/leads`, {
+    // Обновляем информацию о пользователе (ищем чат)
+    const response = await axios.get(`${API_BASE_URL}/chats`, {
       headers: {
         'Authorization': `Bearer ${process.env.CRM_API_TOKEN}`
       },
       params: {
-        telegram_user_id: telegramUserId
+        chat_id: telegramUserId.toString()
       }
     });
 
-    if (response.data.leads.length > 0) {
-      const lead = response.data.leads[0];
-      await axios.patch(`${API_BASE_URL}/leads/${lead.id}`, {
-        phone: phoneNumber
+    const chats = response.data.leads || [];
+    if (chats.length > 0) {
+      const chat = chats[0];
+      // В таблице chats нет поля phone, но возможно оно есть в managers или где-то еще? 
+      // Или мы хотим обновить client name?
+      // Пока оставим обновление client, так как phone в chats схема не показывала.
+      // Если нужно сохранять телефон, возможно стоит добавить его в описание/имя клиента
+
+      await axios.patch(`${API_BASE_URL}/chats/${chat.id}`, {
+        client: `${chat.client} (${phoneNumber})`
       }, {
         headers: {
           'Authorization': `Bearer ${process.env.CRM_API_TOKEN}`

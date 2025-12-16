@@ -23,6 +23,9 @@ router.get('/', auth, async (req, res) => {
     if (status) {
       query = query.eq('status', status);
     }
+    if (req.query.chat_id) {
+      query = query.eq('chat_id', req.query.chat_id);
+    }
 
     const { data, error, count } = await query;
 
