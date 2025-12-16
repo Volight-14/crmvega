@@ -62,20 +62,28 @@ async function sendMessageToCRM(telegramUserId, content) {
 
     // Отправляем сообщение
     // API /messages принимает lead_id (это UUID чата)
-    await axios.post(`${API_BASE_URL}/messages`, {
-      lead_id: leadId,
-      content: content,
-      sender_type: 'user'
-    }, {
-      headers: {
-        'Authorization': `Bearer ${process.env.CRM_API_TOKEN}`
-      }
-    });
+    console.log(`Sending message to CRM: URL=${API_BASE_URL}/messages, lead_id=${leadId}`);
+    try {
+      await axios.post(`${API_BASE_URL}/messages`, {
+        lead_id: leadId,
+        content: content,
+        sender_type: 'user'
+      }, {
+        headers: {
+          'Authorization': `Bearer ${process.env.CRM_API_TOKEN}`
+        }
+      });
+      console.log('Message sent successfully to CRM');
+    } catch (msgError) {
+      console.error('Failed to post message to API:', msgError.response?.data || msgError.message);
+      throw msgError;
+    }
 
     return leadId;
 
   } catch (error) {
-    console.error('Error sending message to CRM:', error.response?.data || error.message);
+    console.error('Error in sendMessageToCRM full flow:', error);
+    console.error('Details:', error.response?.data || error.message);
     return null;
   }
 }

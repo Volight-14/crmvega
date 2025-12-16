@@ -157,8 +157,7 @@ router.get('/contact/:contactId', auth, async (req, res) => {
         .select(`
           message:messages(
             *,
-            sender:managers(name),
-            lead:leads(id, name)
+            sender:managers(name)
           ),
           deal:deals(id, title)
         `)
