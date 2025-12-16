@@ -8,6 +8,9 @@ const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:5000/api';
 // Хранение состояний пользователей (в продакшене использовать базу данных)
 const userStates = new Map();
 
+// Буфер сообщений для Debounce (защита от частых сообщений)
+const messageBuffer = new Map();
+
 // Функция для отправки сообщения в CRM
 async function sendMessageToCRM(telegramUserId, content) {
   try {
@@ -74,6 +77,31 @@ async function sendMessageToCRM(telegramUserId, content) {
   }
 }
 
+// Отправка накопленных сообщений
+async function sendBufferedMessages(telegramUserId) {
+  const userData = messageBuffer.get(telegramUserId);
+  if (!userData) return;
+
+  const combinedMessage = userData.messages.join('\n');
+  // Очищаем буфер СРАЗУ, чтобы новые сообщения создавали новый таймер
+  messageBuffer.delete(telegramUserId);
+
+  try {
+    const leadId = await sendMessageToCRM(telegramUserId, combinedMessage);
+
+    if (leadId) {
+      // Подтверждение пользователю
+      await bot.telegram.sendMessage(telegramUserId, 'Ваше сообщение отправлено менеджеру. Ожидайте ответа.');
+    } else {
+      await bot.telegram.sendMessage(telegramUserId, 'Произошла ошибка при отправке сообщения. Попробуйте позже.');
+    }
+  } catch (error) {
+    console.error('Error in sendBufferedMessages:', error);
+    await bot.telegram.sendMessage(telegramUserId, 'Произошла ошибка. Попробуйте позже.');
+  }
+}
+
+
 // Команда /start
 bot.start((ctx) => {
   ctx.reply(
@@ -81,26 +109,26 @@ bot.start((ctx) => {
   );
 });
 
-// Обработка текстовых сообщений
+// Обработка текстовых сообщений с DEBOUNCE
 bot.on('text', async (ctx) => {
   const telegramUserId = ctx.from.id;
   const messageText = ctx.message.text;
 
-  try {
-    const leadId = await sendMessageToCRM(telegramUserId, messageText);
+  // Если уже есть таймер для этого юзера, сбрасываем его и добавляем сообщение
+  if (messageBuffer.has(telegramUserId)) {
+    const userData = messageBuffer.get(telegramUserId);
+    clearTimeout(userData.timer);
+    userData.messages.push(messageText);
 
-    if (leadId) {
-      ctx.reply(
-        'Ваше сообщение отправлено менеджеру. Ожидайте ответа.'
-      );
-    } else {
-      ctx.reply(
-        'Произошла ошибка при отправке сообщения. Попробуйте позже.'
-      );
-    }
-  } catch (error) {
-    console.error('Error processing message:', error);
-    ctx.reply('Произошла ошибка. Попробуйте позже.');
+    // Перезапускаем таймер (3 секунды)
+    userData.timer = setTimeout(() => sendBufferedMessages(telegramUserId), 3000);
+  } else {
+    // Создаем новую запись
+    const timer = setTimeout(() => sendBufferedMessages(telegramUserId), 3000);
+    messageBuffer.set(telegramUserId, {
+      timer: timer,
+      messages: [messageText]
+    });
   }
 });
 
