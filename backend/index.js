@@ -72,7 +72,7 @@ app.set('io', io);
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
-app.use('/api/leads', require('./routes/leads'));
+// app.use('/api/leads', require('./routes/leads')); // Removed: leads table deprecated
 app.use('/api/chats', require('./routes/chats'));
 app.use('/api/messages', require('./routes/messages'));
 app.use('/api/bot', require('./routes/bot'));
