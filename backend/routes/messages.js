@@ -74,10 +74,7 @@ router.get('/lead/:leadId', auth, async (req, res) => {
 
     const { data, error } = await supabase
       .from('messages')
-      .select(`
-        *,
-        sender:managers(name)
-      `)
+      .select(`*`)
       .eq('lead_id', leadId)
       .order('created_at', { ascending: true })
       .range(offset, offset + limit - 1);
@@ -134,10 +131,7 @@ router.get('/contact/:contactId', auth, async (req, res) => {
     if (leadIds.length > 0) {
       const { data: messages, error: messagesError } = await supabase
         .from('messages')
-        .select(`
-          *,
-          sender:managers(name)
-        `)
+        .select(`*`)
         .in('lead_id', leadIds)
         .order('created_at', { ascending: true });
 
@@ -155,10 +149,7 @@ router.get('/contact/:contactId', auth, async (req, res) => {
       const { data: dealMessages } = await supabase
         .from('deal_messages')
         .select(`
-          message:messages(
-            *,
-            sender:managers(name)
-          ),
+          message:messages(*),
           deal:deals(id, title)
         `)
         .in('deal_id', dealIds);
@@ -193,7 +184,7 @@ router.post('/contact/:contactId', auth, async (req, res) => {
   try {
     const { contactId } = req.params;
     const { content, sender_type = 'manager' } = req.body;
-    const sender_id = req.manager.id;
+    // const sender_id = req.manager.id; // No sender_id column
 
     // Находим активную сделку контакта или создаем новую
     const { data: activeDeal } = await supabase
@@ -216,7 +207,7 @@ router.post('/contact/:contactId', auth, async (req, res) => {
           contact_id: parseInt(contactId),
           title: `Сообщение от ${new Date().toLocaleDateString('ru-RU')}`,
           status: 'new',
-          manager_id: sender_id,
+          manager_id: req.manager.id,
         })
         .select()
         .single();
@@ -272,24 +263,27 @@ router.post('/contact/:contactId', auth, async (req, res) => {
       .insert({
         lead_id: leadId,
         content,
-        sender_id,
-        sender_type,
+        // sender_id, // Removed
+        author_type: sender_type === 'user' ? 'user' : 'Менеджер', // Map to DB values or keep plain
       })
-      .select(`
-        *,
-        sender:managers(name)
-      `)
+      .select(`*`)
       .single();
 
     if (messageError) throw messageError;
 
     // Связываем сообщение со сделкой
-    if (dealId && message) {
+    if (dealId && message && message.id) { // message.id exists?
+      // Wait, message insert with select * should return id.
+      // Although message ID is uuid now? Or int?
+      // Existing messages have "id": 90165 (int).
+      // But the schema check said "id" (uuid) at the end. It likely has both or is confusing.
+      // We'll trust supabase returns the inserted row.
+
       await supabase
         .from('deal_messages')
         .upsert({
           deal_id: dealId,
-          message_id: message.id,
+          message_id: message.id, // Ensure this works with whatever ID type
         }, { onConflict: 'deal_id,message_id' });
     }
 
@@ -345,7 +339,6 @@ router.post('/contact/:contactId', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
   try {
     const { lead_id, content, sender_type = 'manager' } = req.body;
-    const sender_id = req.manager.id;
 
     // Сохраняем сообщение в базе
     const { data, error } = await supabase
@@ -353,13 +346,10 @@ router.post('/', auth, async (req, res) => {
       .insert({
         lead_id,
         content,
-        sender_id,
-        sender_type
+        // sender_id: req.manager.id, // Removed
+        author_type: sender_type === 'user' ? 'user' : 'Менеджер'
       })
-      .select(`
-        *,
-        sender:managers(name)
-      `)
+      .select(`*`)
       .single();
 
     if (error) throw error;

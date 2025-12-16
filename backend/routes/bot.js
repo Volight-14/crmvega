@@ -245,7 +245,7 @@ async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null
       .insert({
         lead_id: leadId,
         content: content,
-        sender_type: 'user'
+        author_type: 'user'
       })
       .select()
       .single();

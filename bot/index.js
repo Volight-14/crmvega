@@ -67,7 +67,7 @@ async function sendMessageToCRM(telegramUserId, content) {
       await axios.post(`${API_BASE_URL}/messages`, {
         lead_id: leadId,
         content: content,
-        sender_type: 'user'
+        sender_type: 'user' // Backend will map this to author_type: 'user'
       }, {
         headers: {
           'Authorization': `Bearer ${process.env.CRM_API_TOKEN}`

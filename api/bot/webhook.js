@@ -76,7 +76,7 @@ async function sendMessageToCRM(telegramUserId, content) {
         .insert({
           lead_id: newLeadId,
           content: content,
-          sender_type: 'user'
+          author_type: 'user'
         });
 
       return newLeadId;
@@ -89,7 +89,7 @@ async function sendMessageToCRM(telegramUserId, content) {
         .insert({
           lead_id: leadId,
           content: content,
-          sender_type: 'user'
+          author_type: 'user'
         });
 
       return leadId;
