@@ -35,23 +35,23 @@ router.post('/send-message', auth, async (req, res) => {
   try {
     const { lead_id, message } = req.body;
 
-    // Получаем информацию о заявке
-    const { data: lead, error: leadError } = await supabase
-      .from('leads')
-      .select('telegram_user_id, name')
-      .eq('id', lead_id)
+    // Получаем информацию о заявке (чате)
+    const { data: chat, error: chatError } = await supabase
+      .from('chats')
+      .select('chat_id, client')
+      .eq('lead_id', lead_id)
       .single();
 
-    if (leadError || !lead) {
-      return res.status(404).json({ error: 'Заявка не найдена' });
+    if (chatError || !chat) {
+      return res.status(404).json({ error: 'Чат не найден' });
     }
 
-    if (!lead.telegram_user_id) {
-      return res.status(400).json({ error: 'У заявки нет Telegram ID пользователя' });
+    if (!chat.chat_id) {
+      return res.status(400).json({ error: 'У чата нет Telegram ID пользователя' });
     }
 
     // Отправляем сообщение через бота
-    const success = await sendMessageToUser(lead.telegram_user_id, message);
+    const success = await sendMessageToUser(chat.chat_id, message);
 
     if (success) {
       // Сохраняем сообщение в базе
@@ -82,6 +82,9 @@ router.post('/send-message', auth, async (req, res) => {
 async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null, req = null) {
   try {
     // Ищем существующий контакт по telegram_user_id
+    // Прим: в contacts table telegram_user_id может быть text или bigint.
+    // Если 205 ошибка здесь, значит contacts.telegram_user_id тоже нет?
+    // Нет, ошибка была specifically 'public.leads'. Contacts оставим.
     const { data: existingContact, error: contactError } = await supabase
       .from('contacts')
       .select('*')
@@ -100,10 +103,10 @@ async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null
       // Создаем новый контакт
       const contactName = telegramUserInfo?.first_name && telegramUserInfo?.last_name
         ? `${telegramUserInfo.first_name} ${telegramUserInfo.last_name}`.trim()
-        : telegramUserInfo?.first_name || 
-          telegramUserInfo?.username || 
-          `Пользователь ${telegramUserId}`;
-      
+        : telegramUserInfo?.first_name ||
+        telegramUserInfo?.username ||
+        `Пользователь ${telegramUserId}`;
+
       const { data: newContact, error: createContactError } = await supabase
         .from('contacts')
         .insert({
@@ -125,36 +128,38 @@ async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null
       contact = existingContact;
     }
 
-    // Ищем или создаем Lead
-    const { data: leads, error: leadError } = await supabase
-      .from('leads')
+    // Ищем или создаем Chat (бывший Lead)
+    // Используем chat_id = telegramUserId
+    const { data: chats, error: chatError } = await supabase
+      .from('chats')
       .select('*')
-      .eq('telegram_user_id', telegramUserId)
-      .order('created_at', { ascending: false })
+      .eq('chat_id', telegramUserId.toString()) // chat_id is text
+      .order('Created Date', { ascending: false }) // Note: Created Date in chats is quoted
       .limit(1);
 
-    if (leadError) throw leadError;
+    if (chatError) throw chatError;
 
-    if (!leads || leads.length === 0) {
-      // Создаем новый Lead
-      const { data: lead, error: createLeadError } = await supabase
-        .from('leads')
+    if (!chats || chats.length === 0) {
+      // Создаем новый Chat
+      const crypto = require('crypto');
+      const newLeadId = crypto.randomUUID();
+
+      const { data: chat, error: createChatError } = await supabase
+        .from('chats')
         .insert({
-          name: contact.name,
-          phone: contact.phone,
-          email: contact.email,
-          source: 'telegram_bot',
-          description: 'Автоматически созданная заявка из Telegram бота',
-          telegram_user_id: telegramUserId,
-          status: 'new'
+          client: contact.name,
+          chat_id: telegramUserId.toString(),
+          lead_id: newLeadId,
+          status: 'new',
+          'Created Date': new Date().toISOString()
         })
         .select()
         .single();
 
-      if (createLeadError) throw createLeadError;
-      leadId = lead.id;
+      if (createChatError) throw createChatError;
+      leadId = chat.lead_id;
 
-      // Создаем Deal, связанный с Contact и Lead
+      // Создаем Deal, связанный с Contact и Chat(Lead)
       const { data: deal, error: createDealError } = await supabase
         .from('deals')
         .insert({
@@ -172,7 +177,6 @@ async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null
 
       if (createDealError) {
         console.error('Error creating deal:', createDealError);
-        // Не прерываем выполнение, если не удалось создать Deal
       }
 
       // Запускаем автоматизации для новой сделки
@@ -188,15 +192,15 @@ async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null
         const io = req.app.get('io');
         if (io) {
           io.emit('new_contact', contact);
-          io.emit('new_lead', lead);
+          // io.emit('new_lead', lead); // Leads no longer exist
           if (deal) {
             io.emit('new_deal', deal);
           }
         }
       }
     } else {
-      // Используем существующий Lead
-      leadId = leads[0].id;
+      // Используем существующий Chat
+      leadId = chats[0].lead_id;
 
       // Проверяем, есть ли активная Deal для этого контакта
       const { data: activeDeal } = await supabase
@@ -241,7 +245,6 @@ async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null
       .insert({
         lead_id: leadId,
         content: content,
-        is_from_bot: true,
         sender_type: 'user'
       })
       .select()

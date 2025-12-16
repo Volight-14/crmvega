@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+const crypto = require('crypto');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -41,26 +42,28 @@ async function sendMessageToUser(telegramUserId, message) {
 // Функция для отправки сообщения в CRM
 async function sendMessageToCRM(telegramUserId, content) {
   try {
-    // Сначала проверяем, есть ли активная заявка для этого пользователя
-    const { data: leads, error: leadError } = await supabase
-      .from('leads')
+    // Сначала проверяем, есть ли активный чат для этого пользователя
+    const { data: chats, error: chatError } = await supabase
+      .from('chats')
       .select('*')
-      .eq('telegram_user_id', telegramUserId)
-      .eq('status', 'in_progress')
+      .eq('chat_id', telegramUserId.toString())
+      .neq('status', 'closed')
       .limit(1);
 
-    if (leadError) throw leadError;
+    if (chatError) throw chatError;
 
-    if (!leads || leads.length === 0) {
-      // Создаем новую заявку
-      const { data: lead, error: createError } = await supabase
-        .from('leads')
+    if (!chats || chats.length === 0) {
+      // Создаем новый чат
+      const newLeadId = crypto.randomUUID();
+
+      const { data: chat, error: createError } = await supabase
+        .from('chats')
         .insert({
-          name: `Пользователь ${telegramUserId}`,
-          source: 'telegram_bot',
-          description: 'Автоматически созданная заявка из Telegram бота',
-          telegram_user_id: telegramUserId,
-          status: 'new'
+          client: `Пользователь ${telegramUserId}`,
+          chat_id: telegramUserId.toString(),
+          lead_id: newLeadId,
+          status: 'new',
+          'Created Date': new Date().toISOString()
         })
         .select()
         .single();
@@ -71,15 +74,15 @@ async function sendMessageToCRM(telegramUserId, content) {
       await supabase
         .from('messages')
         .insert({
-          lead_id: lead.id,
+          lead_id: newLeadId,
           content: content,
           sender_type: 'user'
         });
 
-      return lead.id;
+      return newLeadId;
     } else {
-      // Используем существующую заявку
-      const leadId = leads[0].id;
+      // Используем существующий чат
+      const leadId = chats[0].lead_id;
 
       await supabase
         .from('messages')
@@ -97,7 +100,7 @@ async function sendMessageToCRM(telegramUserId, content) {
   }
 }
 
-// Vercel serverless function  
+// Vercel serverless function
 module.exports = async (req, res) => {
   if (req.method === 'GET') {
     return res.status(200).json({ status: 'ok', message: 'Telegram webhook endpoint' });
@@ -139,4 +142,4 @@ module.exports = async (req, res) => {
     console.error('Webhook error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-}
+};
