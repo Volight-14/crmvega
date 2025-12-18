@@ -1,6 +1,7 @@
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 const { runAutomations } = require('../services/automationRunner');
+const { mapStatus } = require('../utils/statusMapping');
 
 const router = express.Router();
 const supabase = createClient(
@@ -416,7 +417,7 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
       contact_id: contactId,
       external_id: data.external_id || data.order_id || null, // Bubble ID
       title: data.title || `Order from Bubble ${data.order_id || ''}`,
-      status: data.status || 'new',
+      status: mapStatus(data.status || data.OrderStatus),
       created_at: data.created_at || new Date().toISOString(),
       description: data.description || data.comment || null,
 

@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { mapStatus } = require('../utils/statusMapping');
 const envPath = path.resolve(__dirname, '../.env');
 
 if (fs.existsSync(envPath)) {
@@ -200,11 +201,6 @@ async function migrateOrders() {
     console.log('Migration finished.');
 }
 
-function mapStatus(externalStatus) {
-    // Map 'Создан', 'Выполнен' etc to 'new', 'won', 'lost'
-    if (externalStatus === 'Выполнен') return 'won';
-    if (externalStatus === 'Отменен') return 'lost';
-    return 'new';
-}
+// Status mapping handled by utils/statusMapping.js
 
 migrateOrders();
