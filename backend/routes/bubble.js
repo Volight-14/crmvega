@@ -421,7 +421,8 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
       description: data.description || data.comment || null,
 
       // New Fields (expecting snake_case from Bubble, or mapping common ones)
-      city: data.city,
+      city_1: data.city_1 || data.city_rus_01,
+      city_2: data.city_2 || data.city_esp_02 || data.city,
       currency_give: data.currency_give || data.CurrPair1,
       currency_get: data.currency_get || data.CurrPair2,
       amount_give: data.amount_give || data.SumInput,

@@ -155,7 +155,8 @@ async function migrateOrders() {
                 contact_id: contactId,
 
                 // New Fields
-                city: order.CityEsp02 || order.City,
+                city_1: order.CityRus01,
+                city_2: order.CityEsp02 || order.City,
                 currency_give: order.CurrPair1,
                 currency_get: order.CurrPair2,
                 amount_give: order.SumInput,
