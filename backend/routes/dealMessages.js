@@ -32,7 +32,7 @@ router.get('/:dealId/client', auth, async (req, res) => {
     // Получаем сделку и связанный чат
     const { data: deal, error: dealError } = await supabase
       .from('deals')
-      .select('id, contact_id, lead_id')
+      .select('id, contact_id, lead_id, external_id')
       .eq('id', dealId)
       .single();
 
@@ -95,6 +95,24 @@ router.get('/:dealId/client', auth, async (req, res) => {
       }
     }
 
+    // Получаем сообщения по external_id (Bubble ID)
+    if (deal.external_id) {
+      const { data: messagesByExternal } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('lead_id', deal.external_id)
+        .order('Created Date', { ascending: true });
+
+      if (messagesByExternal) {
+        const existingIds = new Set(allMessages.map(m => m.id));
+        for (const msg of messagesByExternal) {
+          if (!existingIds.has(msg.id)) {
+            allMessages.push(msg);
+          }
+        }
+      }
+    }
+
     // Добавляем сообщения из deal_messages
     if (messageIds.length > 0) {
       const { data: messagesByDeal } = await supabase
@@ -127,6 +145,7 @@ router.get('/:dealId/client', auth, async (req, res) => {
       messages: paginatedMessages,
       total: allMessages.length,
       chatLeadId,
+      externalId: deal.external_id,
     });
   } catch (error) {
     console.error('Error fetching deal client messages:', error);

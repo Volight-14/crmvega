@@ -93,7 +93,7 @@ const ClientMessageBubble: React.FC<{
 
   const handlePlayVoice = () => {
     if (!msg.file_url) return;
-    
+
     if (audioRef.current) {
       if (isPlaying) {
         audioRef.current.pause();
@@ -114,10 +114,10 @@ const ClientMessageBubble: React.FC<{
   const renderContent = () => {
     if (msg.message_type === 'voice' && msg.file_url) {
       return (
-        <div 
-          style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
             gap: 8,
             cursor: 'pointer',
           }}
@@ -129,8 +129,8 @@ const ClientMessageBubble: React.FC<{
             <PlayCircleOutlined style={{ fontSize: 24 }} />
           )}
           <div style={{ flex: 1 }}>
-            <div style={{ 
-              height: 4, 
+            <div style={{
+              height: 4,
               background: isFromClient ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.3)',
               borderRadius: 2,
               minWidth: 100,
@@ -147,16 +147,16 @@ const ClientMessageBubble: React.FC<{
 
     if ((msg.message_type === 'file' || msg.message_type === 'image') && msg.file_url) {
       const isImage = msg.message_type === 'image' || msg.file_url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
-      
+
       if (isImage) {
         return (
           <div>
-            <img 
-              src={msg.file_url} 
-              alt={msg.file_name || 'Image'} 
-              style={{ 
-                maxWidth: '100%', 
-                maxHeight: 300, 
+            <img
+              src={msg.file_url}
+              alt={msg.file_name || 'Image'}
+              style={{
+                maxWidth: '100%',
+                maxHeight: 300,
                 borderRadius: 8,
                 cursor: 'pointer',
               }}
@@ -168,13 +168,13 @@ const ClientMessageBubble: React.FC<{
       }
 
       return (
-        <a 
-          href={msg.file_url} 
-          target="_blank" 
+        <a
+          href={msg.file_url}
+          target="_blank"
           rel="noopener noreferrer"
-          style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          style={{
+            display: 'flex',
+            alignItems: 'center',
             gap: 8,
             color: isFromClient ? '#1890ff' : 'white',
             textDecoration: 'none',
@@ -192,10 +192,10 @@ const ClientMessageBubble: React.FC<{
       const isVoice = msg.content.includes('.ogg') || msg.content.includes('.mp3') || msg.content.includes('.wav');
       if (isVoice) {
         return (
-          <div 
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
               gap: 8,
               cursor: 'pointer',
             }}
@@ -242,7 +242,7 @@ const ClientMessageBubble: React.FC<{
         </Tooltip>
         <div
           style={{
-            background: isFromClient 
+            background: isFromClient
               ? 'linear-gradient(135deg, #f0f2f5 0%, #e8eaed 100%)'
               : 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
             color: isFromClient ? '#262626' : 'white',
@@ -292,12 +292,12 @@ const InternalMessageBubble: React.FC<{
 
     if (msg.attachment_type === 'image') {
       return (
-        <img 
-          src={msg.attachment_url} 
-          alt={msg.attachment_name || 'Image'} 
-          style={{ 
-            maxWidth: '100%', 
-            maxHeight: 200, 
+        <img
+          src={msg.attachment_url}
+          alt={msg.attachment_name || 'Image'}
+          style={{
+            maxWidth: '100%',
+            maxHeight: 200,
             borderRadius: 8,
             marginTop: 8,
             cursor: 'pointer',
@@ -308,13 +308,13 @@ const InternalMessageBubble: React.FC<{
     }
 
     return (
-      <a 
-        href={msg.attachment_url} 
-        target="_blank" 
+      <a
+        href={msg.attachment_url}
+        target="_blank"
         rel="noopener noreferrer"
-        style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
+        style={{
+          display: 'flex',
+          alignItems: 'center',
           gap: 8,
           marginTop: 8,
           color: isOwn ? 'rgba(255,255,255,0.9)' : '#1890ff',
@@ -347,7 +347,7 @@ const InternalMessageBubble: React.FC<{
         <Tooltip title={msg.sender?.name || 'Сотрудник'}>
           <Avatar
             size={32}
-            style={{ 
+            style={{
               backgroundColor: isOwn ? '#722ed1' : '#13c2c2',
               flexShrink: 0,
             }}
@@ -357,7 +357,7 @@ const InternalMessageBubble: React.FC<{
         </Tooltip>
         <div
           style={{
-            background: isOwn 
+            background: isOwn
               ? 'linear-gradient(135deg, #722ed1 0%, #531dab 100%)'
               : 'linear-gradient(135deg, #13c2c2 0%, #08979c 100%)',
             color: 'white',
@@ -409,6 +409,8 @@ const DealChat: React.FC<DealChatProps> = ({ dealId, contactName }) => {
   const [activeTab, setActiveTab] = useState<ChatTab>('client');
   const [clientMessages, setClientMessages] = useState<Message[]>([]);
   const [internalMessages, setInternalMessages] = useState<InternalMessage[]>([]);
+  const [chatLeadId, setChatLeadId] = useState<string | null>(null);
+  const [externalId, setExternalId] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -430,6 +432,8 @@ const DealChat: React.FC<DealChatProps> = ({ dealId, contactName }) => {
       setLoading(true);
       const response = await dealMessagesAPI.getClientMessages(dealId);
       setClientMessages(response.messages);
+      setChatLeadId(response.chatLeadId || null);
+      setExternalId(response.externalId || null);
     } catch (error) {
       console.error('Error fetching client messages:', error);
     } finally {
@@ -441,7 +445,7 @@ const DealChat: React.FC<DealChatProps> = ({ dealId, contactName }) => {
     try {
       const response = await dealMessagesAPI.getInternalMessages(dealId);
       setInternalMessages(response.messages);
-      
+
       // Отмечаем как прочитанные
       if (response.messages.length > 0) {
         await dealMessagesAPI.markAsRead(dealId);
@@ -491,17 +495,20 @@ const DealChat: React.FC<DealChatProps> = ({ dealId, contactName }) => {
     // Также слушаем сообщения из Bubble
     socketRef.current.on('new_message_bubble', (msg: Message) => {
       // Проверяем, относится ли сообщение к нашей сделке
-      setClientMessages(prev => {
-        if (prev.some(m => m.id === msg.id)) return prev;
-        return [...prev, msg];
-      });
+      // Сообщение подходит, если его lead_id совпадает с chatLeadId или externalId сделки
+      if ((chatLeadId && msg.lead_id === chatLeadId) || (externalId && msg.lead_id === externalId)) {
+        setClientMessages(prev => {
+          if (prev.some(m => m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
+      }
     });
 
     return () => {
       socketRef.current?.emit('leave_deal', dealId.toString());
       socketRef.current?.disconnect();
     };
-  }, [dealId, manager?.id]);
+  }, [dealId, manager?.id, chatLeadId, externalId]);
 
   // Загрузка данных при монтировании
   useEffect(() => {
@@ -585,7 +592,7 @@ const DealChat: React.FC<DealChatProps> = ({ dealId, contactName }) => {
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/ogg' });
         stream.getTracks().forEach(track => track.stop());
-        
+
         // Отправляем голосовое
         if (activeTab === 'client') {
           const replyId = replyTo && 'message_id_tg' in replyTo ? replyTo.message_id_tg as number : undefined;
@@ -639,9 +646,9 @@ const DealChat: React.FC<DealChatProps> = ({ dealId, contactName }) => {
   };
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
       height: '100%',
       background: '#fff',
       borderRadius: 12,
@@ -649,7 +656,7 @@ const DealChat: React.FC<DealChatProps> = ({ dealId, contactName }) => {
       boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
     }}>
       {/* Заголовок с табами */}
-      <div style={{ 
+      <div style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         padding: '12px 16px',
       }}>
@@ -695,8 +702,8 @@ const DealChat: React.FC<DealChatProps> = ({ dealId, contactName }) => {
           </div>
         ) : activeTab === 'client' ? (
           clientMessages.length === 0 ? (
-            <Empty 
-              description="Нет сообщений" 
+            <Empty
+              description="Нет сообщений"
               image={Empty.PRESENTED_IMAGE_SIMPLE}
               style={{ marginTop: 60 }}
             />
@@ -729,8 +736,8 @@ const DealChat: React.FC<DealChatProps> = ({ dealId, contactName }) => {
           )
         ) : (
           internalMessages.length === 0 ? (
-            <Empty 
-              description="Нет внутренних сообщений" 
+            <Empty
+              description="Нет внутренних сообщений"
               image={Empty.PRESENTED_IMAGE_SIMPLE}
               style={{ marginTop: 60 }}
             />

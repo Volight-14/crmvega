@@ -204,6 +204,7 @@ export const dealMessagesAPI = {
     messages: Message[];
     total: number;
     chatLeadId?: string;
+    externalId?: string;
   }> => {
     const response = await api.get(`/deal-messages/${dealId}/client`, { params });
     return response.data;
