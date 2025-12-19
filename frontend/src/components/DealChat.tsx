@@ -409,8 +409,9 @@ const DealChat: React.FC<DealChatProps> = ({ dealId, contactName }) => {
   const [activeTab, setActiveTab] = useState<ChatTab>('client');
   const [clientMessages, setClientMessages] = useState<Message[]>([]);
   const [internalMessages, setInternalMessages] = useState<InternalMessage[]>([]);
-  const [chatLeadId, setChatLeadId] = useState<string | null>(null);
-  const [externalId, setExternalId] = useState<string | null>(null);
+  const [chatLeadId, setChatLeadId] = useState<string | undefined>();
+  const [externalId, setExternalId] = useState<string | undefined>();
+  const [mainId, setMainId] = useState<string | undefined>();
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -432,8 +433,9 @@ const DealChat: React.FC<DealChatProps> = ({ dealId, contactName }) => {
       setLoading(true);
       const response = await dealMessagesAPI.getClientMessages(dealId);
       setClientMessages(response.messages);
-      setChatLeadId(response.chatLeadId || null);
-      setExternalId(response.externalId || null);
+      setChatLeadId(response.chatLeadId);
+      setExternalId(response.externalId);
+      setMainId(response.mainId);
     } catch (error) {
       console.error('Error fetching client messages:', error);
     } finally {
@@ -495,8 +497,14 @@ const DealChat: React.FC<DealChatProps> = ({ dealId, contactName }) => {
     // Также слушаем сообщения из Bubble
     socketRef.current.on('new_message_bubble', (msg: Message) => {
       // Проверяем, относится ли сообщение к нашей сделке
-      // Сообщение подходит, если его lead_id совпадает с chatLeadId или externalId сделки
-      if ((chatLeadId && msg.lead_id === chatLeadId) || (externalId && msg.lead_id === externalId)) {
+      // 1. По main_id (Highest priority linked key)
+      const matchesMainId = mainId && msg.main_id && String(msg.main_id) === String(mainId);
+      // 2. По lead_id (Telegram or Legacy Bubble)
+      const matchesLeadId = chatLeadId && msg.lead_id && String(msg.lead_id) === String(chatLeadId);
+      // 3. По external_id (Old Bubble logic)
+      const matchesExternalId = externalId && msg.lead_id && String(msg.lead_id) === String(externalId);
+
+      if (matchesMainId || matchesLeadId || matchesExternalId) {
         setClientMessages(prev => {
           if (prev.some(m => m.id === msg.id)) return prev;
           return [...prev, msg];

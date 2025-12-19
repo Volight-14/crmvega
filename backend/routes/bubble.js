@@ -173,8 +173,8 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       user,
       reply_to_mess_id_tg,
       caption,
-      conversation_id,
       order_status,
+      main_ID, // Main linking key
     } = req.body;
 
     // Валидация обязательных полей
@@ -211,6 +211,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
     // Нормализация и подготовка данных для вставки
     const messageData = {
       lead_id: lead_id ? String(lead_id).trim() : null,
+      main_id: main_ID ? String(main_ID).trim() : null,
       content: content.trim(),
       'Created Date': createdDate || new Date().toISOString(),
       author_type: normalizedAuthorType,
@@ -422,6 +423,7 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
     const dealData = {
       contact_id: contactId,
       external_id: data.external_id || data.order_id || data._id || data.ID || null, // Bubble ID with fallbacks
+      main_id: data.main_ID || null,
       title: data.title || `Order from Bubble ${data.order_id || data.ID || ''}`,
       status: mapStatus(data.status || data.OrderStatus),
       created_at: data.created_at || new Date().toISOString(),

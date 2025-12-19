@@ -32,7 +32,7 @@ router.get('/:dealId/client', auth, async (req, res) => {
     // Получаем сделку и связанный чат
     const { data: deal, error: dealError } = await supabase
       .from('deals')
-      .select('id, contact_id, lead_id, external_id')
+      .select('id, contact_id, lead_id, external_id, main_id')
       .eq('id', dealId)
       .single();
 
@@ -81,39 +81,40 @@ router.get('/:dealId/client', auth, async (req, res) => {
     const messageIds = dealMessages?.map(dm => dm.message_id) || [];
 
     let allMessages = [];
+    let clientMessages = []; // Initialize clientMessages
 
-    // Получаем сообщения по lead_id
-    if (chatLeadId) {
-      const { data: messagesByLead } = await supabase
+    // Logic: Match strictly by lead_id (chat's lead_id or deal's external_id)
+    // OR by main_id if present (Deal's main_id == Message's main_id)
+    if (chatLeadId || deal.external_id || deal.main_id) {
+      let query = supabase
         .from('messages')
         .select('*')
-        .eq('lead_id', chatLeadId)
         .order('Created Date', { ascending: true });
 
-      if (messagesByLead) {
-        allMessages = [...messagesByLead];
+      const orConditions = [];
+      if (chatLeadId) {
+        orConditions.push(`lead_id.eq.${chatLeadId}`);
       }
+      if (deal.external_id) {
+        orConditions.push(`lead_id.eq.${deal.external_id}`);
+      }
+      // If deal has main_id, also look for messages with that main_id
+      if (deal.main_id) {
+        orConditions.push(`main_id.eq.${deal.main_id}`);
+      }
+
+      if (orConditions.length > 0) {
+        query = query.or(orConditions.join(','));
+      }
+
+      const { data: messagesByLeadOrMain, error: messagesError } = await query;
+
+      if (messagesError) throw messagesError;
+
+      clientMessages = messagesByLeadOrMain || [];
     }
 
-    // Получаем сообщения по external_id (Bubble ID)
-    if (deal.external_id) {
-      const { data: messagesByExternal } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('lead_id', deal.external_id)
-        .order('Created Date', { ascending: true });
-
-      if (messagesByExternal) {
-        const existingIds = new Set(allMessages.map(m => m.id));
-        for (const msg of messagesByExternal) {
-          if (!existingIds.has(msg.id)) {
-            allMessages.push(msg);
-          }
-        }
-      }
-    }
-
-    // Добавляем сообщения из deal_messages
+    // Add messages from deal_messages
     if (messageIds.length > 0) {
       const { data: messagesByDeal } = await supabase
         .from('messages')
@@ -122,30 +123,31 @@ router.get('/:dealId/client', auth, async (req, res) => {
         .order('Created Date', { ascending: true });
 
       if (messagesByDeal) {
-        const existingIds = new Set(allMessages.map(m => m.id));
+        const existingIds = new Set(clientMessages.map(m => m.id));
         for (const msg of messagesByDeal) {
           if (!existingIds.has(msg.id)) {
-            allMessages.push(msg);
+            clientMessages.push(msg);
           }
         }
       }
     }
 
     // Сортируем по дате
-    allMessages.sort((a, b) => {
+    clientMessages.sort((a, b) => {
       const dateA = new Date(a['Created Date'] || a.timestamp || 0);
       const dateB = new Date(b['Created Date'] || b.timestamp || 0);
       return dateA.getTime() - dateB.getTime();
     });
 
     // Применяем пагинацию
-    const paginatedMessages = allMessages.slice(offset, offset + parseInt(limit));
+    const paginatedMessages = clientMessages.slice(offset, offset + parseInt(limit));
 
     res.json({
       messages: paginatedMessages,
-      total: allMessages.length,
+      total: clientMessages.length,
       chatLeadId,
       externalId: deal.external_id,
+      mainId: deal.main_id,
     });
   } catch (error) {
     console.error('Error fetching deal client messages:', error);
