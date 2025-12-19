@@ -421,8 +421,8 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
     // Map incoming JSON to DB columns. allowing snake_case direct mapping for new columns.
     const dealData = {
       contact_id: contactId,
-      external_id: data.external_id || data.order_id || null, // Bubble ID
-      title: data.title || `Order from Bubble ${data.order_id || ''}`,
+      external_id: data.external_id || data.order_id || data._id || data.ID || null, // Bubble ID with fallbacks
+      title: data.title || `Order from Bubble ${data.order_id || data.ID || ''}`,
       status: mapStatus(data.status || data.OrderStatus),
       created_at: data.created_at || new Date().toISOString(),
       description: data.description || data.comment || null,
