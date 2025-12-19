@@ -6,7 +6,7 @@ const { mapStatus } = require('../utils/statusMapping');
 const router = express.Router();
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
 );
 
 // Middleware для проверки секретного токена
@@ -372,7 +372,13 @@ router.patch('/message/:id', verifyWebhookToken, async (req, res) => {
 // Webhook для создания сделки (order) из Bubble
 router.post('/order', verifyWebhookToken, async (req, res) => {
   try {
-    const data = req.body;
+    let data = req.body;
+
+    // Unwrap Bubble response structure if present
+    if (data.response && data.response.results && Array.isArray(data.response.results) && data.response.results.length > 0) {
+      console.log('[Bubble Webhook] Unwrapping nested Bubble payload');
+      data = data.response.results[0];
+    }
 
     // 1. Contact Resolution (Strict TG ID)
     let contactId = null;
