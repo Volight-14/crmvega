@@ -69,7 +69,6 @@ async function sendMessageToCRM(telegramUserId, content, telegramMessageId) {
     }
 
     // 2. Ищем активную заявку (Order)
-    // Активной считаем любую, которая не в статусе 'completed' или 'scammer' или 'client_rejected'
     const terminalStatuses = ['completed', 'scammer', 'client_rejected', 'lost'];
     const { data: activeOrders } = await supabase
       .from('orders')
@@ -84,17 +83,19 @@ async function sendMessageToCRM(telegramUserId, content, telegramMessageId) {
     if (activeOrders && activeOrders.length > 0) {
       currentOrder = activeOrders[0];
     } else {
-      // Создаем новую заявку (Order)
-      // Генерируем новый main_id если нужно, или просто order
-      // Пользователь сказал Вариант А: Сразу создавать.
-      // Для main_id генерируем UUID если нет из Bubble
-      const newMainId = crypto.randomUUID();
+      // Генерируем новый main_id (numeric)
+      // Используем timestamp + random suffix to fit in numeric? 
+      // Or just a large random number. Numeric implies db might hold it as arbitrary precision or integer?
+      // Postgres numeric is arbitrary precision. Javascript numbers are doubles.
+      // Let's use Date.now() + distinct random part.
+      // Note: Safe max integer in JS is 9e15. Date.now() is 1.7e12. we have space.
+      const newMainId = parseInt(`${Date.now()}${Math.floor(Math.random() * 1000)}`);
 
       const { data: newOrder, error: orderError } = await supabase
         .from('orders')
         .insert({
           contact_id: contactId,
-          title: `Order from Telegram ${telegramUserId}`,
+          title: `Order from TG ${telegramUserId}`,
           status: 'unsorted', // Неразобранное
           created_at: new Date().toISOString(),
           main_id: newMainId
@@ -107,32 +108,39 @@ async function sendMessageToCRM(telegramUserId, content, telegramMessageId) {
     }
 
     // 3. Сохраняем сообщение
-    // Используем main_id заявки как lead_id для сообщения
-    const linkId = currentOrder.main_id || currentOrder.external_id || currentOrder.lead_id || crypto.randomUUID();
-    // Если у заявки нет linkId (старая?), сгенерируем? 
-    // Лучше если мы создали newOrder, у него есть main_id.
-    // Если нашли старый order, у него должен быть main_id (мы добавили колонку). Если пусто - обновим?
-    if (!currentOrder.main_id) {
-      await supabase.from('orders').update({ main_id: linkId }).eq('id', currentOrder.id);
-    }
-    const finalLinkId = currentOrder.main_id || linkId;
+    let linkId = currentOrder.main_id;
 
-    await supabase
+    if (!linkId) {
+      // Если у найденной старой заявки нет main_id, создадим его
+      const newId = parseInt(`${Date.now()}${Math.floor(Math.random() * 1000)}`);
+      await supabase.from('orders').update({ main_id: newId }).eq('id', currentOrder.id);
+      linkId = newId;
+    }
+
+    const { data: savedMessage, error: msgError } = await supabase
       .from('messages')
       .insert({
-        lead_id: finalLinkId,
-        main_id: finalLinkId,
+        lead_id: linkId, // Дублируем для совместимости
+        main_id: linkId,
         content: content,
         author_type: 'user',
         message_id_tg: telegramMessageId,
         'Created Date': new Date().toISOString()
-      });
+      })
+      .select()
+      .single();
+
+    if (msgError) throw msgError;
 
     // Также привяжем через order_messages для надежности
-    // Но нам нужен id созданного сообщения. 
-    // Изменим insert выше чтобы вернуть данные.
+    if (savedMessage) {
+      await supabase.from('order_messages').insert({
+        order_id: currentOrder.id,
+        message_id: savedMessage.id
+      });
+    }
 
-    return finalLinkId;
+    return linkId;
 
   } catch (error) {
     console.error('Error sending message to CRM:', error);
