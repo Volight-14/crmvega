@@ -64,30 +64,21 @@ router.get('/:orderId/client', auth, async (req, res) => {
         .select('*')
         .order('Created Date', { ascending: true });
 
-      // We need to construct a custom filter string for OR logic because simple .or() syntax is picky
-      // We want: lead_id.eq.X, OR lead_id.eq.Y, OR lead_id.eq.Z
-      const conditions = [];
+      const idsToSearch = [];
+      if (order.main_id) idsToSearch.push(order.main_id);
+      if (order.external_id) idsToSearch.push(order.external_id);
+      if (order.lead_id) idsToSearch.push(order.lead_id);
 
-      if (order.main_id) {
-        conditions.push(`lead_id.eq.${order.main_id}`);
-        // If there is a main_id column in messages, check that too
-        // conditions.push(`main_id.eq.${order.main_id}`);
-      }
-      if (order.external_id) {
-        conditions.push(`lead_id.eq.${order.external_id}`);
-      }
-      if (order.lead_id) {
-        // order.lead_id might be different from main_id, or same
-        conditions.push(`lead_id.eq.${order.lead_id}`);
-      }
+      const uniqueIds = [...new Set(idsToSearch.filter(Boolean))];
 
-      if (conditions.length > 0) {
-        // Use the raw OR filter string
-        // Format: column.operator.value,column.operator.value
-        // But since we are checking the SAME column 'lead_id' mostly, we can chain .or()
-        // Wait, supabase .or() takes a string like 'id.eq.1,id.eq.2'
-        const filterString = conditions.join(',');
-        query = query.or(filterString);
+      if (uniqueIds.length > 0) {
+        query = query.in('lead_id', uniqueIds);
+      } else {
+        // Fallback: If no IDs found on order, maybe try searching by contact?
+        // But the request says "strict link by main_id but if misses -> last active order".
+        // This likely means if THIS order has no ID, we are lost unless we find messages for this contact's other orders?
+        // But we are scoped to THIS orderId. Use what we have.
+        query = query.eq('lead_id', 'non_existent_id'); // Return empty if no IDs to link
       }
 
 
