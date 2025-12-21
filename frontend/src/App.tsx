@@ -6,11 +6,11 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import MainLayout from './components/MainLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import LeadDetail from './pages/LeadDetail';
-import DealsPage from './pages/DealsPage';
+// import LeadDetail from './pages/LeadDetail'; // Deprecated
+import OrdersPage from './pages/OrdersPage';
 import ContactsPage from './pages/ContactsPage';
 import ContactDetailPage from './pages/ContactDetailPage';
-import DealDetailPage from './pages/DealDetailPage';
+import OrderDetailPage from './pages/OrderDetailPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import AutomationPage from './pages/AutomationPage';
 import SettingsPage from './pages/SettingsPage';
@@ -40,19 +40,14 @@ const AppRoutes: React.FC = () => {
           </PrivateRoute>
         }
       />
+      {/* Deprecated legacy lead route */}
+      {/* <Route path="/lead/:id" element={<PrivateRoute><LeadDetail /></PrivateRoute>} /> */}
+
       <Route
-        path="/lead/:id"
+        path="/orders"
         element={
           <PrivateRoute>
-            <LeadDetail />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/deals"
-        element={
-          <PrivateRoute>
-            <DealsPage />
+            <OrdersPage />
           </PrivateRoute>
         }
       />
@@ -73,10 +68,10 @@ const AppRoutes: React.FC = () => {
         }
       />
       <Route
-        path="/deal/:id"
+        path="/order/:id"
         element={
           <PrivateRoute>
-            <DealDetailPage />
+            <OrderDetailPage />
           </PrivateRoute>
         }
       />
@@ -112,7 +107,7 @@ const AppRoutes: React.FC = () => {
           </PrivateRoute>
         }
       />
-      <Route path="/" element={<Navigate to="/deals" />} />
+      <Route path="/" element={<Navigate to="/orders" />} />
     </Routes>
   );
 };

@@ -8,22 +8,22 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
-// Получить аналитику по сделкам
-router.get('/deals', auth, async (req, res) => {
+// Получить аналитику по заявкам (orders)
+router.get('/orders', auth, async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
 
     // Базовый запрос
-    let dealsQuery = supabase.from('deals').select('*');
+    let ordersQuery = supabase.from('orders').select('*');
 
     if (startDate) {
-      dealsQuery = dealsQuery.gte('created_at', startDate);
+      ordersQuery = ordersQuery.gte('created_at', startDate);
     }
     if (endDate) {
-      dealsQuery = dealsQuery.lte('created_at', endDate);
+      ordersQuery = ordersQuery.lte('created_at', endDate);
     }
 
-    const { data: deals, error } = await dealsQuery;
+    const { data: orders, error } = await ordersQuery;
 
     if (error) throw error;
 
@@ -32,15 +32,15 @@ router.get('/deals', auth, async (req, res) => {
     let totalAmount = 0;
     let closedAmount = 0;
 
-    deals?.forEach(deal => {
-      if (!statusStats[deal.status]) {
-        statusStats[deal.status] = { count: 0, amount: 0 };
+    orders?.forEach(order => {
+      if (!statusStats[order.status]) {
+        statusStats[order.status] = { count: 0, amount: 0 };
       }
-      statusStats[deal.status].count++;
-      const amount = parseFloat(deal.amount) || 0;
-      statusStats[deal.status].amount += amount;
+      statusStats[order.status].count++;
+      const amount = parseFloat(order.amount) || 0;
+      statusStats[order.status].amount += amount;
       totalAmount += amount;
-      if (deal.status === 'closed') {
+      if (order.status === 'closed') {
         closedAmount += amount;
       }
     });
@@ -57,13 +57,13 @@ router.get('/deals', auth, async (req, res) => {
 
     // Продажи по месяцам
     const monthlySales = {};
-    deals?.forEach(deal => {
-      if (deal.status === 'closed') {
-        const month = new Date(deal.closed_date || deal.updated_at).toISOString().slice(0, 7);
+    orders?.forEach(order => {
+      if (order.status === 'closed') {
+        const month = new Date(order.closed_date || order.updated_at).toISOString().slice(0, 7);
         if (!monthlySales[month]) {
           monthlySales[month] = 0;
         }
-        monthlySales[month] += parseFloat(deal.amount) || 0;
+        monthlySales[month] += parseFloat(order.amount) || 0;
       }
     });
 
@@ -76,42 +76,42 @@ router.get('/deals', auth, async (req, res) => {
     managersData?.forEach(manager => {
       managerStats[manager.id] = {
         name: manager.name,
-        deals: 0,
+        orders: 0,
         closed: 0,
         amount: 0,
       };
     });
 
-    deals?.forEach(deal => {
-      if (deal.manager_id && managerStats[deal.manager_id]) {
-        managerStats[deal.manager_id].deals++;
-        const amount = parseFloat(deal.amount) || 0;
-        managerStats[deal.manager_id].amount += amount;
-        if (deal.status === 'closed') {
-          managerStats[deal.manager_id].closed++;
+    orders?.forEach(order => {
+      if (order.manager_id && managerStats[order.manager_id]) {
+        managerStats[order.manager_id].orders++;
+        const amount = parseFloat(order.amount) || 0;
+        managerStats[order.manager_id].amount += amount;
+        if (order.status === 'closed') {
+          managerStats[order.manager_id].closed++;
         }
       }
     });
 
-    // Источники сделок
+    // Источники заявок
     const sourceStats = {};
-    deals?.forEach(deal => {
-      const source = deal.source || 'Не указан';
+    orders?.forEach(order => {
+      const source = order.source || 'Не указан';
       if (!sourceStats[source]) {
         sourceStats[source] = { count: 0, amount: 0 };
       }
       sourceStats[source].count++;
-      sourceStats[source].amount += parseFloat(deal.amount) || 0;
+      sourceStats[source].amount += parseFloat(order.amount) || 0;
     });
 
     res.json({
       summary: {
-        total: deals?.length || 0,
+        total: orders?.length || 0,
         totalAmount,
         closedAmount,
         closedCount: statusStats['closed']?.count || 0,
-        conversionRate: deals?.length > 0 
-          ? ((statusStats['closed']?.count || 0) / deals.length * 100).toFixed(1)
+        conversionRate: orders?.length > 0
+          ? ((statusStats['closed']?.count || 0) / orders.length * 100).toFixed(1)
           : 0,
       },
       statusStats,
@@ -167,4 +167,3 @@ router.get('/contacts', auth, async (req, res) => {
 });
 
 module.exports = router;
-

@@ -35,8 +35,8 @@ import {
   ArrowLeftOutlined,
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Contact, Deal, Note, Message, NOTE_PRIORITIES, DEAL_STATUSES } from '../types';
-import { contactsAPI, dealsAPI, notesAPI, contactMessagesAPI } from '../services/api';
+import { Contact, Order, Note, Message, NOTE_PRIORITIES, ORDER_STATUSES } from '../types';
+import { contactsAPI, ordersAPI, notesAPI, contactMessagesAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import io from 'socket.io-client';
 
@@ -51,7 +51,7 @@ const ContactDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { manager } = useAuth();
   const [contact, setContact] = useState<Contact | null>(null);
-  const [deals, setDeals] = useState<Deal[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -68,7 +68,7 @@ const ContactDetailPage: React.FC = () => {
   useEffect(() => {
     if (id) {
       fetchContact();
-      fetchDeals();
+      fetchOrders();
       fetchNotes();
       fetchMessages();
       setupSocket();
@@ -132,13 +132,13 @@ const ContactDetailPage: React.FC = () => {
     }
   };
 
-  const fetchDeals = async () => {
+  const fetchOrders = async () => {
     if (!id) return;
     try {
-      const { deals: fetchedDeals } = await dealsAPI.getAll({ contact_id: parseInt(id) });
-      setDeals(fetchedDeals);
+      const { orders: fetchedOrders } = await ordersAPI.getAll({ contact_id: parseInt(id) });
+      setOrders(fetchedOrders);
     } catch (error) {
-      console.error('Error fetching deals:', error);
+      console.error('Error fetching orders:', error);
     }
   };
 
@@ -207,13 +207,13 @@ const ContactDetailPage: React.FC = () => {
 
     setSending(true);
     try {
-      // Отправляем сообщение напрямую контакту (API автоматически создаст/найдет сделку)
+      // Отправляем сообщение напрямую контакту (API автоматически создаст/найдет заявку)
       const newMsg = await contactMessagesAPI.sendToContact(
         parseInt(id),
         newMessage.trim(),
         'manager'
       );
-      
+
       // Добавляем сообщение в список для мгновенного отображения
       setMessages(prev => [...prev, newMsg]);
       setNewMessage('');
@@ -229,12 +229,12 @@ const ContactDetailPage: React.FC = () => {
     return <div>Загрузка...</div>;
   }
 
-  const dealColumns = [
+  const orderColumns = [
     {
-      title: 'Сделка',
+      title: 'Заявка',
       dataIndex: 'title',
       key: 'title',
-      render: (title: string, record: Deal) => (
+      render: (title: string, record: Order) => (
         <div>
           <div style={{ fontWeight: 'bold' }}>{title}</div>
           <Text type="secondary" style={{ fontSize: 12 }}>
@@ -247,8 +247,8 @@ const ContactDetailPage: React.FC = () => {
       title: 'Статус',
       dataIndex: 'status',
       key: 'status',
-      render: (status: Deal['status']) => {
-        const statusInfo = DEAL_STATUSES[status];
+      render: (status: Order['status']) => {
+        const statusInfo = ORDER_STATUSES[status];
         return <Tag color={statusInfo.color}>{statusInfo.icon} {statusInfo.label}</Tag>;
       },
     },
@@ -256,7 +256,7 @@ const ContactDetailPage: React.FC = () => {
       title: 'Сумма',
       dataIndex: 'amount',
       key: 'amount',
-      render: (amount: number, record: Deal) => (
+      render: (amount: number, record: Order) => (
         <Text strong>{amount?.toLocaleString('ru-RU') || 0} {record.currency || 'RUB'}</Text>
       ),
     },
@@ -269,8 +269,8 @@ const ContactDetailPage: React.FC = () => {
     {
       title: 'Действия',
       key: 'actions',
-      render: (_: any, record: Deal) => (
-        <Button type="link" onClick={() => navigate(`/deal/${record.id}`)}>
+      render: (_: any, record: Order) => (
+        <Button type="link" onClick={() => navigate(`/order/${record.id}`)}>
           Открыть
         </Button>
       ),
@@ -324,12 +324,12 @@ const ContactDetailPage: React.FC = () => {
           <Descriptions.Item label="Рейтинг">
             {contact.rating ? `${contact.rating}/5` : '-'}
           </Descriptions.Item>
-          <Descriptions.Item label="Всего сделок" span={2}>
-            <Badge count={contact.deals_count || 0} showZero>
-              <span style={{ marginRight: 8 }}>Сделок:</span>
+          <Descriptions.Item label="Всего заявок" span={2}>
+            <Badge count={contact.orders_count || 0} showZero>
+              <span style={{ marginRight: 8 }}>Заявок:</span>
             </Badge>
             <Text strong style={{ marginLeft: 16 }}>
-              Сумма: {contact.deals_total_amount?.toLocaleString('ru-RU') || 0} ₽
+              Сумма: {contact.orders_total_amount?.toLocaleString('ru-RU') || 0} ₽
             </Text>
           </Descriptions.Item>
           {contact.address && (
@@ -428,9 +428,9 @@ const ContactDetailPage: React.FC = () => {
                             <div style={{ fontSize: '12px', opacity: 0.7, marginTop: '4px' }}>
                               {new Date(msg['Created Date'] || msg.created_at || '').toLocaleString('ru-RU')}
                               {msg.sender?.name && ` • ${msg.sender.name}`}
-                              {(msg as any).deal_title && (
+                              {(msg as any).order_title && (
                                 <Tag style={{ marginLeft: 8, fontSize: '12px' }}>
-                                  Сделка: {(msg as any).deal_title}
+                                  Заявка: {(msg as any).order_title}
                                 </Tag>
                               )}
                             </div>
@@ -455,23 +455,23 @@ const ContactDetailPage: React.FC = () => {
               ),
             },
             {
-              key: 'deals',
+              key: 'orders',
               label: (
                 <span>
-                  <FileTextOutlined /> Сделки
+                  <FileTextOutlined /> Заявки
                 </span>
               ),
               children: (
                 <>
                   <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
-                    <Title level={4} style={{ margin: 0 }}>Сделки контакта</Title>
-                    <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate(`/deals?contact_id=${id}`)}>
-                      Новая сделка
+                    <Title level={4} style={{ margin: 0 }}>Заявки контакта</Title>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate(`/orders?contact_id=${id}`)}>
+                      Новая заявка
                     </Button>
                   </Space>
                   <Table
-                    columns={dealColumns}
-                    dataSource={deals}
+                    columns={orderColumns}
+                    dataSource={orders}
                     rowKey="id"
                     pagination={false}
                   />

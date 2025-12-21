@@ -31,10 +31,10 @@ router.get('/contact/:contactId', auth, async (req, res) => {
   }
 });
 
-// Получить заметки сделки
-router.get('/deal/:dealId', auth, async (req, res) => {
+// Получить заметки заявки (order)
+router.get('/order/:orderId', auth, async (req, res) => {
   try {
-    const { dealId } = req.params;
+    const { orderId } = req.params;
 
     const { data, error } = await supabase
       .from('notes')
@@ -42,7 +42,7 @@ router.get('/deal/:dealId', auth, async (req, res) => {
         *,
         manager:managers(name)
       `)
-      .eq('deal_id', dealId)
+      .eq('order_id', orderId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -57,13 +57,13 @@ router.get('/deal/:dealId', auth, async (req, res) => {
 // Создать заметку
 router.post('/', auth, async (req, res) => {
   try {
-    const { contact_id, deal_id, content, priority } = req.body;
+    const { contact_id, order_id, content, priority } = req.body;
 
     const { data, error } = await supabase
       .from('notes')
       .insert({
         contact_id,
-        deal_id,
+        order_id,
         content,
         priority: priority || 'info',
         manager_id: req.manager.id,
@@ -127,4 +127,3 @@ router.delete('/:id', auth, async (req, res) => {
 });
 
 module.exports = router;
-

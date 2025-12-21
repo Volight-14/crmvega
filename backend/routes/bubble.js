@@ -43,116 +43,18 @@ router.use((req, res, next) => {
   next();
 });
 
-// Тестовый endpoint для проверки (без токена, только для диагностики)
+// Тестовый endpoint
 router.get('/', (req, res) => {
   res.json({
     success: true,
-    message: 'Bubble webhook endpoint is working',
+    message: 'Bubble webhook endpoint is working (Refactored: Orders Only)',
     endpoints: {
-      chat: 'POST /api/webhook/bubble/chat',
       message: 'POST /api/webhook/bubble/message',
-      updateChat: 'PATCH /api/webhook/bubble/chat/:id',
+      order: 'POST /api/webhook/bubble/order',
       updateMessage: 'PATCH /api/webhook/bubble/message/:id'
     },
     note: 'All POST/PATCH endpoints require X-Webhook-Token header'
   });
-});
-
-// Webhook для создания чата из Bubble
-router.post('/chat', verifyWebhookToken, async (req, res) => {
-  try {
-    const {
-      status,
-      'Created Date': createdDate,
-      AMOid_new,
-      lead_id,
-      client,
-      chat_id,
-      amojo_id_client,
-      talk_id,
-      'Modified Date': modifiedDate,
-      'Created By': createdBy,
-    } = req.body;
-
-    // Нормализация и подготовка данных для вставки
-    const chatData = {
-      status: (status || 'new').toLowerCase(),
-      'Created Date': createdDate || new Date().toISOString(),
-      AMOid_new: AMOid_new ? parseInt(AMOid_new) : null,
-      lead_id: lead_id ? String(lead_id).trim() : null,
-      client: client ? String(client).trim() : null,
-      chat_id: chat_id ? String(chat_id).trim() : null,
-      amojo_id_client: amojo_id_client ? String(amojo_id_client).trim() : null,
-      talk_id: talk_id ? String(talk_id).trim() : null,
-      'Modified Date': modifiedDate || new Date().toISOString(),
-      'Created By': createdBy || null,
-    };
-
-    // Проверяем, существует ли уже чат с таким chat_id или lead_id
-    let existingChat = null;
-    if (chat_id) {
-      const { data: chatByChatId } = await supabase
-        .from('chats')
-        .select('id')
-        .eq('chat_id', chat_id)
-        .maybeSingle();
-      existingChat = chatByChatId;
-    }
-
-    if (!existingChat && lead_id) {
-      const { data: chatByLeadId } = await supabase
-        .from('chats')
-        .select('id')
-        .eq('lead_id', lead_id)
-        .maybeSingle();
-      existingChat = chatByLeadId;
-    }
-
-    let result;
-    if (existingChat) {
-      // Обновляем существующий чат
-      const { data, error } = await supabase
-        .from('chats')
-        .update(chatData)
-        .eq('id', existingChat.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      result = data;
-    } else {
-      // Создаем новый чат
-      const { data, error } = await supabase
-        .from('chats')
-        .insert(chatData)
-        .select()
-        .single();
-
-      if (error) throw error;
-      result = data;
-
-      // Отправляем Socket.IO событие о новом чате
-      const io = req.app.get('io');
-      if (io) {
-        io.emit('new_chat', result);
-      }
-
-      // Запускаем автоматизации для нового чата
-      runAutomations('chat_created', result, { io }).catch(err => {
-        console.error('Error running automations for chat_created:', err);
-      });
-    }
-
-    console.log(`[Bubble Webhook] Chat ${existingChat ? 'updated' : 'created'}:`, result.id);
-    res.json({ success: true, data: result });
-  } catch (error) {
-    console.error('Error creating/updating chat from Bubble:', error);
-    res.status(400).json({
-      success: false,
-      error: error.message,
-      details: error.details || null
-    });
-  }
 });
 
 // Webhook для создания сообщения из Bubble
@@ -177,7 +79,6 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       main_ID, // Main linking key
     } = req.body;
 
-    // Валидация обязательных полей
     if (!content || typeof content !== 'string' || content.trim().length === 0) {
       return res.status(400).json({
         success: false,
@@ -185,26 +86,23 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       });
     }
 
-    // Валидация author_type - принимаем значения из Bubble как есть
     const allowedAuthorTypes = ['Админ', 'Менеджер', 'Оператор', 'Служба заботы', 'Бот', 'Клиент'];
 
     if (!author_type || typeof author_type !== 'string') {
       return res.status(400).json({
         success: false,
-        error: 'author_type is required and must be a string',
+        error: 'author_type is required',
         received: author_type
       });
     }
 
-    // Нормализуем (trim, но сохраняем регистр для точного соответствия)
     const normalizedAuthorType = author_type.trim();
 
     if (!allowedAuthorTypes.includes(normalizedAuthorType)) {
       return res.status(400).json({
         success: false,
-        error: `Invalid author_type: "${author_type}". Allowed values: ${allowedAuthorTypes.join(', ')}`,
-        received: author_type,
-        normalized: normalizedAuthorType
+        error: `Invalid author_type`,
+        received: author_type
       });
     }
 
@@ -225,11 +123,9 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       user: user || null,
       reply_to_mess_id_tg: reply_to_mess_id_tg || null,
       caption: caption || null,
-      conversation_id: conversation_id || null,
       order_status: order_status || null,
     };
 
-    // Проверяем, существует ли уже сообщение с таким message_id_amo или message_id_tg
     let existingMessage = null;
     if (message_id_amo) {
       const { data: msgByAmo } = await supabase
@@ -251,7 +147,6 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
 
     let result;
     if (existingMessage) {
-      // Обновляем существующее сообщение
       const { data, error } = await supabase
         .from('messages')
         .update(messageData)
@@ -262,7 +157,6 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       if (error) throw error;
       result = data;
     } else {
-      // Создаем новое сообщение
       const { data, error } = await supabase
         .from('messages')
         .insert(messageData)
@@ -272,7 +166,6 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       if (error) throw error;
       result = data;
 
-      // Отправляем Socket.IO событие о новом сообщении
       const io = req.app.get('io');
       if (io) {
         if (lead_id) {
@@ -281,7 +174,6 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
         io.emit('new_message_bubble', result);
       }
 
-      // Запускаем автоматизации для нового сообщения
       runAutomations('message_received', result, { io }).catch(err => {
         console.error('Error running automations for message_received:', err);
       });
@@ -299,47 +191,12 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
   }
 });
 
-// Webhook для обновления чата из Bubble
-router.patch('/chat/:id', verifyWebhookToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updateData = { ...req.body };
-
-    // Удаляем id из данных обновления, если он там есть
-    delete updateData.id;
-
-    const { data, error } = await supabase
-      .from('chats')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // Отправляем Socket.IO событие об обновлении чата
-    const io = req.app.get('io');
-    if (io) {
-      io.emit('chat_updated', data);
-    }
-
-    res.json({ success: true, data });
-  } catch (error) {
-    console.error('Error updating chat from Bubble:', error);
-    res.status(400).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
 // Webhook для обновления сообщения из Bubble
 router.patch('/message/:id', verifyWebhookToken, async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = { ...req.body };
 
-    // Удаляем id из данных обновления, если он там есть
     delete updateData.id;
 
     const { data, error } = await supabase
@@ -351,7 +208,6 @@ router.patch('/message/:id', verifyWebhookToken, async (req, res) => {
 
     if (error) throw error;
 
-    // Отправляем Socket.IO событие об обновлении сообщения
     const io = req.app.get('io');
     if (io) {
       if (data.lead_id) {
@@ -370,12 +226,11 @@ router.patch('/message/:id', verifyWebhookToken, async (req, res) => {
   }
 });
 
-// Webhook для создания сделки (order) из Bubble
+// Webhook для создания заявки (order) из Bubble
 router.post('/order', verifyWebhookToken, async (req, res) => {
   try {
     let data = req.body;
 
-    // Unwrap Bubble response structure if present
     if (data.response && data.response.results && Array.isArray(data.response.results) && data.response.results.length > 0) {
       console.log('[Bubble Webhook] Unwrapping nested Bubble payload');
       data = data.response.results[0];
@@ -385,7 +240,6 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
     let contactId = null;
     let telegramId = data.telegram_user_id;
 
-    // Parse tg_amo if provided and telegram_user_id is missing
     if (!telegramId && data.tg_amo && data.tg_amo.includes('ID:')) {
       const match = data.tg_amo.match(/ID:\s*(\d+)/);
       if (match) telegramId = match[1];
@@ -396,9 +250,7 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
       if (c) contactId = c.id;
     }
 
-    // Create Contact if missing
     if (!contactId) {
-      // Ignore invalid phone "123"
       let validPhone = (data.client_phone && data.client_phone !== '123' && data.client_phone.length > 5) ? data.client_phone : null;
 
       const name = data.client_name || (data.tg_amo ? data.tg_amo.split(',')[0] : `User ${telegramId || 'Unknown'}`);
@@ -418,9 +270,8 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
       }
     }
 
-    // 2. Prepare Deal Data
-    // Map incoming JSON to DB columns. allowing snake_case direct mapping for new columns.
-    const dealData = {
+    // 2. Prepare Order Data
+    const orderData = {
       contact_id: contactId,
       external_id: data.external_id || data.order_id || data._id || data.ID || null, // Bubble ID with fallbacks
       main_id: data.main_ID || null,
@@ -429,7 +280,7 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
       created_at: data.created_at || new Date().toISOString(),
       description: data.description || data.comment || null,
 
-      // New Fields (expecting snake_case from Bubble, or mapping common ones)
+      // New Fields
       city_1: data.city_1 || data.CityRus01,
       city_2: data.city_2 || data.CityEsp02 || data.city,
       currency_give: data.currency_give || data.CurrPair1,
@@ -453,7 +304,7 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
       location_url_alt: data.location_url_alt || data.Location1,
       is_remote: data.is_remote ?? data['Remote?'],
       delivery_day_type: data.delivery_day_type || data.NextDay,
-      mongo_id: data.mongo_id || data._id || data.ID, // Fallback ID if external_id missing
+      mongo_id: data.mongo_id || data._id || data.ID,
       external_updated_at: data.external_updated_at || data['Modified Date'],
       cashback_usdt: data.cashback_usdt,
       cashback_eur: data.cashback_eur,
@@ -462,17 +313,17 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
       sum_equivalent_eur: data.sum_equivalent_eur,
       loyalty_points: data.loyalty_points,
       crypto_wallet: data.crypto_wallet,
-      message_iban: data.message_iban || data.СlientIBAN, // Note Cyrillic C in ClientIBAN potentially
+      message_iban: data.message_iban || data.СlientIBAN,
       payee_name: data.payee_name || data.PayeeName,
       payment_timing: data.payment_timing || data['PayNow?'],
       network_usdt_1: data.network_usdt_1 || data.NetworkUSDT01,
       network_usdt_2: data.network_usdt_2
     };
 
-    // 3. Insert Deal
-    const { data: newDeal, error } = await supabase
-      .from('deals')
-      .insert(dealData)
+    // 3. Insert Order
+    const { data: newOrder, error } = await supabase
+      .from('orders')
+      .insert(orderData)
       .select()
       .single();
 
@@ -481,19 +332,18 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
     // 4. Events & Automations
     const io = req.app.get('io');
     if (io) {
-      io.emit('new_deal', newDeal);
+      io.emit('new_order', newOrder);
     }
 
-    // Automation trigger
-    runAutomations('deal_created', newDeal, { io }).catch(err => {
-      console.error('Error running automations for deal_created:', err);
+    runAutomations('order_created', newOrder, { io }).catch(err => {
+      console.error('Error running automations for order_created:', err);
     });
 
-    console.log(`[Bubble Webhook] Created deal ${newDeal.id} (External: ${dealData.external_id})`);
-    res.json({ success: true, data: newDeal });
+    console.log(`[Bubble Webhook] Created order ${newOrder.id} (External: ${orderData.external_id})`);
+    res.json({ success: true, data: newOrder });
 
   } catch (error) {
-    console.error('Error creating deal from Bubble:', error);
+    console.error('Error creating order from Bubble:', error);
     res.status(400).json({
       success: false,
       error: error.message
@@ -502,4 +352,3 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
 });
 
 module.exports = router;
-

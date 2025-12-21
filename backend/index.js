@@ -72,22 +72,24 @@ app.set('io', io);
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
-// app.use('/api/leads', require('./routes/leads')); // Removed: leads table deprecated
-app.use('/api/chats', require('./routes/chats'));
+// app.use('/api/chats', require('./routes/chats')); // Removed
 app.use('/api/messages', require('./routes/messages'));
 app.use('/api/bot', require('./routes/bot'));
 app.use('/api/contacts', require('./routes/contacts'));
-app.use('/api/deals', require('./routes/deals'));
+app.use('/api/orders', require('./routes/orders')); // Renamed from deals
 app.use('/api/notes', require('./routes/notes'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/automations', require('./routes/automations'));
 app.use('/api/ai', require('./routes/ai'));
 app.use('/api/webhook/bubble', require('./routes/bubble'));
-app.use('/api/deal-messages', require('./routes/dealMessages'));
+app.use('/api/order-messages', require('./routes/orderMessages')); // Renamed from deal-messages
 
 // Логирование всех зарегистрированных роутов
 console.log('✅ Routes registered:');
 console.log('  - /api/webhook/bubble');
+console.log('  - /api/orders');
+console.log('  - /api/order-messages');
+
 
 // Socket.IO для real-time общения
 io.on('connection', (socket) => {
@@ -99,19 +101,22 @@ io.on('connection', (socket) => {
   });
 
   // Присоединение к комнате заявки
+  // Formerly join_lead, but if we assume 'lead' is 'order'...
+  // Keeping join_lead for legacy compatibility if messages use it?
+  // Messages use lead_id. 
   socket.on('join_lead', (leadId) => {
     socket.join(`lead_${leadId}`);
   });
 
-  // Присоединение к комнате сделки
-  socket.on('join_deal', (dealId) => {
-    socket.join(`deal_${dealId}`);
-    console.log(`Socket ${socket.id} joined deal_${dealId}`);
+  // Присоединение к комнате ордера (бывшая сделка)
+  socket.on('join_order', (orderId) => {
+    socket.join(`order_${orderId}`);
+    console.log(`Socket ${socket.id} joined order_${orderId}`);
   });
 
-  // Выход из комнаты сделки
-  socket.on('leave_deal', (dealId) => {
-    socket.leave(`deal_${dealId}`);
+  // Выход из комнаты ордера
+  socket.on('leave_order', (orderId) => {
+    socket.leave(`order_${orderId}`);
   });
 
   // Присоединение к комнате контакта
@@ -138,7 +143,7 @@ io.on('connection', (socket) => {
 
       if (error) throw error;
 
-      // Отправляем сообщение всем в комнате лида
+      // Отправляем сообщение всем в комнате лида (main_id)
       io.to(`lead_${leadId}`).emit('new_message', savedMessage);
 
     } catch (error) {

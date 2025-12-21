@@ -1,6 +1,6 @@
 import axios from 'axios';
 import {
-  Manager, Lead, Message, Contact, Deal, Note, Automation, ApiResponse,
+  Manager, Message, Contact, Order, Note, Automation, ApiResponse,
   AISettings, AISettingsRaw, OperatorStyle, KnowledgeArticle, AnswerScript,
   WebsiteContent, AISuggestion, SuccessfulResponse, AIAnalytics, AIModel,
   AIInstruction, InstructionLevel, InstructionLevelInfo, InternalMessage
@@ -12,7 +12,6 @@ const api = axios.create({
   baseURL: API_BASE_URL,
 });
 
-// Добавляем токен авторизации к каждому запросу
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
@@ -21,14 +20,11 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Автоматический logout при 401 (невалидный/просроченный токен)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Токен невалидный или просрочен — разлогиниваем
       const currentPath = window.location.pathname;
-      // Не редиректим если уже на странице логина или сброса пароля
       if (!currentPath.includes('/login') && !currentPath.includes('/reset-password')) {
         localStorage.removeItem('token');
         localStorage.removeItem('manager');
@@ -63,29 +59,6 @@ export const authAPI = {
 
   verifyResetToken: async (token: string): Promise<{ valid: boolean; email?: string; error?: string }> => {
     const response = await api.get(`/auth/verify-reset-token/${token}`);
-    return response.data;
-  },
-};
-
-// Chats API (было Leads)
-export const leadsAPI = {
-  getAll: async (params?: { status?: string; limit?: number; offset?: number }): Promise<{ leads: Lead[]; total: number }> => {
-    const response = await api.get('/chats', { params });
-    return response.data;
-  },
-
-  getById: async (id: number): Promise<Lead> => {
-    const response = await api.get(`/chats/${id}`);
-    return response.data;
-  },
-
-  create: async (lead: Omit<Lead, 'id' | 'Created Date' | 'Modified Date'>): Promise<Lead> => {
-    const response = await api.post('/chats', lead);
-    return response.data;
-  },
-
-  updateStatus: async (id: number, status: string, managerId?: number): Promise<Lead> => {
-    const response = await api.patch(`/chats/${id}/status`, { status, manager_id: managerId });
     return response.data;
   },
 };
@@ -130,30 +103,31 @@ export const contactsAPI = {
   },
 };
 
-// Deals API
-export const dealsAPI = {
-  getAll: async (params?: { contact_id?: number; status?: string; limit?: number; offset?: number }): Promise<{ deals: Deal[] }> => {
-    const response = await api.get('/deals', { params });
+// Orders API (Renamed from Deals API)
+export const ordersAPI = {
+  getAll: async (params?: { contact_id?: number; status?: string; limit?: number; offset?: number }): Promise<{ orders: Order[] }> => {
+    // If backend expects 'deals' response structure or 'orders', ensure backend returns { orders: [] }
+    const response = await api.get('/orders', { params });
     return response.data;
   },
 
-  getById: async (id: number): Promise<Deal> => {
-    const response = await api.get(`/deals/${id}`);
+  getById: async (id: number): Promise<Order> => {
+    const response = await api.get(`/orders/${id}`);
     return response.data;
   },
 
-  create: async (deal: Omit<Deal, 'id' | 'created_at' | 'updated_at'>): Promise<Deal> => {
-    const response = await api.post('/deals', deal);
+  create: async (order: Omit<Order, 'id' | 'created_at' | 'updated_at'>): Promise<Order> => {
+    const response = await api.post('/orders', order);
     return response.data;
   },
 
-  update: async (id: number, deal: Partial<Deal>): Promise<Deal> => {
-    const response = await api.patch(`/deals/${id}`, deal);
+  update: async (id: number, order: Partial<Order>): Promise<Order> => {
+    const response = await api.patch(`/orders/${id}`, order);
     return response.data;
   },
 
   delete: async (id: number): Promise<void> => {
-    await api.delete(`/deals/${id}`);
+    await api.delete(`/orders/${id}`);
   },
 };
 
@@ -164,8 +138,8 @@ export const notesAPI = {
     return response.data;
   },
 
-  getByDealId: async (dealId: number): Promise<Note[]> => {
-    const response = await api.get(`/notes/deal/${dealId}`);
+  getByOrderId: async (orderId: number): Promise<Note[]> => { // Renamed from getByDealId
+    const response = await api.get(`/notes/order/${orderId}`);
     return response.data;
   },
 
@@ -197,23 +171,23 @@ export const contactMessagesAPI = {
   },
 };
 
-// Deal Messages API - для чата внутри сделки
-export const dealMessagesAPI = {
-  // Получить сообщения клиента (из Telegram)
-  getClientMessages: async (dealId: number, params?: { limit?: number; offset?: number }): Promise<{
+// Order Messages API - для чата внутри заявки (Renamed from Deal Messages API)
+export const orderMessagesAPI = {
+  // Получить сообщения клиента (из Telegram/Bubble)
+  getClientMessages: async (orderId: number, params?: { limit?: number; offset?: number }): Promise<{
     messages: Message[];
     total: number;
     chatLeadId?: string;
     externalId?: string;
     mainId?: string;
   }> => {
-    const response = await api.get(`/deal-messages/${dealId}/client`, { params });
+    const response = await api.get(`/order-messages/${orderId}/client`, { params });
     return response.data;
   },
 
   // Отправить текстовое сообщение клиенту
-  sendClientMessage: async (dealId: number, content: string, replyToMessageId?: number): Promise<Message> => {
-    const response = await api.post(`/deal-messages/${dealId}/client`, {
+  sendClientMessage: async (orderId: number, content: string, replyToMessageId?: number): Promise<Message> => {
+    const response = await api.post(`/order-messages/${orderId}/client`, {
       content,
       reply_to_message_id: replyToMessageId,
     });
@@ -221,43 +195,43 @@ export const dealMessagesAPI = {
   },
 
   // Отправить файл клиенту
-  sendClientFile: async (dealId: number, file: File, caption?: string, replyToMessageId?: number): Promise<Message> => {
+  sendClientFile: async (orderId: number, file: File, caption?: string, replyToMessageId?: number): Promise<Message> => {
     const formData = new FormData();
     formData.append('file', file);
     if (caption) formData.append('caption', caption);
     if (replyToMessageId) formData.append('reply_to_message_id', replyToMessageId.toString());
 
-    const response = await api.post(`/deal-messages/${dealId}/client/file`, formData, {
+    const response = await api.post(`/order-messages/${orderId}/client/file`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
   },
 
   // Отправить голосовое сообщение клиенту
-  sendClientVoice: async (dealId: number, voice: Blob, duration?: number, replyToMessageId?: number): Promise<Message> => {
+  sendClientVoice: async (orderId: number, voice: Blob, duration?: number, replyToMessageId?: number): Promise<Message> => {
     const formData = new FormData();
     formData.append('voice', voice, 'voice.ogg');
     if (duration) formData.append('duration', duration.toString());
     if (replyToMessageId) formData.append('reply_to_message_id', replyToMessageId.toString());
 
-    const response = await api.post(`/deal-messages/${dealId}/client/voice`, formData, {
+    const response = await api.post(`/order-messages/${orderId}/client/voice`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
   },
 
   // Получить внутренние сообщения
-  getInternalMessages: async (dealId: number, params?: { limit?: number; offset?: number }): Promise<{
+  getInternalMessages: async (orderId: number, params?: { limit?: number; offset?: number }): Promise<{
     messages: InternalMessage[];
     total: number;
   }> => {
-    const response = await api.get(`/deal-messages/${dealId}/internal`, { params });
+    const response = await api.get(`/order-messages/${orderId}/internal`, { params });
     return response.data;
   },
 
   // Отправить внутреннее сообщение
-  sendInternalMessage: async (dealId: number, content: string, replyToId?: number): Promise<InternalMessage> => {
-    const response = await api.post(`/deal-messages/${dealId}/internal`, {
+  sendInternalMessage: async (orderId: number, content: string, replyToId?: number): Promise<InternalMessage> => {
+    const response = await api.post(`/order-messages/${orderId}/internal`, {
       content,
       reply_to_id: replyToId,
     });
@@ -265,33 +239,33 @@ export const dealMessagesAPI = {
   },
 
   // Отправить внутренний файл
-  sendInternalFile: async (dealId: number, file: File, replyToId?: number): Promise<InternalMessage> => {
+  sendInternalFile: async (orderId: number, file: File, replyToId?: number): Promise<InternalMessage> => {
     const formData = new FormData();
     formData.append('file', file);
     if (replyToId) formData.append('reply_to_id', replyToId.toString());
 
-    const response = await api.post(`/deal-messages/${dealId}/internal/file`, formData, {
+    const response = await api.post(`/order-messages/${orderId}/internal/file`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
   },
 
   // Отметить как прочитанные
-  markAsRead: async (dealId: number, messageIds?: number[]): Promise<void> => {
-    await api.post(`/deal-messages/${dealId}/internal/read`, { message_ids: messageIds });
+  markAsRead: async (orderId: number, messageIds?: number[]): Promise<void> => {
+    await api.post(`/order-messages/${orderId}/internal/read`, { message_ids: messageIds });
   },
 
   // Получить количество непрочитанных
-  getUnreadCount: async (dealId: number): Promise<{ count: number }> => {
-    const response = await api.get(`/deal-messages/${dealId}/internal/unread`);
+  getUnreadCount: async (orderId: number): Promise<{ count: number }> => {
+    const response = await api.get(`/order-messages/${orderId}/internal/unread`);
     return response.data;
   },
 };
 
 // Analytics API
 export const analyticsAPI = {
-  getDealsAnalytics: async (params?: { startDate?: string; endDate?: string }) => {
-    const response = await api.get('/analytics/deals', { params });
+  getOrdersAnalytics: async (params?: { startDate?: string; endDate?: string }) => {
+    const response = await api.get('/analytics/orders', { params });
     return response.data;
   },
 
@@ -332,9 +306,8 @@ export const automationsAPI = {
   },
 };
 
-// AI Agent API
+// AI Agent API (unchanged)
 export const aiAPI = {
-  // Настройки
   getSettings: async (): Promise<{ settings: AISettings; raw: AISettingsRaw[] }> => {
     const response = await api.get('/ai/settings');
     return response.data;
@@ -349,13 +322,11 @@ export const aiAPI = {
     await api.post('/ai/settings/batch', { settings });
   },
 
-  // Модели
   getModels: async (): Promise<{ models: AIModel[] }> => {
     const response = await api.get('/ai/models');
     return response.data;
   },
 
-  // Операторы
   getOperators: async (): Promise<{ operators: OperatorStyle[] }> => {
     const response = await api.get('/ai/operators');
     return response.data;
@@ -380,7 +351,6 @@ export const aiAPI = {
     await api.delete(`/ai/operators/${id}`);
   },
 
-  // База знаний
   getKnowledge: async (params?: { category?: string; search?: string }): Promise<{ articles: KnowledgeArticle[] }> => {
     const response = await api.get('/ai/knowledge', { params });
     return response.data;
@@ -410,7 +380,6 @@ export const aiAPI = {
     return response.data;
   },
 
-  // Скрипты ответов
   getScripts: async (params?: { search?: string }): Promise<{ scripts: AnswerScript[] }> => {
     const response = await api.get('/ai/scripts', { params });
     return response.data;
@@ -435,7 +404,6 @@ export const aiAPI = {
     await api.delete(`/ai/scripts/${id}`);
   },
 
-  // Контент сайта
   getWebsiteContent: async (params?: { section?: string; search?: string }): Promise<{ content: WebsiteContent[] }> => {
     const response = await api.get('/ai/website-content', { params });
     return response.data;
@@ -465,7 +433,6 @@ export const aiAPI = {
     return response.data;
   },
 
-  // Аналитика
   getAnalytics: async (): Promise<AIAnalytics> => {
     const response = await api.get('/ai/analytics');
     return response.data;
@@ -481,17 +448,11 @@ export const aiAPI = {
     return response.data;
   },
 
-  // Тестирование
   testSuggestion: async (data: { client_message: string; lead_id?: string; operator_id?: number }): Promise<any> => {
     const response = await api.post('/ai/test-suggestion', data);
     return response.data;
   },
 
-  // ============================================
-  // ИНСТРУКЦИИ AI
-  // ============================================
-
-  // Получить все инструкции
   getInstructions: async (params?: {
     level?: InstructionLevel;
     is_active?: boolean;
@@ -505,30 +466,25 @@ export const aiAPI = {
     return response.data;
   },
 
-  // Получить инструкцию по ID
   getInstruction: async (id: number): Promise<AIInstruction> => {
     const response = await api.get(`/ai/instructions/${id}`);
     return response.data;
   },
 
-  // Создать инструкцию
   createInstruction: async (instruction: Partial<AIInstruction>): Promise<AIInstruction> => {
     const response = await api.post('/ai/instructions', instruction);
     return response.data;
   },
 
-  // Обновить инструкцию
   updateInstruction: async (id: number, instruction: Partial<AIInstruction>): Promise<AIInstruction> => {
     const response = await api.patch(`/ai/instructions/${id}`, instruction);
     return response.data;
   },
 
-  // Удалить инструкцию
   deleteInstruction: async (id: number): Promise<void> => {
     await api.delete(`/ai/instructions/${id}`);
   },
 
-  // Получить инструкции для промпта (форматированный текст)
   getInstructionsForPrompt: async (): Promise<{
     prompt_text: string;
     counts: { laws: number; priority: number; normal: number }
@@ -537,17 +493,11 @@ export const aiAPI = {
     return response.data;
   },
 
-  // Получить категории инструкций
   getInstructionCategories: async (): Promise<{ categories: string[] }> => {
     const response = await api.get('/ai/instructions-categories');
     return response.data;
   },
 
-  // ============================================
-  // АНАЛИТИКА КОРРЕКТИРОВОК
-  // ============================================
-
-  // Получить аналитику корректировок промптов
   getPromptAnalytics: async (params?: { days?: number }): Promise<{
     current: {
       date: string;
@@ -572,25 +522,21 @@ export const aiAPI = {
     return response.data;
   },
 
-  // Получить рекомендации по улучшению
   getPromptImprovements: async (params?: { status?: string; limit?: number }): Promise<{ improvements: any[] }> => {
     const response = await api.get('/ai/prompt-improvements', { params });
     return response.data;
   },
 
-  // Обновить статус рекомендации
   updatePromptImprovement: async (id: number, data: { status: string }): Promise<any> => {
     const response = await api.patch(`/ai/prompt-improvements/${id}`, data);
     return response.data;
   },
 
-  // Запустить анализ вручную
   runDailyAnalysis: async (date?: string): Promise<any> => {
     const response = await api.post('/ai/run-daily-analysis', { date });
     return response.data;
   },
 
-  // Получить примеры корректировок
   getEditExamples: async (params?: { limit?: number; edit_type?: string }): Promise<{ examples: any[] }> => {
     const response = await api.get('/ai/edit-examples', { params });
     return response.data;

@@ -36,7 +36,7 @@ import {
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import { analyticsAPI } from '../services/api';
-import { DEAL_STATUSES } from '../types';
+import { ORDER_STATUSES } from '../types';
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -57,7 +57,7 @@ interface AnalyticsData {
   monthlySales: Array<{ month: string; amount: number }>;
   managerStats: Array<{
     name: string;
-    deals: number;
+    orders: number; // Renamed from deals
     closed: number;
     amount: number;
   }>;
@@ -93,7 +93,7 @@ const AnalyticsPage: React.FC = () => {
         params.endDate = dateRange[1].endOf('day').toISOString();
       }
 
-      const analyticsData = await analyticsAPI.getDealsAnalytics(params);
+      const analyticsData = await analyticsAPI.getOrdersAnalytics(params);
       setData(analyticsData);
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -122,24 +122,24 @@ const AnalyticsPage: React.FC = () => {
 
   const statusChartData = data
     ? Object.entries(data.statusStats).map(([status, stats]) => ({
-        name: DEAL_STATUSES[status as keyof typeof DEAL_STATUSES]?.label || status,
-        count: stats.count,
-        amount: stats.amount,
-      }))
+      name: ORDER_STATUSES[status as keyof typeof ORDER_STATUSES]?.label || status,
+      count: stats.count,
+      amount: stats.amount,
+    }))
     : [];
 
   const funnelData = data
     ? [
-        { name: 'Новые', value: data.funnel.new, fill: '#8884d8' },
-        { name: 'Переговоры', value: data.funnel.negotiation, fill: '#82ca9d' },
-        { name: 'Ожидание', value: data.funnel.waiting, fill: '#ffc658' },
-        { name: 'Готовы к закрытию', value: data.funnel.ready_to_close, fill: '#ff7300' },
-        { name: 'Закрыты', value: data.funnel.closed, fill: '#00ff00' },
-      ].filter(item => item.value > 0)
+      { name: 'Новые', value: data.funnel.new, fill: '#8884d8' },
+      { name: 'Переговоры', value: data.funnel.negotiation, fill: '#82ca9d' },
+      { name: 'Ожидание', value: data.funnel.waiting, fill: '#ffc658' },
+      { name: 'Готовы к закрытию', value: data.funnel.ready_to_close, fill: '#ff7300' },
+      { name: 'Закрыты', value: data.funnel.closed, fill: '#00ff00' },
+    ].filter(item => item.value > 0)
     : [];
 
   const managerChartData = data?.managerStats
-    .filter(m => m.deals > 0)
+    .filter(m => m.orders > 0)
     .sort((a, b) => b.amount - a.amount)
     .slice(0, 10) || [];
 
@@ -167,7 +167,7 @@ const AnalyticsPage: React.FC = () => {
         <Col span={6}>
           <Card>
             <Statistic
-              title="Всего сделок"
+              title="Всего заявок"
               value={data?.summary.total || 0}
               prefix={<ShoppingOutlined />}
             />
@@ -239,7 +239,7 @@ const AnalyticsPage: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: 24 }}>
         {/* Распределение по статусам */}
         <Col span={12}>
-          <Card title="Распределение сделок по статусам">
+          <Card title="Распределение заявок по статусам">
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -302,7 +302,7 @@ const AnalyticsPage: React.FC = () => {
           </Card>
         </Col>
 
-        {/* Источники сделок */}
+        {/* Источники заявок */}
         <Col span={12}>
           <Card title="Распределение по источникам">
             <ResponsiveContainer width="100%" height={300}>

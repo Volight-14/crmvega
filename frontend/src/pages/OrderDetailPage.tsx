@@ -32,11 +32,11 @@ import {
   InfoCircleOutlined,
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Deal, Note, DEAL_STATUSES, NOTE_PRIORITIES } from '../types';
-import { dealsAPI, notesAPI } from '../services/api';
+import { Order, Note, ORDER_STATUSES, NOTE_PRIORITIES } from '../types';
+import { ordersAPI, notesAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import io from 'socket.io-client';
-import DealChat from '../components/DealChat';
+import OrderChat from '../components/OrderChat'; // Updated import
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -44,11 +44,11 @@ const { Option } = Select;
 
 type Socket = ReturnType<typeof io>;
 
-const DealDetailPage: React.FC = () => {
+const OrderDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { manager } = useAuth();
-  const [deal, setDeal] = useState<Deal | null>(null);
+  const [order, setOrder] = useState<Order | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
@@ -60,7 +60,7 @@ const DealDetailPage: React.FC = () => {
 
   useEffect(() => {
     if (id) {
-      fetchDeal();
+      fetchOrder();
       fetchNotes();
       setupSocket();
     }
@@ -79,26 +79,26 @@ const DealDetailPage: React.FC = () => {
     });
 
     socketRef.current.on('connect', () => {
-      socketRef.current?.emit('join_deal', id);
+      socketRef.current?.emit('join_order', id);
     });
 
-    socketRef.current.on('deal_updated', (updatedDeal: Deal) => {
-      if (updatedDeal.id === parseInt(id || '0')) {
-        setDeal(updatedDeal);
+    socketRef.current.on('order_updated', (updatedOrder: Order) => {
+      if (updatedOrder.id === parseInt(id || '0')) {
+        setOrder(updatedOrder);
       }
     });
   };
 
-  const fetchDeal = async () => {
+  const fetchOrder = async () => {
     if (!id) return;
     try {
       setLoading(true);
-      const dealData = await dealsAPI.getById(parseInt(id));
-      setDeal(dealData);
-      form.setFieldsValue(dealData);
+      const orderData = await ordersAPI.getById(parseInt(id));
+      setOrder(orderData);
+      form.setFieldsValue(orderData);
     } catch (error) {
-      console.error('Error fetching deal:', error);
-      message.error('Ошибка загрузки сделки');
+      console.error('Error fetching order:', error);
+      message.error('Ошибка загрузки заявки');
     } finally {
       setLoading(false);
     }
@@ -107,22 +107,22 @@ const DealDetailPage: React.FC = () => {
   const fetchNotes = async () => {
     if (!id) return;
     try {
-      const notesData = await notesAPI.getByDealId(parseInt(id));
+      const notesData = await notesAPI.getByOrderId(parseInt(id));
       setNotes(notesData);
     } catch (error) {
       console.error('Error fetching notes:', error);
     }
   };
 
-  const handleUpdateDeal = async (values: any) => {
+  const handleUpdateOrder = async (values: any) => {
     if (!id) return;
     try {
-      await dealsAPI.update(parseInt(id), values);
-      message.success('Сделка обновлена');
+      await ordersAPI.update(parseInt(id), values);
+      message.success('Заявка обновлена');
       setIsEditModalVisible(false);
-      fetchDeal();
+      fetchOrder();
     } catch (error: any) {
-      message.error(error.response?.data?.error || 'Ошибка обновления сделки');
+      message.error(error.response?.data?.error || 'Ошибка обновления заявки');
     }
   };
 
@@ -130,7 +130,7 @@ const DealDetailPage: React.FC = () => {
     if (!id || !manager) return;
     try {
       await notesAPI.create({
-        deal_id: parseInt(id),
+        order_id: parseInt(id),
         manager_id: manager.id,
         content: values.content,
         priority: values.priority || 'info',
@@ -144,38 +144,38 @@ const DealDetailPage: React.FC = () => {
     }
   };
 
-  if (!deal) {
+  if (!order) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
         height: '100vh',
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       }}>
-        <div style={{ 
-          background: 'white', 
-          padding: 40, 
+        <div style={{
+          background: 'white',
+          padding: 40,
           borderRadius: 16,
           boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
         }}>
-          <Title level={4} style={{ margin: 0 }}>Загрузка сделки...</Title>
+          <Title level={4} style={{ margin: 0 }}>Загрузка заявки...</Title>
         </div>
       </div>
     );
   }
 
-  const statusInfo = DEAL_STATUSES[deal.status] || DEAL_STATUSES.unsorted;
+  const statusInfo = ORDER_STATUSES[order.status] || ORDER_STATUSES.unsorted;
 
   return (
-    <div style={{ 
-      height: '100vh', 
-      display: 'flex', 
+    <div style={{
+      height: '100vh',
+      display: 'flex',
       flexDirection: 'column',
       background: '#f0f2f5',
     }}>
       {/* Header */}
-      <div style={{ 
+      <div style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         padding: '16px 24px',
         color: 'white',
@@ -183,49 +183,49 @@ const DealDetailPage: React.FC = () => {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Space size="middle">
-            <Button 
-              ghost 
-              icon={<ArrowLeftOutlined />} 
-              onClick={() => navigate('/deals')}
+            <Button
+              ghost
+              icon={<ArrowLeftOutlined />}
+              onClick={() => navigate('/orders')}
               style={{ border: '1px solid rgba(255,255,255,0.5)' }}
             >
               Назад
             </Button>
             <div>
               <Title level={3} style={{ margin: 0, color: 'white' }}>
-                {deal.title}
+                {order.title}
               </Title>
               <Space style={{ marginTop: 4 }}>
-                <Tag 
+                <Tag
                   color={statusInfo.color}
-                  style={{ 
-                    borderRadius: 12, 
+                  style={{
+                    borderRadius: 12,
                     padding: '2px 12px',
                     fontSize: 13,
                   }}
                 >
                   {statusInfo.icon} {statusInfo.label}
                 </Tag>
-                {deal.amount > 0 && (
-                  <span style={{ 
-                    background: 'rgba(255,255,255,0.2)', 
-                    padding: '4px 12px', 
+                {order.amount > 0 && (
+                  <span style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    padding: '4px 12px',
                     borderRadius: 12,
                     fontSize: 14,
                     fontWeight: 600,
                   }}>
-                    <DollarOutlined /> {deal.amount.toLocaleString('ru-RU')} {deal.currency || 'RUB'}
+                    <DollarOutlined /> {order.amount.toLocaleString('ru-RU')} {order.currency || 'RUB'}
                   </span>
                 )}
               </Space>
             </div>
           </Space>
-          <Button 
-            type="primary" 
-            icon={<EditOutlined />} 
+          <Button
+            type="primary"
+            icon={<EditOutlined />}
             onClick={() => setIsEditModalVisible(true)}
-            style={{ 
-              background: 'rgba(255,255,255,0.2)', 
+            style={{
+              background: 'rgba(255,255,255,0.2)',
               border: 'none',
               borderRadius: 8,
             }}
@@ -236,33 +236,33 @@ const DealDetailPage: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <div style={{ 
-        display: 'flex', 
-        flex: 1, 
-        padding: 16, 
-        gap: 16, 
+      <div style={{
+        display: 'flex',
+        flex: 1,
+        padding: 16,
+        gap: 16,
         overflow: 'hidden',
         minHeight: 0,
       }}>
-        {/* Left Sidebar - Deal Info */}
-        <div style={{ 
-          width: 320, 
-          flexShrink: 0, 
-          display: 'flex', 
+        {/* Left Sidebar - Order Info */}
+        <div style={{
+          width: 320,
+          flexShrink: 0,
+          display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
         }}>
           <Card
-            style={{ 
-              flex: 1, 
-              display: 'flex', 
+            style={{
+              flex: 1,
+              display: 'flex',
               flexDirection: 'column',
               borderRadius: 12,
               overflow: 'hidden',
             }}
-            bodyStyle={{ 
-              flex: 1, 
-              display: 'flex', 
+            bodyStyle={{
+              flex: 1,
+              display: 'flex',
               flexDirection: 'column',
               padding: 0,
               overflow: 'hidden',
@@ -283,53 +283,53 @@ const DealDetailPage: React.FC = () => {
                   ),
                   children: (
                     <div style={{ padding: 16, overflowY: 'auto', flex: 1 }}>
-                      {/* Deal Info */}
+                      {/* Order Info */}
                       <Descriptions column={1} size="small" style={{ marginBottom: 16 }}>
                         <Descriptions.Item label="Статус">
                           <Tag color={statusInfo.color}>{statusInfo.icon} {statusInfo.label}</Tag>
                         </Descriptions.Item>
                         <Descriptions.Item label="Сумма">
-                          <Text strong>{deal.amount.toLocaleString('ru-RU') || 0} {deal.currency || 'RUB'}</Text>
+                          <Text strong>{order.amount.toLocaleString('ru-RU') || 0} {order.currency || 'RUB'}</Text>
                         </Descriptions.Item>
-                        {deal.due_date && (
+                        {order.due_date && (
                           <Descriptions.Item label="Крайний срок">
-                            <CalendarOutlined /> {new Date(deal.due_date).toLocaleDateString('ru-RU')}
+                            <CalendarOutlined /> {new Date(order.due_date).toLocaleDateString('ru-RU')}
                           </Descriptions.Item>
                         )}
-                        {deal.source && (
+                        {order.source && (
                           <Descriptions.Item label="Источник">
-                            {deal.source}
+                            {order.source}
                           </Descriptions.Item>
                         )}
-                        {deal.manager && (
+                        {order.manager && (
                           <Descriptions.Item label="Менеджер">
-                            {deal.manager.name}
+                            {order.manager.name}
                           </Descriptions.Item>
                         )}
                         <Descriptions.Item label="Создано">
-                          {new Date(deal.created_at).toLocaleString('ru-RU')}
+                          {new Date(order.created_at).toLocaleString('ru-RU')}
                         </Descriptions.Item>
-                        {deal.closed_date && (
+                        {order.closed_date && (
                           <Descriptions.Item label="Закрыто">
-                            {new Date(deal.closed_date).toLocaleDateString('ru-RU')}
+                            {new Date(order.closed_date).toLocaleDateString('ru-RU')}
                           </Descriptions.Item>
                         )}
                       </Descriptions>
 
-                      {deal.description && (
+                      {order.description && (
                         <>
                           <Divider style={{ margin: '12px 0' }} />
                           <div>
                             <Text strong style={{ fontSize: 13 }}>Описание:</Text>
                             <div style={{ marginTop: 8, color: '#595959' }}>
-                              <Text>{deal.description}</Text>
+                              <Text>{order.description}</Text>
                             </div>
                           </div>
                         </>
                       )}
 
                       {/* Contact Card */}
-                      {deal.contact && (
+                      {order.contact && (
                         <>
                           <Divider style={{ margin: '16px 0' }} />
                           <div style={{
@@ -337,40 +337,40 @@ const DealDetailPage: React.FC = () => {
                             borderRadius: 12,
                             padding: 16,
                           }}>
-                            <div style={{ 
-                              display: 'flex', 
-                              justifyContent: 'space-between', 
+                            <div style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
                               alignItems: 'center',
                               marginBottom: 12,
                             }}>
                               <Text strong style={{ fontSize: 14 }}>Контакт</Text>
-                              <Button 
-                                type="link" 
+                              <Button
+                                type="link"
                                 size="small"
-                                onClick={() => navigate(`/contact/${deal.contact_id}`)}
+                                onClick={() => navigate(`/contact/${order.contact_id}`)}
                               >
                                 Открыть
                               </Button>
                             </div>
                             <Space direction="vertical" style={{ width: '100%' }} size={8}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <Avatar 
-                                  style={{ backgroundColor: '#667eea' }} 
+                                <Avatar
+                                  style={{ backgroundColor: '#667eea' }}
                                   icon={<UserOutlined />}
                                   size={32}
                                 />
-                                <Text strong>{deal.contact.name}</Text>
+                                <Text strong>{order.contact.name}</Text>
                               </div>
-                              {deal.contact.phone && (
+                              {order.contact.phone && (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#595959' }}>
                                   <PhoneOutlined />
-                                  <Text copyable>{deal.contact.phone}</Text>
+                                  <Text copyable>{order.contact.phone}</Text>
                                 </div>
                               )}
-                              {deal.contact.email && (
+                              {order.contact.email && (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#595959' }}>
                                   <MailOutlined />
-                                  <Text copyable>{deal.contact.email}</Text>
+                                  <Text copyable>{order.contact.email}</Text>
                                 </div>
                               )}
                             </Space>
@@ -399,8 +399,8 @@ const DealDetailPage: React.FC = () => {
                         Добавить заметку
                       </Button>
                       {notes.length === 0 ? (
-                        <Empty 
-                          description="Нет заметок" 
+                        <Empty
+                          description="Нет заметок"
                           image={Empty.PRESENTED_IMAGE_SIMPLE}
                         />
                       ) : (
@@ -412,13 +412,13 @@ const DealDetailPage: React.FC = () => {
                               borderRadius: 8,
                               padding: 12,
                               marginBottom: 8,
-                              borderLeft: `3px solid ${NOTE_PRIORITIES[note.priority]?.color === 'red' ? '#ff4d4f' : 
+                              borderLeft: `3px solid ${NOTE_PRIORITIES[note.priority]?.color === 'red' ? '#ff4d4f' :
                                 NOTE_PRIORITIES[note.priority]?.color === 'orange' ? '#fa8c16' :
-                                NOTE_PRIORITIES[note.priority]?.color === 'blue' ? '#1890ff' : '#52c41a'}`,
+                                  NOTE_PRIORITIES[note.priority]?.color === 'blue' ? '#1890ff' : '#52c41a'}`,
                             }}>
-                              <div style={{ 
-                                display: 'flex', 
-                                justifyContent: 'space-between', 
+                              <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
                                 alignItems: 'center',
                                 marginBottom: 8,
                               }}>
@@ -450,28 +450,28 @@ const DealDetailPage: React.FC = () => {
         </div>
 
         {/* Right Side - Chat */}
-        <div style={{ 
-          flex: 1, 
-          display: 'flex', 
+        <div style={{
+          flex: 1,
+          display: 'flex',
           flexDirection: 'column',
           minWidth: 0,
           overflow: 'hidden',
         }}>
-          {deal.contact_id || deal.lead_id ? (
-            <DealChat 
-              dealId={deal.id} 
-              contactName={deal.contact?.name}
+          {order.contact_id || order.main_id || order.external_id ? (
+            <OrderChat
+              orderId={order.id}
+              contactName={order.contact?.name}
             />
           ) : (
-            <Card style={{ 
-              flex: 1, 
-              display: 'flex', 
-              alignItems: 'center', 
+            <Card style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
               justifyContent: 'center',
               borderRadius: 12,
             }}>
-              <Empty 
-                description="У сделки нет связанного контакта" 
+              <Empty
+                description="У заявки нет связанного контакта или ID"
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
               />
             </Card>
@@ -479,9 +479,9 @@ const DealDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Edit Deal Modal */}
+      {/* Edit Order Modal */}
       <Modal
-        title="Редактировать сделку"
+        title="Редактировать заявку"
         open={isEditModalVisible}
         onCancel={() => {
           setIsEditModalVisible(false);
@@ -494,9 +494,9 @@ const DealDetailPage: React.FC = () => {
           body: { paddingTop: 24 },
         }}
       >
-        <Form form={form} layout="vertical" onFinish={handleUpdateDeal}>
-          <Form.Item name="title" label="Название сделки" rules={[{ required: true }]}>
-            <Input placeholder="Название сделки" />
+        <Form form={form} layout="vertical" onFinish={handleUpdateOrder}>
+          <Form.Item name="title" label="Название заявки" rules={[{ required: true }]}>
+            <Input placeholder="Название заявки" />
           </Form.Item>
           <Row gutter={16}>
             <Col span={12}>
@@ -517,7 +517,7 @@ const DealDetailPage: React.FC = () => {
           </Row>
           <Form.Item name="status" label="Статус">
             <Select>
-              {Object.entries(DEAL_STATUSES).map(([key, info]) => (
+              {Object.entries(ORDER_STATUSES).map(([key, info]) => (
                 <Option key={key} value={key}>
                   {info.icon} {info.label}
                 </Option>
@@ -528,7 +528,7 @@ const DealDetailPage: React.FC = () => {
             <Input type="date" />
           </Form.Item>
           <Form.Item name="description" label="Описание">
-            <Input.TextArea rows={4} placeholder="Описание сделки" />
+            <Input.TextArea rows={4} placeholder="Описание заявки" />
           </Form.Item>
         </Form>
       </Modal>
@@ -565,4 +565,4 @@ const DealDetailPage: React.FC = () => {
   );
 };
 
-export default DealDetailPage;
+export default OrderDetailPage;

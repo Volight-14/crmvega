@@ -24,16 +24,17 @@ import {
   TeamOutlined,
   ReloadOutlined,
   DownloadOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import { Message, InternalMessage, Manager } from '../types';
-import { dealMessagesAPI } from '../services/api';
+import { orderMessagesAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import io from 'socket.io-client';
 
 const { TextArea } = Input;
 
-interface DealChatProps {
-  dealId: number;
+interface OrderChatProps {
+  orderId: number;
   contactName?: string;
 }
 
@@ -404,7 +405,7 @@ const InternalMessageBubble: React.FC<{
 };
 
 // Основной компонент чата
-const DealChat: React.FC<DealChatProps> = ({ dealId, contactName }) => {
+const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
   const { manager } = useAuth();
   const [activeTab, setActiveTab] = useState<ChatTab>('client');
   const [clientMessages, setClientMessages] = useState<Message[]>([]);
@@ -431,7 +432,7 @@ const DealChat: React.FC<DealChatProps> = ({ dealId, contactName }) => {
   const fetchClientMessages = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await dealMessagesAPI.getClientMessages(dealId);
+      const response = await orderMessagesAPI.getClientMessages(orderId);
       setClientMessages(response.messages);
       setChatLeadId(response.chatLeadId);
       setExternalId(response.externalId);
@@ -441,30 +442,30 @@ const DealChat: React.FC<DealChatProps> = ({ dealId, contactName }) => {
     } finally {
       setLoading(false);
     }
-  }, [dealId]);
+  }, [orderId]);
 
   const fetchInternalMessages = useCallback(async () => {
     try {
-      const response = await dealMessagesAPI.getInternalMessages(dealId);
+      const response = await orderMessagesAPI.getInternalMessages(orderId);
       setInternalMessages(response.messages);
 
       // Отмечаем как прочитанные
       if (response.messages.length > 0) {
-        await dealMessagesAPI.markAsRead(dealId);
+        await orderMessagesAPI.markAsRead(orderId);
       }
     } catch (error) {
       console.error('Error fetching internal messages:', error);
     }
-  }, [dealId]);
+  }, [orderId]);
 
   const fetchUnreadCount = useCallback(async () => {
     try {
-      const response = await dealMessagesAPI.getUnreadCount(dealId);
+      const response = await orderMessagesAPI.getUnreadCount(orderId);
       setUnreadCount(response.count);
     } catch (error) {
       console.error('Error fetching unread count:', error);
     }
-  }, [dealId]);
+  }, [orderId]);
 
   // Socket.IO подключение
   useEffect(() => {
@@ -474,7 +475,7 @@ const DealChat: React.FC<DealChatProps> = ({ dealId, contactName }) => {
     });
 
     socketRef.current.on('connect', () => {
-      socketRef.current?.emit('join_deal', dealId.toString());
+      socketRef.current?.emit('join_order', orderId.toString());
     });
 
     socketRef.current.on('new_client_message', (msg: Message) => {
@@ -496,7 +497,7 @@ const DealChat: React.FC<DealChatProps> = ({ dealId, contactName }) => {
 
     // Также слушаем сообщения из Bubble
     socketRef.current.on('new_message_bubble', (msg: Message) => {
-      // Проверяем, относится ли сообщение к нашей сделке
+      // Проверяем, относится ли сообщение к нашей заявке
       // 1. По main_id (Highest priority linked key)
       const matchesMainId = mainId && msg.main_id && String(msg.main_id) === String(mainId);
       // 2. По lead_id (Telegram or Legacy Bubble)
@@ -513,10 +514,10 @@ const DealChat: React.FC<DealChatProps> = ({ dealId, contactName }) => {
     });
 
     return () => {
-      socketRef.current?.emit('leave_deal', dealId.toString());
+      socketRef.current?.emit('leave_order', orderId.toString());
       socketRef.current?.disconnect();
     };
-  }, [dealId, manager?.id, chatLeadId, externalId]);
+  }, [orderId, manager?.id, chatLeadId, externalId, mainId]);
 
   // Загрузка данных при монтировании
   useEffect(() => {
@@ -533,11 +534,11 @@ const DealChat: React.FC<DealChatProps> = ({ dealId, contactName }) => {
   // При переключении на внутренний чат - отмечаем прочитанными
   useEffect(() => {
     if (activeTab === 'internal') {
-      dealMessagesAPI.markAsRead(dealId).then(() => {
+      orderMessagesAPI.markAsRead(orderId).then(() => {
         setUnreadCount(0);
       });
     }
-  }, [activeTab, dealId]);
+  }, [activeTab, orderId]);
 
   // Отправка сообщения
   const handleSend = async () => {
@@ -547,11 +548,11 @@ const DealChat: React.FC<DealChatProps> = ({ dealId, contactName }) => {
     try {
       if (activeTab === 'client') {
         const replyId = replyTo && 'message_id_tg' in replyTo ? replyTo.message_id_tg as number : undefined;
-        const newMsg = await dealMessagesAPI.sendClientMessage(dealId, messageText.trim(), replyId);
+        const newMsg = await orderMessagesAPI.sendClientMessage(orderId, messageText.trim(), replyId);
         setClientMessages(prev => [...prev, newMsg]);
       } else {
         const replyId = replyTo && 'id' in replyTo && !('message_id_tg' in replyTo) ? (replyTo as InternalMessage).id : undefined;
-        const newMsg = await dealMessagesAPI.sendInternalMessage(dealId, messageText.trim(), replyId);
+        const newMsg = await orderMessagesAPI.sendInternalMessage(orderId, messageText.trim(), replyId);
         setInternalMessages(prev => [...prev, newMsg]);
       }
       setMessageText('');
@@ -569,11 +570,11 @@ const DealChat: React.FC<DealChatProps> = ({ dealId, contactName }) => {
     try {
       if (activeTab === 'client') {
         const replyId = replyTo && 'message_id_tg' in replyTo ? replyTo.message_id_tg as number : undefined;
-        const newMsg = await dealMessagesAPI.sendClientFile(dealId, file, undefined, replyId);
+        const newMsg = await orderMessagesAPI.sendClientFile(orderId, file, undefined, replyId);
         setClientMessages(prev => [...prev, newMsg]);
       } else {
         const replyId = replyTo && 'id' in replyTo && !('message_id_tg' in replyTo) ? (replyTo as InternalMessage).id : undefined;
-        const newMsg = await dealMessagesAPI.sendInternalFile(dealId, file, replyId);
+        const newMsg = await orderMessagesAPI.sendInternalFile(orderId, file, replyId);
         setInternalMessages(prev => [...prev, newMsg]);
       }
       setReplyTo(null);
@@ -605,7 +606,7 @@ const DealChat: React.FC<DealChatProps> = ({ dealId, contactName }) => {
         if (activeTab === 'client') {
           const replyId = replyTo && 'message_id_tg' in replyTo ? replyTo.message_id_tg as number : undefined;
           try {
-            const newMsg = await dealMessagesAPI.sendClientVoice(dealId, audioBlob, undefined, replyId);
+            const newMsg = await orderMessagesAPI.sendClientVoice(orderId, audioBlob, undefined, replyId);
             setClientMessages(prev => [...prev, newMsg]);
             setReplyTo(null);
           } catch (error: any) {
@@ -799,100 +800,76 @@ const DealChat: React.FC<DealChatProps> = ({ dealId, contactName }) => {
             <div style={{ fontSize: 12, color: '#1890ff', fontWeight: 500 }}>
               Ответ на сообщение
             </div>
-            <div style={{ fontSize: 13, color: '#595959', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {replyTo.content.substring(0, 100)}
+            <div style={{ fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#595959' }}>
+              {replyTo.content.substring(0, 50)}
             </div>
           </div>
           <Button
             type="text"
             icon={<CloseOutlined />}
             onClick={() => setReplyTo(null)}
-            size="small"
           />
         </div>
       )}
 
-      {/* Поле ввода */}
+      {/* Ввод сообщения */}
       <div style={{
         padding: '12px 16px',
-        borderTop: '1px solid #f0f0f0',
         background: '#fff',
+        borderTop: '1px solid #f0f0f0',
         display: 'flex',
         alignItems: 'flex-end',
-        gap: 8,
+        gap: 12,
       }}>
         <Upload
           showUploadList={false}
-          beforeUpload={handleFileUpload}
-          disabled={sending}
+          beforeUpload={(file) => handleFileUpload(file)}
         >
-          <Tooltip title="Прикрепить файл">
-            <Button
-              icon={<PaperClipOutlined />}
-              shape="circle"
-              disabled={sending}
-              style={{ flexShrink: 0 }}
-            />
-          </Tooltip>
+          <Button icon={<PaperClipOutlined />} shape="circle" disabled={sending} />
         </Upload>
-
-        {activeTab === 'client' && (
-          <Tooltip title={isRecording ? 'Остановить запись' : 'Голосовое сообщение'}>
-            <Button
-              icon={<AudioOutlined />}
-              shape="circle"
-              danger={isRecording}
-              onClick={isRecording ? stopRecording : startRecording}
-              disabled={sending}
-              style={{ flexShrink: 0 }}
-            />
-          </Tooltip>
-        )}
 
         <TextArea
           value={messageText}
           onChange={(e) => setMessageText(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder={activeTab === 'client' ? 'Сообщение клиенту...' : 'Внутреннее сообщение...'}
+          placeholder={activeTab === 'client' ? "Сообщение клиенту" : "Внутренний комментарий"}
           autoSize={{ minRows: 1, maxRows: 4 }}
+          onKeyDown={handleKeyPress}
+          disabled={sending}
           style={{
-            flex: 1,
-            borderRadius: 20,
+            borderRadius: 8,
             resize: 'none',
           }}
-          disabled={sending || isRecording}
         />
 
-        <Tooltip title="Обновить">
-          <Button
-            icon={<ReloadOutlined />}
-            shape="circle"
-            onClick={() => activeTab === 'client' ? fetchClientMessages() : fetchInternalMessages()}
-            loading={loading}
-            style={{ flexShrink: 0 }}
-          />
-        </Tooltip>
+        {activeTab === 'client' ? (
+          isRecording ? (
+            <Button
+              danger
+              type="primary"
+              shape="circle"
+              icon={<PauseCircleOutlined />}
+              onClick={stopRecording}
+            />
+          ) : (
+            <Button
+              icon={<AudioOutlined />}
+              shape="circle"
+              onClick={startRecording}
+              disabled={sending || !!messageText}
+            />
+          )
+        ) : null}
 
         <Button
           type="primary"
-          icon={<SendOutlined />}
+          icon={sending ? <ReloadOutlined spin /> : <SendOutlined />}
           onClick={handleSend}
-          loading={sending}
-          disabled={!messageText.trim() || isRecording}
-          style={{
-            borderRadius: 20,
-            paddingLeft: 20,
-            paddingRight: 20,
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            border: 'none',
-          }}
-        >
-          Отправить
-        </Button>
+          disabled={!messageText.trim() && !sending}
+          shape="circle"
+        />
       </div>
     </div>
   );
 };
 
-export default DealChat;
-
+export default OrderChat;

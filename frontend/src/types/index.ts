@@ -8,38 +8,9 @@ export interface Manager {
   created_at: string;
 }
 
-export interface Chat {
-  id: number;
-  status?: string;
-  'Created Date'?: string;
-  AMOid_new?: number;
-  lead_id?: string;
-  client?: string;
-  chat_id?: string;
-  amojo_id_client?: string;
-  talk_id?: string;
-  'Modified Date'?: string;
-  'Created By'?: string;
-  messages?: Message[];
-  // Для обратной совместимости
-  name?: string;
-  phone?: string;
-  email?: string;
-  source?: string;
-  description?: string;
-  created_at?: string;
-  updated_at?: string;
-  manager_id?: number;
-  telegram_user_id?: number;
-  manager?: Manager;
-}
-
-// Алиас для обратной совместимости
-export type Lead = Chat;
-
 export interface Message {
   id: number;
-  lead_id: string;
+  lead_id: string; // Keep lead_id as it maps to main_id or legacy
   main_id?: string;
   author_type: 'manager' | 'user' | 'Клиент' | 'Оператор' | 'Бот' | 'Админ' | 'Менеджер' | 'Служба заботы';
   content: string;
@@ -70,7 +41,7 @@ export interface Message {
 
 export interface InternalMessage {
   id: number;
-  deal_id: number;
+  order_id: number; // Renamed from deal_id
   sender_id: number;
   content: string;
   reply_to_id?: number;
@@ -101,17 +72,8 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
-export const LEAD_STATUSES = {
-  new: { label: 'Новая', color: 'blue' },
-  contacted: { label: 'Контакт установлен', color: 'orange' },
-  in_progress: { label: 'В работе', color: 'yellow' },
-  qualified: { label: 'Квалифицирована', color: 'purple' },
-  lost: { label: 'Потеряна', color: 'red' },
-  won: { label: 'Выиграна', color: 'green' },
-} as const;
-
-// Статусы сделок (этапы воронки)
-export const DEAL_STATUSES = {
+// Статусы заявок (бывшие сделки)
+export const ORDER_STATUSES = {
   // Начальные этапы
   unsorted: { label: 'Неразобранное', color: 'default', icon: '📥', order: 0 },
 
@@ -144,9 +106,8 @@ export const DEAL_STATUSES = {
   completed: { label: 'Исполнена', color: 'green', icon: '✅', order: 16 },
 } as const;
 
-export type DealStatus = keyof typeof DEAL_STATUSES;
+export type OrderStatus = keyof typeof ORDER_STATUSES;
 
-// Новые типы для расширенной CRM
 export interface Contact {
   id: number;
   name: string;
@@ -164,19 +125,21 @@ export interface Contact {
   updated_at: string;
   manager?: Manager;
   tags?: Tag[];
-  deals_count?: number;
-  deals_total_amount?: number;
+  orders_count?: number; // Renamed from deals_count
+  orders_total_amount?: number; // Renamed
   last_contact_at?: string;
 }
 
-export interface Deal {
+export interface Order { // Renamed from Deal
   id: number;
   contact_id?: number;
-  lead_id?: number; // для совместимости
+  lead_id?: number; // Legacy
+  main_id?: string; // Main ID
+  external_id?: string; // Legacy Bubble ID
   title: string;
   amount: number;
   currency: string;
-  status: DealStatus;
+  status: OrderStatus;
   source?: string;
   description?: string;
   due_date?: string;
@@ -193,7 +156,7 @@ export interface Deal {
 export interface Note {
   id: number;
   contact_id?: number;
-  deal_id?: number;
+  order_id?: number; // Renamed from deal_id
   manager_id: number;
   content: string;
   priority: 'urgent' | 'important' | 'info' | 'reminder';
@@ -221,7 +184,7 @@ export interface Automation {
   id: number;
   name: string;
   description?: string;
-  trigger_type: 'deal_created' | 'deal_status_changed' | 'contact_created' | 'message_received' | 'deal_amount_threshold';
+  trigger_type: 'order_created' | 'order_status_changed' | 'contact_created' | 'message_received' | 'order_amount_threshold';
   trigger_conditions?: {
     field?: string;
     operator?: 'equals' | 'not_equals' | 'contains' | 'greater_than' | 'less_than';
@@ -237,11 +200,11 @@ export interface Automation {
 }
 
 export const TRIGGER_TYPES = {
-  deal_created: { label: 'Сделка создана', icon: '📝' },
-  deal_status_changed: { label: 'Статус сделки изменен', icon: '🔄' },
+  order_created: { label: 'Заявка создана', icon: '📝' },
+  order_status_changed: { label: 'Статус заявки изменен', icon: '🔄' },
   contact_created: { label: 'Контакт создан', icon: '👤' },
   message_received: { label: 'Получено сообщение', icon: '💬' },
-  deal_amount_threshold: { label: 'Сумма сделки превышена', icon: '💰' },
+  order_amount_threshold: { label: 'Сумма заявки превышена', icon: '💰' },
 } as const;
 
 export const ACTION_TYPES = {
@@ -253,10 +216,7 @@ export const ACTION_TYPES = {
   send_email: { label: 'Отправить email', icon: '📧' },
 } as const;
 
-// ============================================
-// AI AGENT TYPES
-// ============================================
-
+// ... AI Types unchanged ...
 export interface AISettings {
   model: string;
   temperature: number;
@@ -372,10 +332,6 @@ export interface AIModel {
   provider: string;
   recommended?: boolean;
 }
-
-// ============================================
-// AI INSTRUCTIONS TYPES
-// ============================================
 
 export type InstructionLevel = 1 | 2 | 3;
 

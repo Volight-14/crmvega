@@ -32,7 +32,7 @@ const Login: React.FC = () => {
 
   const getErrorMessage = (error: any): string => {
     const serverError = error.response?.data?.error;
-    
+
     if (serverError) {
       // Маппинг серверных ошибок на понятные сообщения
       if (serverError.includes('Invalid login credentials') || serverError.includes('Неверный')) {
@@ -49,11 +49,11 @@ const Login: React.FC = () => {
       }
       return serverError;
     }
-    
+
     if (error.code === 'ERR_NETWORK') {
       return 'Ошибка сети. Проверьте подключение к интернету.';
     }
-    
+
     return 'Произошла ошибка. Попробуйте позже.';
   };
 
@@ -63,7 +63,7 @@ const Login: React.FC = () => {
     try {
       await login(values.email, values.password);
       message.success('Добро пожаловать!');
-      navigate('/deals');
+      navigate('/orders');
     } catch (error: any) {
       const errorMsg = getErrorMessage(error);
       setLoginError(errorMsg);
@@ -79,7 +79,7 @@ const Login: React.FC = () => {
     try {
       await register(values.email, values.password, values.name);
       message.success('Регистрация выполнена! Добро пожаловать!');
-      navigate('/deals');
+      navigate('/orders');
     } catch (error: any) {
       const errorMsg = getErrorMessage(error);
       setLoginError(errorMsg);
@@ -116,9 +116,9 @@ const Login: React.FC = () => {
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
     }}>
-      <Card 
-        style={{ 
-          width: 420, 
+      <Card
+        style={{
+          width: 420,
           boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
           borderRadius: 12
         }}
@@ -195,8 +195,8 @@ const Login: React.FC = () => {
               </Form.Item>
 
               <div style={{ textAlign: 'center' }}>
-                <Button 
-                  type="link" 
+                <Button
+                  type="link"
                   onClick={openResetModal}
                   style={{ padding: 0 }}
                 >
@@ -289,7 +289,7 @@ const Login: React.FC = () => {
         </Tabs>
 
         <Divider style={{ margin: '16px 0' }} />
-        
+
         <div style={{ textAlign: 'center' }}>
           <Text type="secondary" style={{ fontSize: 12 }}>
             © 2025 MINI CRM. Все права защищены.
@@ -327,7 +327,7 @@ const Login: React.FC = () => {
               showIcon
               style={{ marginBottom: 16 }}
             />
-            
+
             <Form.Item
               name="email"
               rules={[

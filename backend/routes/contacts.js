@@ -36,30 +36,30 @@ router.get('/', auth, async (req, res) => {
 
     if (error) throw error;
 
-    // Получаем статистику по сделкам для каждого контакта
+    // Получаем статистику по заявкам (orders) для каждого контакта
     const contactIds = data.map(c => c.id);
-    const { data: dealsStats } = await supabase
-      .from('deals')
+    const { data: ordersStats } = await supabase
+      .from('orders')
       .select('contact_id, amount, status')
       .in('contact_id', contactIds);
 
     // Подсчитываем статистику
     const statsMap = {};
-    dealsStats?.forEach(deal => {
-      if (!statsMap[deal.contact_id]) {
-        statsMap[deal.contact_id] = { count: 0, total: 0 };
+    ordersStats?.forEach(order => {
+      if (!statsMap[order.contact_id]) {
+        statsMap[order.contact_id] = { count: 0, total: 0 };
       }
-      statsMap[deal.contact_id].count++;
-      if (deal.amount) {
-        statsMap[deal.contact_id].total += parseFloat(deal.amount);
+      statsMap[order.contact_id].count++;
+      if (order.amount) {
+        statsMap[order.contact_id].total += parseFloat(order.amount);
       }
     });
 
     // Добавляем статистику к контактам
     const contactsWithStats = data.map(contact => ({
       ...contact,
-      deals_count: statsMap[contact.id]?.count || 0,
-      deals_total_amount: statsMap[contact.id]?.total || 0,
+      orders_count: statsMap[contact.id]?.count || 0, // Renamed to orders_count
+      orders_total_amount: statsMap[contact.id]?.total || 0, // Renamed to orders_total_amount
       tags: contact.tags?.map(t => t.tag).filter(Boolean) || []
     }));
 
@@ -87,15 +87,15 @@ router.get('/:id', auth, async (req, res) => {
 
     if (error) throw error;
 
-    // Получаем статистику по сделкам
-    const { data: deals } = await supabase
-      .from('deals')
+    // Получаем статистику по заявкам (orders)
+    const { data: orders } = await supabase
+      .from('orders')
       .select('id, title, amount, status, created_at')
       .eq('contact_id', id)
       .order('created_at', { ascending: false });
 
-    contact.deals_count = deals?.length || 0;
-    contact.deals_total_amount = deals?.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0) || 0;
+    contact.orders_count = orders?.length || 0; // Renamed
+    contact.orders_total_amount = orders?.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0) || 0; // Renamed
     contact.tags = contact.tags?.map(t => t.tag).filter(Boolean) || [];
 
     res.json(contact);

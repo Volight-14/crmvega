@@ -31,9 +31,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   const menuItems: MenuProps['items'] = [
     {
-      key: '/deals',
+      key: '/orders',
       icon: <DashboardOutlined />,
-      label: 'Сделки',
+      label: 'Заявки',
     },
     {
       key: '/contacts',
@@ -62,15 +62,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     },
   ];
 
-  // Временно оставляем старый Dashboard доступным
-  if (location.pathname === '/dashboard' || location.pathname.startsWith('/lead/')) {
-    menuItems.unshift({
-      key: '/dashboard',
-      icon: <FileTextOutlined />,
-      label: 'Заявки (старая версия)',
-    });
-  }
-
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);
   };
@@ -96,7 +87,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     },
   ];
 
-  const selectedKeys = [location.pathname.split('/')[1] ? `/${location.pathname.split('/')[1]}` : '/dashboard'];
+  // Logic to highlight current menu item
+  const selectedKey = `/${location.pathname.split('/')[1]}`;
+  const selectedKeys = [selectedKey === '/' ? '/orders' : selectedKey];
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -114,11 +107,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         }}
         theme="dark"
       >
-        <div style={{ 
-          height: 64, 
-          margin: 16, 
-          display: 'flex', 
-          alignItems: 'center', 
+        <div style={{
+          height: 64,
+          margin: 16,
+          display: 'flex',
+          alignItems: 'center',
           justifyContent: 'center',
           color: 'white',
           fontSize: collapsed ? 18 : 20,
@@ -135,10 +128,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         />
       </Sider>
       <Layout style={{ marginLeft: collapsed ? 80 : 200, transition: 'margin-left 0.2s' }}>
-        <Header style={{ 
-          padding: '0 16px', 
-          background: '#fff', 
-          display: 'flex', 
+        <Header style={{
+          padding: '0 16px',
+          background: '#fff',
+          display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
@@ -171,4 +164,3 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 };
 
 export default MainLayout;
-

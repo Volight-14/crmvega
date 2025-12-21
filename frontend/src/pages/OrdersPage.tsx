@@ -27,8 +27,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Deal, DEAL_STATUSES, Contact, DealStatus } from '../types';
-import { dealsAPI, contactsAPI } from '../services/api';
+import { Order, ORDER_STATUSES, Contact, OrderStatus } from '../types';
+import { ordersAPI, contactsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import io from 'socket.io-client';
 
@@ -58,12 +58,12 @@ const COLUMN_COLORS: Record<string, string> = {
   completed: '#52c41a',
 };
 
-interface DealCardProps {
-  deal: Deal;
+interface OrderCardProps {
+  order: Order;
   onClick: () => void;
 }
 
-const DealCard: React.FC<DealCardProps> = ({ deal, onClick }) => {
+const OrderCard: React.FC<OrderCardProps> = ({ order, onClick }) => {
   const {
     attributes,
     listeners,
@@ -71,7 +71,7 @@ const DealCard: React.FC<DealCardProps> = ({ deal, onClick }) => {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: deal.id });
+  } = useSortable({ id: order.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -100,84 +100,84 @@ const DealCard: React.FC<DealCardProps> = ({ deal, onClick }) => {
         hoverable
       >
         {/* Имя контакта и дата */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'flex-start',
           marginBottom: 6,
         }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
             gap: 8,
             flex: 1,
             minWidth: 0,
           }}>
-            <Avatar 
-              size={28} 
-              style={{ 
+            <Avatar
+              size={28}
+              style={{
                 backgroundColor: '#667eea',
                 flexShrink: 0,
               }}
             >
-              {(deal.contact?.name || 'К')[0].toUpperCase()}
+              {(order.contact?.name || 'К')[0].toUpperCase()}
             </Avatar>
             <div style={{ minWidth: 0 }}>
-              <div style={{ 
-                fontWeight: 600, 
+              <div style={{
+                fontWeight: 600,
                 fontSize: 13,
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
               }}>
-                {deal.contact?.name || 'Без контакта'}
+                {order.contact?.name || 'Без контакта'}
               </div>
             </div>
           </div>
           <Text type="secondary" style={{ fontSize: 11, flexShrink: 0 }}>
-            {new Date(deal.created_at).toLocaleDateString('ru-RU', { 
-              day: 'numeric', 
-              month: 'short' 
+            {new Date(order.created_at).toLocaleDateString('ru-RU', {
+              day: 'numeric',
+              month: 'short'
             }).replace('.', '')}
           </Text>
         </div>
 
-        {/* Название сделки */}
-        <div style={{ 
-          fontSize: 12, 
+        {/* Название заявки */}
+        <div style={{
+          fontSize: 12,
           color: '#1890ff',
           marginBottom: 6,
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
         }}>
-          {deal.title}
+          {order.title}
         </div>
 
         {/* Сумма */}
-        {deal.amount > 0 && (
-          <div style={{ 
-            fontSize: 13, 
+        {order.amount > 0 && (
+          <div style={{
+            fontSize: 13,
             fontWeight: 600,
             color: '#262626',
             display: 'flex',
             alignItems: 'center',
             gap: 4,
           }}>
-            {deal.currency === 'EUR' ? '€' : deal.currency === 'USD' ? '$' : '₽'}
-            {deal.amount.toLocaleString('ru-RU')}
+            {order.currency === 'EUR' ? '€' : order.currency === 'USD' ? '$' : '₽'}
+            {order.amount.toLocaleString('ru-RU')}
           </div>
         )}
 
         {/* Теги */}
-        {deal.tags && deal.tags.length > 0 && (
+        {order.tags && order.tags.length > 0 && (
           <div style={{ marginTop: 6 }}>
-            {deal.tags.slice(0, 2).map((tag) => (
-              <Tag 
-                key={tag.id} 
-                color={tag.color} 
-                style={{ 
-                  fontSize: 10, 
+            {order.tags.slice(0, 2).map((tag) => (
+              <Tag
+                key={tag.id}
+                color={tag.color}
+                style={{
+                  fontSize: 10,
                   padding: '0 6px',
                   marginRight: 4,
                   borderRadius: 4,
@@ -190,9 +190,9 @@ const DealCard: React.FC<DealCardProps> = ({ deal, onClick }) => {
         )}
 
         {/* Индикатор задач */}
-        <div style={{ 
-          marginTop: 6, 
-          fontSize: 11, 
+        <div style={{
+          marginTop: 6,
+          fontSize: 11,
           color: '#f5222d',
           display: 'flex',
           alignItems: 'center',
@@ -207,31 +207,31 @@ const DealCard: React.FC<DealCardProps> = ({ deal, onClick }) => {
 };
 
 interface KanbanColumnProps {
-  status: DealStatus;
-  deals: Deal[];
-  onDealClick: (deal: Deal) => void;
-  onAddDeal: () => void;
+  status: OrderStatus;
+  orders: Order[];
+  onOrderClick: (order: Order) => void;
+  onAddOrder: () => void;
 }
 
-const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, deals, onDealClick, onAddDeal }) => {
-  const statusInfo = DEAL_STATUSES[status];
-  const dealIds = deals.map(d => d.id);
+const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClick, onAddOrder }) => {
+  const statusInfo = ORDER_STATUSES[status];
+  const orderIds = orders.map(d => d.id);
   const columnColor = COLUMN_COLORS[status] || '#8c8c8c';
-  
+
   const { setNodeRef, isOver } = useDroppable({
     id: status,
   });
 
   // Считаем общую сумму по колонке (конвертируем в евро для примера)
   const totalAmount = useMemo(() => {
-    return deals.reduce((sum, deal) => {
-      let amount = deal.amount || 0;
+    return orders.reduce((sum, order) => {
+      let amount = order.amount || 0;
       // Простая конвертация для отображения
-      if (deal.currency === 'RUB') amount = amount / 100; // примерный курс
-      if (deal.currency === 'USD') amount = amount * 0.92;
+      if (order.currency === 'RUB') amount = amount / 100; // примерный курс
+      if (order.currency === 'USD') amount = amount * 0.92;
       return sum + amount;
     }, 0);
-  }, [deals]);
+  }, [orders]);
 
   return (
     <div
@@ -252,8 +252,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, deals, onDealClick,
         padding: '12px 16px',
         boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
       }}>
-        <div style={{ 
-          fontWeight: 600, 
+        <div style={{
+          fontWeight: 600,
           fontSize: 13,
           marginBottom: 4,
           display: 'flex',
@@ -262,14 +262,14 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, deals, onDealClick,
         }}>
           <span>{statusInfo?.label || status}</span>
         </div>
-        <div style={{ 
-          fontSize: 12, 
+        <div style={{
+          fontSize: 12,
           color: '#8c8c8c',
           display: 'flex',
           alignItems: 'center',
           gap: 8,
         }}>
-          <span>{deals.length} сделок</span>
+          <span>{orders.length} заявок</span>
           <span>•</span>
           <span>€{Math.round(totalAmount).toLocaleString('ru-RU')}</span>
         </div>
@@ -287,22 +287,22 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, deals, onDealClick,
           transition: 'background 0.2s',
         }}
       >
-        <SortableContext items={dealIds} strategy={verticalListSortingStrategy}>
-          {deals.length === 0 ? (
-            <div 
-              style={{ 
-                padding: '20px 0', 
+        <SortableContext items={orderIds} strategy={verticalListSortingStrategy}>
+          {orders.length === 0 ? (
+            <div
+              style={{
+                padding: '20px 0',
                 textAlign: 'center',
                 color: '#bfbfbf',
                 fontSize: 13,
               }}
             >
               {/* Кнопка быстрого добавления */}
-              <Button 
-                type="dashed" 
+              <Button
+                type="dashed"
                 icon={<PlusOutlined />}
-                onClick={onAddDeal}
-                style={{ 
+                onClick={onAddOrder}
+                style={{
                   width: '100%',
                   borderRadius: 8,
                   height: 40,
@@ -313,15 +313,15 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, deals, onDealClick,
             </div>
           ) : (
             <>
-              {deals.map((deal) => (
-                <DealCard key={deal.id} deal={deal} onClick={() => onDealClick(deal)} />
+              {orders.map((order) => (
+                <OrderCard key={order.id} order={order} onClick={() => onOrderClick(order)} />
               ))}
               {/* Кнопка добавления внизу */}
-              <Button 
-                type="text" 
+              <Button
+                type="text"
                 icon={<PlusOutlined />}
-                onClick={onAddDeal}
-                style={{ 
+                onClick={onAddOrder}
+                style={{
                   width: '100%',
                   color: '#bfbfbf',
                   marginTop: 8,
@@ -337,16 +337,16 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, deals, onDealClick,
   );
 };
 
-const DealsPage: React.FC = () => {
+const OrdersPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { manager } = useAuth();
-  const [deals, setDeals] = useState<Deal[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
-  const [createStatus, setCreateStatus] = useState<DealStatus>('unsorted');
+  const [createStatus, setCreateStatus] = useState<OrderStatus>('unsorted');
   const [activeId, setActiveId] = useState<number | null>(null);
   const [form] = Form.useForm();
   const socketRef = useRef<Socket | null>(null);
@@ -372,7 +372,7 @@ const DealsPage: React.FC = () => {
   }, [searchParams, form]);
 
   useEffect(() => {
-    fetchDeals();
+    fetchOrders();
     fetchContacts();
     setupSocket();
 
@@ -396,41 +396,41 @@ const DealsPage: React.FC = () => {
       transports: ['websocket', 'polling'],
     });
 
-    socketRef.current.on('new_deal', (newDeal: Deal) => {
-      setDeals(prev => {
-        if (prev.some(d => d.id === newDeal.id)) return prev;
-        return [...prev, newDeal];
+    socketRef.current.on('new_order', (newOrder: Order) => {
+      setOrders(prev => {
+        if (prev.some(d => d.id === newOrder.id)) return prev;
+        return [...prev, newOrder];
       });
     });
 
-    socketRef.current.on('deal_updated', (updatedDeal: Deal) => {
-      setDeals(prev => prev.map(d => d.id === updatedDeal.id ? { ...updatedDeal, contact: d.contact } : d));
+    socketRef.current.on('order_updated', (updatedOrder: Order) => {
+      setOrders(prev => prev.map(d => d.id === updatedOrder.id ? { ...updatedOrder, contact: d.contact } : d));
     });
   };
 
-  const fetchDeals = async () => {
+  const fetchOrders = async () => {
     setLoading(true);
     try {
-      const { deals: fetchedDeals } = await dealsAPI.getAll({ limit: 500 });
-      setDeals(fetchedDeals);
+      const { orders: fetchedOrders } = await ordersAPI.getAll({ limit: 500 });
+      setOrders(fetchedOrders);
     } catch (error) {
-      console.error('Error fetching deals:', error);
-      message.error('Ошибка загрузки сделок');
+      console.error('Error fetching orders:', error);
+      message.error('Ошибка загрузки заявок');
     } finally {
       setLoading(false);
     }
   };
 
   // Фильтрация по поиску
-  const filteredDeals = useMemo(() => {
-    if (!searchText) return deals;
+  const filteredOrders = useMemo(() => {
+    if (!searchText) return orders;
     const search = searchText.toLowerCase();
-    return deals.filter(deal =>
-      deal.title.toLowerCase().includes(search) ||
-      deal.contact?.name?.toLowerCase().includes(search) ||
-      deal.description?.toLowerCase().includes(search)
+    return orders.filter(order =>
+      order.title.toLowerCase().includes(search) ||
+      order.contact?.name?.toLowerCase().includes(search) ||
+      order.description?.toLowerCase().includes(search)
     );
-  }, [deals, searchText]);
+  }, [orders, searchText]);
 
   const handleDragStart = (event: any) => {
     setActiveId(event.active.id);
@@ -442,89 +442,89 @@ const DealsPage: React.FC = () => {
 
     if (!over) return;
 
-    const activeDeal = deals.find(d => d.id === active.id);
-    if (!activeDeal) return;
+    const activeOrder = orders.find(d => d.id === active.id);
+    if (!activeOrder) return;
 
-    const validStatuses = Object.keys(DEAL_STATUSES);
+    const validStatuses = Object.keys(ORDER_STATUSES);
     if (!validStatuses.includes(over.id)) return;
 
-    const newStatus = over.id as DealStatus;
-    if (activeDeal.status === newStatus) return;
+    const newStatus = over.id as OrderStatus;
+    if (activeOrder.status === newStatus) return;
 
     // Оптимистичное обновление
-    setDeals(prev => prev.map(d => 
+    setOrders(prev => prev.map(d =>
       d.id === active.id ? { ...d, status: newStatus } : d
     ));
 
     try {
-      await dealsAPI.update(active.id, { status: newStatus });
+      await ordersAPI.update(active.id, { status: newStatus });
       message.success('Статус обновлен');
     } catch (error) {
-      setDeals(prev => prev.map(d => 
-        d.id === active.id ? activeDeal : d
+      setOrders(prev => prev.map(d =>
+        d.id === active.id ? activeOrder : d
       ));
       message.error('Ошибка обновления');
     }
   };
 
-  const handleCreateDeal = async (values: any) => {
+  const handleCreateOrder = async (values: any) => {
     try {
-      await dealsAPI.create({ ...values, status: createStatus });
-      message.success('Сделка создана');
+      await ordersAPI.create({ ...values, status: createStatus });
+      message.success('Заявка создана');
       setIsCreateModalVisible(false);
       form.resetFields();
-      fetchDeals();
+      fetchOrders();
     } catch (error: any) {
-      message.error(error.response?.data?.error || 'Ошибка создания сделки');
+      message.error(error.response?.data?.error || 'Ошибка создания заявки');
     }
   };
 
-  const openCreateModal = (status: DealStatus) => {
+  const openCreateModal = (status: OrderStatus) => {
     setCreateStatus(status);
     form.setFieldsValue({ status });
     setIsCreateModalVisible(true);
   };
 
-  // Группируем сделки по статусам
-  const dealsByStatus = useMemo(() => {
-    const grouped: Record<string, Deal[]> = {};
-    Object.keys(DEAL_STATUSES).forEach(status => {
+  // Группируем заявки по статусам
+  const ordersByStatus = useMemo(() => {
+    const grouped: Record<string, Order[]> = {};
+    Object.keys(ORDER_STATUSES).forEach(status => {
       grouped[status] = [];
     });
-    filteredDeals.forEach(deal => {
-      const status = deal.status || 'unsorted';
+    filteredOrders.forEach(order => {
+      const status = order.status || 'unsorted';
       if (grouped[status]) {
-        grouped[status].push(deal);
+        grouped[status].push(order);
       } else {
-        grouped['unsorted'].push(deal);
+        grouped['unsorted'].push(order);
       }
     });
     return grouped;
-  }, [filteredDeals]);
+  }, [filteredOrders]);
 
-  // Считаем общую сумму всех сделок
-  const totalDealsAmount = useMemo(() => {
-    return filteredDeals.reduce((sum, deal) => {
-      let amount = deal.amount || 0;
-      if (deal.currency === 'RUB') amount = amount / 100;
-      if (deal.currency === 'USD') amount = amount * 0.92;
+  // Считаем общую сумму всех заявок
+  const totalOrdersAmount = useMemo(() => {
+    return filteredOrders.reduce((sum, order) => {
+      let amount = order.amount || 0;
+      if (order.currency === 'RUB') amount = amount / 100;
+      if (order.currency === 'USD') amount = amount * 0.92;
       return sum + amount;
     }, 0);
-  }, [filteredDeals]);
+  }, [filteredOrders]);
 
-  const draggedDeal = deals.find(d => d.id === activeId);
+  const draggedOrder = orders.find(d => d.id === activeId);
 
   // Сортируем статусы по order
   const sortedStatuses = useMemo(() => {
-    return Object.entries(DEAL_STATUSES)
+    return Object.entries(ORDER_STATUSES)
       .sort((a, b) => (a[1].order || 0) - (b[1].order || 0))
-      .map(([key]) => key as DealStatus);
+      .map(([key]) => key as OrderStatus);
   }, []);
 
   return (
-    <div style={{ 
-      height: '100vh', 
-      display: 'flex', 
+    <div style={{
+      height: '100vh',
+      display: 'flex',
       flexDirection: 'column',
       background: '#f0f2f5',
       overflow: 'hidden',
@@ -540,7 +540,7 @@ const DealsPage: React.FC = () => {
         flexShrink: 0,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          <Title level={4} style={{ margin: 0 }}>СДЕЛКИ</Title>
+          <Title level={4} style={{ margin: 0 }}>ЗАЯВКИ</Title>
           <Input
             placeholder="Поиск и фильтр"
             prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
@@ -552,7 +552,7 @@ const DealsPage: React.FC = () => {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <Text style={{ color: '#8c8c8c' }}>
-            {filteredDeals.length} сделок: €{Math.round(totalDealsAmount).toLocaleString('ru-RU')}
+            {filteredOrders.length} заявок: €{Math.round(totalOrdersAmount).toLocaleString('ru-RU')}
           </Text>
           <Button
             type="primary"
@@ -564,7 +564,7 @@ const DealsPage: React.FC = () => {
               borderRadius: 8,
             }}
           >
-            + НОВАЯ СДЕЛКА
+            + НОВАЯ ЗАЯВКА
           </Button>
         </div>
       </div>
@@ -595,15 +595,15 @@ const DealsPage: React.FC = () => {
               <KanbanColumn
                 key={status}
                 status={status}
-                deals={dealsByStatus[status] || []}
-                onDealClick={(deal) => navigate(`/deal/${deal.id}`)}
-                onAddDeal={() => openCreateModal(status)}
+                orders={ordersByStatus[status] || []}
+                onOrderClick={(order) => navigate(`/order/${order.id}`)}
+                onAddOrder={() => openCreateModal(status)}
               />
             ))}
           </div>
         </div>
         <DragOverlay>
-          {draggedDeal ? (
+          {draggedOrder ? (
             <Card
               size="small"
               style={{
@@ -615,15 +615,15 @@ const DealsPage: React.FC = () => {
               bodyStyle={{ padding: '10px 12px' }}
             >
               <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                {draggedDeal.contact?.name || 'Без контакта'}
+                {draggedOrder.contact?.name || 'Без контакта'}
               </div>
               <div style={{ fontSize: 12, color: '#1890ff' }}>
-                {draggedDeal.title}
+                {draggedOrder.title}
               </div>
-              {draggedDeal.amount > 0 && (
+              {draggedOrder.amount > 0 && (
                 <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>
-                  {draggedDeal.currency === 'EUR' ? '€' : draggedDeal.currency === 'USD' ? '$' : '₽'}
-                  {draggedDeal.amount.toLocaleString('ru-RU')}
+                  {draggedOrder.currency === 'EUR' ? '€' : draggedOrder.currency === 'USD' ? '$' : '₽'}
+                  {draggedOrder.amount.toLocaleString('ru-RU')}
                 </div>
               )}
             </Card>
@@ -633,7 +633,7 @@ const DealsPage: React.FC = () => {
 
       {/* Create Modal */}
       <Modal
-        title="Новая сделка"
+        title="Новая заявка"
         open={isCreateModalVisible}
         onCancel={() => {
           setIsCreateModalVisible(false);
@@ -645,14 +645,14 @@ const DealsPage: React.FC = () => {
           header: { borderRadius: '12px 12px 0 0' },
         }}
       >
-        <Form 
-          form={form} 
-          layout="vertical" 
-          onFinish={handleCreateDeal}
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleCreateOrder}
           initialValues={{ currency: 'EUR', status: createStatus }}
         >
-          <Form.Item name="title" label="Название сделки" rules={[{ required: true }]}>
-            <Input placeholder="Название сделки" />
+          <Form.Item name="title" label="Название заявки" rules={[{ required: true }]}>
+            <Input placeholder="Название заявки" />
           </Form.Item>
           <Form.Item name="contact_id" label="Контакт">
             <Select
@@ -687,13 +687,13 @@ const DealsPage: React.FC = () => {
             <Select>
               {sortedStatuses.map((status) => (
                 <Option key={status} value={status}>
-                  {DEAL_STATUSES[status].icon} {DEAL_STATUSES[status].label}
+                  {ORDER_STATUSES[status].icon} {ORDER_STATUSES[status].label}
                 </Option>
               ))}
             </Select>
           </Form.Item>
           <Form.Item name="description" label="Описание">
-            <Input.TextArea rows={3} placeholder="Описание сделки" />
+            <Input.TextArea rows={3} placeholder="Описание заявки" />
           </Form.Item>
         </Form>
       </Modal>
@@ -701,4 +701,4 @@ const DealsPage: React.FC = () => {
   );
 };
 
-export default DealsPage;
+export default OrdersPage;

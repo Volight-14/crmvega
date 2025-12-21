@@ -209,13 +209,13 @@ const ContactsPage: React.FC = () => {
       ),
     },
     {
-      title: 'Сделки',
-      key: 'deals',
+      title: 'Заявки',
+      key: 'orders',
       render: (_, record) => (
         <div>
-          <div>Всего: {record.deals_count || 0}</div>
+          <div>Всего: {record.orders_count || 0}</div>
           <div style={{ fontWeight: 'bold', color: '#1890ff' }}>
-            {record.deals_total_amount?.toLocaleString('ru-RU') || 0} ₽
+            {record.orders_total_amount?.toLocaleString('ru-RU') || 0} ₽
           </div>
         </div>
       ),

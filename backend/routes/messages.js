@@ -88,45 +88,33 @@ router.get('/lead/:leadId', auth, async (req, res) => {
   }
 });
 
-// Получить все сообщения контакта (из всех сделок)
+// Получить все сообщения контакта (из всех заявок)
 router.get('/contact/:contactId', auth, async (req, res) => {
   try {
     const { contactId } = req.params;
     const { limit = 200, offset = 0 } = req.query;
 
-    // Получаем все сделки контакта
-    const { data: deals, error: dealsError } = await supabase
-      .from('deals')
-      .select('id, lead_id, title')
+    // Получаем все заявки контакта
+    const { data: orders, error: ordersError } = await supabase
+      .from('orders')
+      .select('id, lead_id, main_id, title')
       .eq('contact_id', contactId);
 
-    if (dealsError) throw dealsError;
+    if (ordersError) throw ordersError;
 
-    const dealIds = deals?.map(d => d.id) || [];
-    const leadIdsFromDeals = deals?.map(d => d.lead_id).filter(Boolean) || [];
+    const orderIds = orders?.map(o => o.id) || [];
+    let leadIds = [];
 
-    // Получаем все chats, связанные с этим контактом через telegram_user_id (chat_id)
-    // (для совместимости со старыми данными)
-    const { data: contact } = await supabase
-      .from('contacts')
-      .select('phone, email')
-      .eq('id', contactId)
-      .single();
-
-    let leadIds = [...leadIdsFromDeals];
-
-    // TODO: Здесь сложнее, так как в chats может не быть phone/email напрямую.
-    // Если chats.chat_id матчится с contact.telegram_id (если бы он был), было бы круто.
-    // Пока оставим пустым, если нет явной связи. Или если chats.client содержит телефон?
-    // В оригинале было поиск по phone/email в leads.
-    // В текущей схеме chats нет phone/email.
-    // Пропустим этот блок пока, или оставим как есть но с chats (если бы там были поля).
-    // Так как полей нет, этот блок поиска по телефону/email не сработает для chats.
+    // Собираем все ID потоков (lead_id, main_id)
+    orders?.forEach(o => {
+      if (o.lead_id) leadIds.push(o.lead_id);
+      if (o.main_id) leadIds.push(o.main_id);
+    });
 
     // Убираем дубликаты
     leadIds = [...new Set(leadIds)];
 
-    // Получаем сообщения из messages (связанных с chats через lead_id)
+    // Получаем сообщения из messages
     let allMessages = [];
     if (leadIds.length > 0) {
       const { data: messages, error: messagesError } = await supabase
@@ -135,34 +123,29 @@ router.get('/contact/:contactId', auth, async (req, res) => {
         .in('lead_id', leadIds)
         .order('created_at', { ascending: true });
 
-      // Прим: убрали lead:leads(id, name) из select, так как leads нет.
-      // Можно попробовать join chats, но FK может не быть настроен в supabase для join syntax.
-      // Если нужен join, то lead:chats(lead_id, client) - но скорее всего FK на chats.lead_id нет?
-      // lead_id в messages это просто text.
-
       if (messagesError) throw messagesError;
       allMessages = messages || [];
     }
 
-    // Получаем сообщения из deal_messages
-    if (dealIds.length > 0) {
-      const { data: dealMessages } = await supabase
-        .from('deal_messages')
+    // Получаем сообщения из order_messages
+    if (orderIds.length > 0) {
+      const { data: orderMessages } = await supabase
+        .from('order_messages')
         .select(`
           message:messages(*),
-          deal:deals(id, title)
+          order:orders(id, title)
         `)
-        .in('deal_id', dealIds);
+        .in('order_id', orderIds);
 
-      if (dealMessages && dealMessages.length > 0) {
-        const messagesFromDeals = dealMessages
-          .filter(dm => dm.message)
-          .map(dm => ({
-            ...dm.message,
-            deal_title: dm.deal?.title,
-            deal_id: dm.deal?.id,
+      if (orderMessages && orderMessages.length > 0) {
+        const messagesFromOrders = orderMessages
+          .filter(om => om.message)
+          .map(om => ({
+            ...om.message,
+            order_title: om.order?.title,
+            order_id: om.order?.id,
           }));
-        allMessages = [...allMessages, ...messagesFromDeals];
+        allMessages = [...allMessages, ...messagesFromOrders];
       }
     }
 
@@ -179,30 +162,29 @@ router.get('/contact/:contactId', auth, async (req, res) => {
   }
 });
 
-// Отправить сообщение контакту (создает или использует активную сделку)
+// Отправить сообщение контакту (создает или использует активную заявку)
 router.post('/contact/:contactId', auth, async (req, res) => {
   try {
     const { contactId } = req.params;
     const { content, sender_type = 'manager' } = req.body;
-    // const sender_id = req.manager.id; // No sender_id column
 
-    // Находим активную сделку контакта или создаем новую
-    const { data: activeDeal } = await supabase
-      .from('deals')
-      .select('id, lead_id')
+    // Находим активную заявку контакта или создаем новую
+    const { data: activeOrder } = await supabase
+      .from('orders')
+      .select('id, lead_id, main_id')
       .eq('contact_id', contactId)
       .in('status', ['new', 'negotiation', 'waiting', 'ready_to_close'])
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
 
-    let dealId = activeDeal?.id;
-    let leadId = activeDeal?.lead_id;
+    let orderId = activeOrder?.id;
+    let leadId = activeOrder?.main_id || activeOrder?.lead_id;
 
-    // Если нет активной сделки, создаем новую
-    if (!dealId) {
-      const { data: newDeal, error: dealError } = await supabase
-        .from('deals')
+    // Если нет активной заявки, создаем новую
+    if (!orderId) {
+      const { data: newOrder, error: orderError } = await supabase
+        .from('orders')
         .insert({
           contact_id: parseInt(contactId),
           title: `Сообщение от ${new Date().toLocaleDateString('ru-RU')}`,
@@ -212,104 +194,61 @@ router.post('/contact/:contactId', auth, async (req, res) => {
         .select()
         .single();
 
-      if (dealError) throw dealError;
-      dealId = newDeal.id;
+      if (orderError) throw orderError;
+      orderId = newOrder.id;
     }
 
-    // Создаем или находим chat (бывший lead) для связи
+    // Генерируем leadId (thread ID) если нет
     if (!leadId) {
-      const { data: contact } = await supabase
-        .from('contacts')
-        .select('name, phone, email')
-        .eq('id', contactId)
-        .single();
+      // Если у заявки нет ID чата, генерируем новый UUID и сохраняем его как lead_id (или main_id)
+      // Сейчас мы используем main_id как основной идентификатор, но для совместимости пишем в lead_id тоже?
+      // Используем lead_id в orders как поле для связки с messages.lead_id
+      leadId = crypto.randomUUID();
 
-      if (contact) {
-        // Ищем существующий chat (по client name = contact.name ???)
-        // В chats нет phone/email, поэтому поиск неточный.
-        // ПОКА просто создаем новый чат, если не нашли привязанного.
-        // Или ищем по имени? Опасно.
-        // Давайте создадим новый чат всегда, если lead_id пуст.
-
-        const newLeadId = crypto.randomUUID();
-        const { data: newChat, error: chatError } = await supabase
-          .from('chats')
-          .insert({
-            client: contact.name || 'Неизвестный клиент',
-            lead_id: newLeadId,
-            status: 'new',
-            'Created Date': new Date().toISOString()
-          })
-          .select()
-          .single();
-
-        if (!chatError) {
-          leadId = newLeadId;
-        }
-
-        // Обновляем deal с lead_id
-        if (leadId) {
-          await supabase
-            .from('deals')
-            .update({ lead_id: leadId })
-            .eq('id', dealId);
-        }
-      }
+      await supabase
+        .from('orders')
+        .update({ lead_id: leadId, main_id: leadId }) // Обновляем оба
+        .eq('id', orderId);
     }
 
     // Создаем сообщение
     const { data: message, error: messageError } = await supabase
       .from('messages')
       .insert({
-        lead_id: leadId,
+        lead_id: leadId, // Link via lead_id column in messages
+        main_id: leadId,
         content,
-        // sender_id, // Removed
-        author_type: sender_type === 'user' ? 'user' : 'Менеджер', // Map to DB values or keep plain
+        author_type: sender_type === 'user' ? 'user' : 'Менеджер',
       })
       .select(`*`)
       .single();
 
     if (messageError) throw messageError;
 
-    // Связываем сообщение со сделкой
-    if (dealId && message && message.id) { // message.id exists?
-      // Wait, message insert with select * should return id.
-      // Although message ID is uuid now? Or int?
-      // Existing messages have "id": 90165 (int).
-      // But the schema check said "id" (uuid) at the end. It likely has both or is confusing.
-      // We'll trust supabase returns the inserted row.
-
+    // Связываем сообщение с заявкой
+    if (orderId && message && message.id) {
       await supabase
-        .from('deal_messages')
+        .from('order_messages')
         .upsert({
-          deal_id: dealId,
-          message_id: message.id, // Ensure this works with whatever ID type
-        }, { onConflict: 'deal_id,message_id' });
+          order_id: orderId,
+          message_id: message.id,
+        }, { onConflict: 'order_id,message_id' });
     }
 
     // Получаем io для уведомлений
     const io = req.app.get('io');
 
-    // Запускаем автоматизации для нового сообщения
-    if (sender_type === 'user') {
-      const { runAutomations } = require('../services/automationRunner');
-      runAutomations('message_received', message, { io }).catch(err => {
-        console.error('Error running automations for message_received:', err);
-      });
-    }
-
-    // Если сообщение от менеджера, отправляем через Telegram бота и трекаем
+    // Если сообщение от менеджера, отправляем через Telegram бота (если есть telegram_user_id)
     if (sender_type === 'manager' && leadId) {
-      // Получаем информацию о чате для отправки в Telegram
-      const { data: chat, error: chatError } = await supabase
-        .from('chats')
-        .select('chat_id')
-        .eq('lead_id', leadId)
+      // Ищем contact telegram_id
+      const { data: contact } = await supabase
+        .from('contacts')
+        .select('telegram_user_id')
+        .eq('id', contactId)
         .single();
 
-      if (!chatError && chat && chat.chat_id) {
-        // Отправляем через бота (не ждем результата, чтобы не блокировать ответ)
-        sendMessageToTelegram(chat.chat_id, content).catch(err => {
+      if (contact && contact.telegram_user_id) {
+        sendMessageToTelegram(contact.telegram_user_id, content).catch(err => {
           console.error('Failed to send message via bot:', err);
         });
       }
@@ -321,10 +260,10 @@ router.post('/contact/:contactId', auth, async (req, res) => {
     }
 
     // Отправляем Socket.IO событие
-    if (io && leadId) {
-      io.to(`lead_${leadId}`).emit('new_message', message);
-    }
+    // Try sending to explicit order room too
     if (io) {
+      if (leadId) io.to(`lead_${leadId}`).emit('new_message', message);
+      io.to(`order_${orderId}`).emit('new_message', message);
       io.emit('contact_message', { contact_id: contactId, message });
     }
 
@@ -335,7 +274,7 @@ router.post('/contact/:contactId', auth, async (req, res) => {
   }
 });
 
-// Отправить сообщение
+// Отправить сообщение (generic endpoint by lead_id)
 router.post('/', auth, async (req, res) => {
   try {
     const { lead_id, content, sender_type = 'manager' } = req.body;
@@ -345,8 +284,8 @@ router.post('/', auth, async (req, res) => {
       .from('messages')
       .insert({
         lead_id,
+        main_id: lead_id,
         content,
-        // sender_id: req.manager.id, // Removed
         author_type: sender_type === 'user' ? 'user' : 'Менеджер'
       })
       .select(`*`)
@@ -364,24 +303,31 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
-    // Если сообщение от менеджера, отправляем через бота и трекаем для AI аналитики
+    // Если сообщение от менеджера, отправляем через бота
     if (sender_type === 'manager') {
-      // Получаем информацию о заявке (чате)
-      // Используем chats вместо leads
-      const { data: chat, error: chatError } = await supabase
-        .from('chats')
-        .select('chat_id') // chat_id = telegram_user_id
-        .eq('lead_id', lead_id) // lead_id в chats это UUID, и в messages lead_id это тот же UUID
-        .single();
+      // Пытаемся найти contact через order который привязан к этому lead_id
+      // Чтобы получить telegram_user_id
+      const { data: order } = await supabase
+        .from('orders')
+        .select('contact_id')
+        .eq('lead_id', lead_id) // or .or(`lead_id.eq.${lead_id},main_id.eq.${lead_id}`)
+        .maybeSingle();
 
-      if (!chatError && chat && chat.chat_id) {
-        // Отправляем через бота (не ждем результата, чтобы не блокировать ответ)
-        sendMessageToTelegram(chat.chat_id, content).catch(err => {
-          console.error('Failed to send message via bot:', err);
-        });
+      if (order && order.contact_id) {
+        const { data: contact } = await supabase
+          .from('contacts')
+          .select('telegram_user_id')
+          .eq('id', order.contact_id)
+          .single();
+
+        if (contact && contact.telegram_user_id) {
+          sendMessageToTelegram(contact.telegram_user_id, content).catch(err => {
+            console.error('Failed to send message via bot:', err);
+          });
+        }
       }
 
-      // Трекаем ответ для аналитики AI (сравнение с подсказкой)
+      // Трекаем ответ для аналитики AI
       trackOperatorResponse(lead_id, content).catch(err => {
         console.error('Failed to track operator response:', err);
       });

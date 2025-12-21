@@ -20,87 +20,62 @@ const upload = multer({
 });
 
 // ==============================================
-// СООБЩЕНИЯ КЛИЕНТУ (из Telegram через Bubble)
+// СООБЩЕНИЯ КЛИЕНТУ (из Telegram через Bubble или напрямую)
 // ==============================================
 
-// Получить все сообщения сделки (из messages через lead_id чата)
-router.get('/:dealId/client', auth, async (req, res) => {
+// Получить все сообщения заявки
+router.get('/:orderId/client', auth, async (req, res) => {
   try {
-    const { dealId } = req.params;
+    const { orderId } = req.params;
     const { limit = 200, offset = 0 } = req.query;
 
-    // Получаем сделку и связанный чат
-    const { data: deal, error: dealError } = await supabase
-      .from('deals')
+    // Получаем заявку
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
       .select('id, contact_id, lead_id, external_id, main_id')
-      .eq('id', dealId)
+      .eq('id', orderId)
       .single();
 
-    if (dealError) throw dealError;
+    if (orderError) throw orderError;
 
-    // Получаем чат по lead_id или contact_id
-    let chatLeadId = null;
+    // Основной ID для связи - это main_id. Но поддерживаем и старые.
+    // Сообщения привязываются к orders через поле lead_id (в messages) которое должно совпадать с main_id ордера.
+    // Либо через таблицу order_messages.
 
-    if (deal.lead_id) {
-      // Если у сделки есть lead_id - используем его
-      const { data: chat } = await supabase
-        .from('chats')
-        .select('lead_id')
-        .eq('id', deal.lead_id)
-        .single();
-      chatLeadId = chat?.lead_id;
-    }
-
-    if (!chatLeadId && deal.contact_id) {
-      // Ищем чат по telegram_user_id контакта
-      const { data: contact } = await supabase
-        .from('contacts')
-        .select('telegram_user_id')
-        .eq('id', deal.contact_id)
-        .single();
-
-      if (contact?.telegram_user_id) {
-        // Ищем чат с этим telegram_user_id
-        const { data: chats } = await supabase
-          .from('chats')
-          .select('lead_id')
-          .eq('client', contact.telegram_user_id.toString())
-          .order('Created Date', { ascending: false })
-          .limit(1);
-
-        chatLeadId = chats?.[0]?.lead_id;
-      }
-    }
-
-    // Также ищем сообщения через deal_messages
-    const { data: dealMessages } = await supabase
-      .from('deal_messages')
+    // Также ищем сообщения через order_messages
+    const { data: orderMessages } = await supabase
+      .from('order_messages')
       .select('message_id')
-      .eq('deal_id', dealId);
+      .eq('order_id', orderId);
 
-    const messageIds = dealMessages?.map(dm => dm.message_id) || [];
+    const messageIds = orderMessages?.map(dm => dm.message_id) || [];
 
-    let allMessages = [];
-    let clientMessages = []; // Initialize clientMessages
+    let clientMessages = [];
 
-    // Logic: Match strictly by lead_id (chat's lead_id or deal's external_id)
-    // OR by main_id if present (Deal's main_id == Message's main_id)
-    if (chatLeadId || deal.external_id || deal.main_id) {
+    // Logic: Match by:
+    // 1. messages.main_id == order.main_id (Priority)
+    // 2. messages.lead_id == order.main_id
+    // 3. messages.lead_id == order.external_id (Bubble legacy)
+    // 4. messages.lead_id == order.lead_id (Legacy)
+
+    if (order.main_id || order.external_id || order.lead_id) {
       let query = supabase
         .from('messages')
         .select('*')
         .order('Created Date', { ascending: true });
 
       const orConditions = [];
-      if (chatLeadId) {
-        orConditions.push(`lead_id.eq.${chatLeadId}`);
+
+      if (order.main_id) {
+        orConditions.push(`main_id.eq.${order.main_id}`);
+        // Часть сообщений может быть с main_id записанным в lead_id (старая логика или от вехука)
+        orConditions.push(`lead_id.eq.${order.main_id}`);
       }
-      if (deal.external_id) {
-        orConditions.push(`lead_id.eq.${deal.external_id}`);
+      if (order.external_id) {
+        orConditions.push(`lead_id.eq.${order.external_id}`);
       }
-      // If deal has main_id, also look for messages with that main_id
-      if (deal.main_id) {
-        orConditions.push(`main_id.eq.${deal.main_id}`);
+      if (order.lead_id) {
+        orConditions.push(`lead_id.eq.${order.lead_id}`);
       }
 
       if (orConditions.length > 0) {
@@ -114,17 +89,17 @@ router.get('/:dealId/client', auth, async (req, res) => {
       clientMessages = messagesByLeadOrMain || [];
     }
 
-    // Add messages from deal_messages
+    // Добавляем сообщения из order_messages
     if (messageIds.length > 0) {
-      const { data: messagesByDeal } = await supabase
+      const { data: messagesByOrder } = await supabase
         .from('messages')
         .select('*')
         .in('id', messageIds)
         .order('Created Date', { ascending: true });
 
-      if (messagesByDeal) {
+      if (messagesByOrder) {
         const existingIds = new Set(clientMessages.map(m => m.id));
-        for (const msg of messagesByDeal) {
+        for (const msg of messagesByOrder) {
           if (!existingIds.has(msg.id)) {
             clientMessages.push(msg);
           }
@@ -145,59 +120,44 @@ router.get('/:dealId/client', auth, async (req, res) => {
     res.json({
       messages: paginatedMessages,
       total: clientMessages.length,
-      chatLeadId,
-      externalId: deal.external_id,
-      mainId: deal.main_id,
+      externalId: order.external_id,
+      mainId: order.main_id,
     });
   } catch (error) {
-    console.error('Error fetching deal client messages:', error);
+    console.error('Error fetching order client messages:', error);
     res.status(400).json({ error: error.message });
   }
 });
 
 // Отправить сообщение клиенту в Telegram
-router.post('/:dealId/client', auth, async (req, res) => {
+router.post('/:orderId/client', auth, async (req, res) => {
   try {
-    const { dealId } = req.params;
+    const { orderId } = req.params;
     const { content, reply_to_message_id } = req.body;
 
     if (!content || !content.trim()) {
       return res.status(400).json({ error: 'Сообщение не может быть пустым' });
     }
 
-    // Получаем сделку и чат
-    const { data: deal, error: dealError } = await supabase
-      .from('deals')
-      .select('id, contact_id, lead_id')
-      .eq('id', dealId)
+    // Получаем заявку
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('id, contact_id, lead_id, main_id')
+      .eq('id', orderId)
       .single();
 
-    if (dealError) throw dealError;
+    if (orderError) throw orderError;
 
     // Находим telegram_user_id клиента
     let telegramUserId = null;
-    let chatLeadId = null;
 
-    if (deal.contact_id) {
+    if (order.contact_id) {
       const { data: contact } = await supabase
         .from('contacts')
         .select('telegram_user_id')
-        .eq('id', deal.contact_id)
+        .eq('id', order.contact_id)
         .single();
       telegramUserId = contact?.telegram_user_id;
-    }
-
-    // Ищем lead_id для записи сообщения
-    if (deal.lead_id) {
-      const { data: chat } = await supabase
-        .from('chats')
-        .select('lead_id, client')
-        .eq('id', deal.lead_id)
-        .single();
-      chatLeadId = chat?.lead_id;
-      if (!telegramUserId && chat?.client) {
-        telegramUserId = chat.client;
-      }
     }
 
     if (!telegramUserId) {
@@ -230,11 +190,15 @@ router.post('/:dealId/client', auth, async (req, res) => {
       }
     }
 
+    // ID для привязки сообщения (main_id или fallback)
+    const storeLeadId = order.main_id || order.lead_id;
+
     // Сохраняем сообщение в базе
     const { data: message, error: messageError } = await supabase
       .from('messages')
       .insert({
-        lead_id: chatLeadId,
+        lead_id: storeLeadId,
+        main_id: order.main_id, // Заполняем оба поля для надежности
         content: content.trim(),
         author_type: 'Оператор',
         message_type: 'text',
@@ -248,20 +212,20 @@ router.post('/:dealId/client', auth, async (req, res) => {
 
     if (messageError) throw messageError;
 
-    // Связываем сообщение со сделкой
+    // Связываем сообщение с заявкой
     await supabase
-      .from('deal_messages')
+      .from('order_messages')
       .upsert({
-        deal_id: parseInt(dealId),
+        order_id: parseInt(orderId),
         message_id: message.id,
-      }, { onConflict: 'deal_id,message_id' });
+      }, { onConflict: 'order_id,message_id' });
 
     // Socket.IO уведомление
     const io = req.app.get('io');
     if (io) {
-      io.to(`deal_${dealId}`).emit('new_client_message', message);
-      if (chatLeadId) {
-        io.to(`lead_${chatLeadId}`).emit('new_message', message);
+      io.to(`order_${orderId}`).emit('new_client_message', message);
+      if (storeLeadId) {
+        io.to(`lead_${storeLeadId}`).emit('new_message', message);
       }
     }
 
@@ -273,47 +237,33 @@ router.post('/:dealId/client', auth, async (req, res) => {
 });
 
 // Отправить файл клиенту
-router.post('/:dealId/client/file', auth, upload.single('file'), async (req, res) => {
+router.post('/:orderId/client/file', auth, upload.single('file'), async (req, res) => {
   try {
-    const { dealId } = req.params;
+    const { orderId } = req.params;
     const { caption, reply_to_message_id } = req.body;
 
     if (!req.file) {
       return res.status(400).json({ error: 'Файл не загружен' });
     }
 
-    // Получаем сделку
-    const { data: deal, error: dealError } = await supabase
-      .from('deals')
-      .select('id, contact_id, lead_id')
-      .eq('id', dealId)
+    // Получаем заявку
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('id, contact_id, lead_id, main_id')
+      .eq('id', orderId)
       .single();
 
-    if (dealError) throw dealError;
+    if (orderError) throw orderError;
 
-    // Находим telegram_user_id
     let telegramUserId = null;
-    let chatLeadId = null;
 
-    if (deal.contact_id) {
+    if (order.contact_id) {
       const { data: contact } = await supabase
         .from('contacts')
         .select('telegram_user_id')
-        .eq('id', deal.contact_id)
+        .eq('id', order.contact_id)
         .single();
       telegramUserId = contact?.telegram_user_id;
-    }
-
-    if (deal.lead_id) {
-      const { data: chat } = await supabase
-        .from('chats')
-        .select('lead_id, client')
-        .eq('id', deal.lead_id)
-        .single();
-      chatLeadId = chat?.lead_id;
-      if (!telegramUserId && chat?.client) {
-        telegramUserId = chat.client;
-      }
     }
 
     if (!telegramUserId) {
@@ -322,7 +272,7 @@ router.post('/:dealId/client/file', auth, upload.single('file'), async (req, res
 
     // Загружаем файл в Supabase Storage
     const fileName = `${Date.now()}_${req.file.originalname}`;
-    const filePath = `deal_files/${dealId}/${fileName}`;
+    const filePath = `order_files/${orderId}/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
       .from('attachments')
@@ -332,10 +282,8 @@ router.post('/:dealId/client/file', auth, upload.single('file'), async (req, res
 
     if (uploadError) {
       console.error('Storage upload error:', uploadError);
-      // Продолжаем без сохранения файла локально
     }
 
-    // Получаем публичный URL
     const { data: urlData } = supabase.storage
       .from('attachments')
       .getPublicUrl(filePath);
@@ -373,11 +321,15 @@ router.post('/:dealId/client/file', auth, upload.single('file'), async (req, res
       }
     }
 
+    // ID для привязки
+    const storeLeadId = order.main_id || order.lead_id;
+
     // Сохраняем сообщение
     const { data: message, error: messageError } = await supabase
       .from('messages')
       .insert({
-        lead_id: chatLeadId,
+        lead_id: storeLeadId,
+        main_id: order.main_id,
         content: caption || `📎 ${req.file.originalname}`,
         author_type: 'Оператор',
         message_type: 'file',
@@ -393,17 +345,16 @@ router.post('/:dealId/client/file', auth, upload.single('file'), async (req, res
 
     if (messageError) throw messageError;
 
-    // Связываем со сделкой
     await supabase
-      .from('deal_messages')
+      .from('order_messages')
       .upsert({
-        deal_id: parseInt(dealId),
+        order_id: parseInt(orderId),
         message_id: message.id,
-      }, { onConflict: 'deal_id,message_id' });
+      }, { onConflict: 'order_id,message_id' });
 
     const io = req.app.get('io');
     if (io) {
-      io.to(`deal_${dealId}`).emit('new_client_message', message);
+      io.to(`order_${orderId}`).emit('new_client_message', message);
     }
 
     res.json(message);
@@ -414,54 +365,40 @@ router.post('/:dealId/client/file', auth, upload.single('file'), async (req, res
 });
 
 // Отправить голосовое сообщение
-router.post('/:dealId/client/voice', auth, upload.single('voice'), async (req, res) => {
+router.post('/:orderId/client/voice', auth, upload.single('voice'), async (req, res) => {
   try {
-    const { dealId } = req.params;
+    const { orderId } = req.params;
     const { duration, reply_to_message_id } = req.body;
 
     if (!req.file) {
       return res.status(400).json({ error: 'Голосовое сообщение не загружено' });
     }
 
-    const { data: deal, error: dealError } = await supabase
-      .from('deals')
-      .select('id, contact_id, lead_id')
-      .eq('id', dealId)
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('id, contact_id, lead_id, main_id')
+      .eq('id', orderId)
       .single();
 
-    if (dealError) throw dealError;
+    if (orderError) throw orderError;
 
     let telegramUserId = null;
-    let chatLeadId = null;
 
-    if (deal.contact_id) {
+    if (order.contact_id) {
       const { data: contact } = await supabase
         .from('contacts')
         .select('telegram_user_id')
-        .eq('id', deal.contact_id)
+        .eq('id', order.contact_id)
         .single();
       telegramUserId = contact?.telegram_user_id;
-    }
-
-    if (deal.lead_id) {
-      const { data: chat } = await supabase
-        .from('chats')
-        .select('lead_id, client')
-        .eq('id', deal.lead_id)
-        .single();
-      chatLeadId = chat?.lead_id;
-      if (!telegramUserId && chat?.client) {
-        telegramUserId = chat.client;
-      }
     }
 
     if (!telegramUserId) {
       return res.status(400).json({ error: 'Не найден Telegram ID клиента' });
     }
 
-    // Загружаем в Storage
     const fileName = `${Date.now()}_voice.ogg`;
-    const filePath = `deal_files/${dealId}/${fileName}`;
+    const filePath = `order_files/${orderId}/${fileName}`;
 
     await supabase.storage
       .from('attachments')
@@ -475,7 +412,6 @@ router.post('/:dealId/client/voice', auth, upload.single('voice'), async (req, r
 
     const fileUrl = urlData?.publicUrl;
 
-    // Отправляем в Telegram
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
     let telegramMessageId = null;
 
@@ -506,10 +442,13 @@ router.post('/:dealId/client/voice', auth, upload.single('voice'), async (req, r
       }
     }
 
+    const storeLeadId = order.main_id || order.lead_id;
+
     const { data: message, error: messageError } = await supabase
       .from('messages')
       .insert({
-        lead_id: chatLeadId,
+        lead_id: storeLeadId,
+        main_id: order.main_id,
         content: '🎤 Голосовое сообщение',
         author_type: 'Оператор',
         message_type: 'voice',
@@ -526,15 +465,15 @@ router.post('/:dealId/client/voice', auth, upload.single('voice'), async (req, r
     if (messageError) throw messageError;
 
     await supabase
-      .from('deal_messages')
+      .from('order_messages')
       .upsert({
-        deal_id: parseInt(dealId),
+        order_id: parseInt(orderId),
         message_id: message.id,
-      }, { onConflict: 'deal_id,message_id' });
+      }, { onConflict: 'order_id,message_id' });
 
     const io = req.app.get('io');
     if (io) {
-      io.to(`deal_${dealId}`).emit('new_client_message', message);
+      io.to(`order_${orderId}`).emit('new_client_message', message);
     }
 
     res.json(message);
@@ -548,10 +487,10 @@ router.post('/:dealId/client/voice', auth, upload.single('voice'), async (req, r
 // ВНУТРЕННЯЯ ПЕРЕПИСКА (между сотрудниками)
 // ==============================================
 
-// Получить внутренние сообщения сделки
-router.get('/:dealId/internal', auth, async (req, res) => {
+// Получить внутренние сообщения заявки
+router.get('/:orderId/internal', auth, async (req, res) => {
   try {
-    const { dealId } = req.params;
+    const { orderId } = req.params;
     const { limit = 200, offset = 0 } = req.query;
 
     const { data, error } = await supabase
@@ -565,7 +504,7 @@ router.get('/:dealId/internal', auth, async (req, res) => {
           sender:managers(name)
         )
       `)
-      .eq('deal_id', dealId)
+      .eq('order_id', orderId)
       .order('created_at', { ascending: true })
       .range(offset, offset + parseInt(limit) - 1);
 
@@ -574,7 +513,7 @@ router.get('/:dealId/internal', auth, async (req, res) => {
     const { count } = await supabase
       .from('internal_messages')
       .select('*', { count: 'exact', head: true })
-      .eq('deal_id', dealId);
+      .eq('order_id', orderId);
 
     res.json({
       messages: data || [],
@@ -587,9 +526,9 @@ router.get('/:dealId/internal', auth, async (req, res) => {
 });
 
 // Отправить внутреннее сообщение
-router.post('/:dealId/internal', auth, async (req, res) => {
+router.post('/:orderId/internal', auth, async (req, res) => {
   try {
-    const { dealId } = req.params;
+    const { orderId } = req.params;
     const { content, reply_to_id } = req.body;
 
     if (!content || !content.trim()) {
@@ -599,7 +538,7 @@ router.post('/:dealId/internal', auth, async (req, res) => {
     const { data, error } = await supabase
       .from('internal_messages')
       .insert({
-        deal_id: parseInt(dealId),
+        order_id: parseInt(orderId),
         sender_id: req.manager.id,
         content: content.trim(),
         reply_to_id: reply_to_id || null,
@@ -617,11 +556,10 @@ router.post('/:dealId/internal', auth, async (req, res) => {
 
     if (error) throw error;
 
-    // Socket.IO уведомление
     const io = req.app.get('io');
     if (io) {
-      io.to(`deal_${dealId}`).emit('new_internal_message', data);
-      io.emit('internal_message', { deal_id: dealId, message: data });
+      io.to(`order_${orderId}`).emit('new_internal_message', data);
+      io.emit('internal_message', { order_id: orderId, message: data });
     }
 
     res.json(data);
@@ -632,18 +570,17 @@ router.post('/:dealId/internal', auth, async (req, res) => {
 });
 
 // Отправить внутренний файл
-router.post('/:dealId/internal/file', auth, upload.single('file'), async (req, res) => {
+router.post('/:orderId/internal/file', auth, upload.single('file'), async (req, res) => {
   try {
-    const { dealId } = req.params;
+    const { orderId } = req.params;
     const { reply_to_id } = req.body;
 
     if (!req.file) {
       return res.status(400).json({ error: 'Файл не загружен' });
     }
 
-    // Загружаем в Storage
     const fileName = `${Date.now()}_${req.file.originalname}`;
-    const filePath = `internal_files/${dealId}/${fileName}`;
+    const filePath = `internal_files/${orderId}/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
       .from('attachments')
@@ -664,7 +601,7 @@ router.post('/:dealId/internal/file', auth, upload.single('file'), async (req, r
     const { data, error } = await supabase
       .from('internal_messages')
       .insert({
-        deal_id: parseInt(dealId),
+        order_id: parseInt(orderId),
         sender_id: req.manager.id,
         content: `📎 ${req.file.originalname}`,
         reply_to_id: reply_to_id || null,
@@ -682,7 +619,7 @@ router.post('/:dealId/internal/file', auth, upload.single('file'), async (req, r
 
     const io = req.app.get('io');
     if (io) {
-      io.to(`deal_${dealId}`).emit('new_internal_message', data);
+      io.to(`order_${orderId}`).emit('new_internal_message', data);
     }
 
     res.json(data);
@@ -693,21 +630,20 @@ router.post('/:dealId/internal/file', auth, upload.single('file'), async (req, r
 });
 
 // Отметить внутренние сообщения как прочитанные
-router.post('/:dealId/internal/read', auth, async (req, res) => {
+router.post('/:orderId/internal/read', auth, async (req, res) => {
   try {
-    const { dealId } = req.params;
+    const { orderId } = req.params;
     const { message_ids } = req.body;
 
     let query = supabase
       .from('internal_messages')
       .update({ is_read: true })
-      .eq('deal_id', dealId);
+      .eq('order_id', orderId);
 
     if (message_ids && message_ids.length > 0) {
       query = query.in('id', message_ids);
     }
 
-    // Не помечаем свои сообщения как прочитанные (они и так прочитаны)
     query = query.neq('sender_id', req.manager.id);
 
     const { error } = await query;
@@ -722,14 +658,14 @@ router.post('/:dealId/internal/read', auth, async (req, res) => {
 });
 
 // Получить количество непрочитанных внутренних сообщений
-router.get('/:dealId/internal/unread', auth, async (req, res) => {
+router.get('/:orderId/internal/unread', auth, async (req, res) => {
   try {
-    const { dealId } = req.params;
+    const { orderId } = req.params;
 
     const { count, error } = await supabase
       .from('internal_messages')
       .select('*', { count: 'exact', head: true })
-      .eq('deal_id', dealId)
+      .eq('order_id', orderId)
       .eq('is_read', false)
       .neq('sender_id', req.manager.id);
 
@@ -743,4 +679,3 @@ router.get('/:dealId/internal/unread', auth, async (req, res) => {
 });
 
 module.exports = router;
-
