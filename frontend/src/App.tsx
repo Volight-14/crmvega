@@ -5,7 +5,7 @@ import ruRU from 'antd/locale/ru_RU';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import MainLayout from './components/MainLayout';
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
+
 // import LeadDetail from './pages/LeadDetail'; // Deprecated
 import OrdersPage from './pages/OrdersPage';
 import ContactsPage from './pages/ContactsPage';
@@ -32,14 +32,7 @@ const AppRoutes: React.FC = () => {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route
-        path="/dashboard"
-        element={
-          <PrivateRoute>
-            <Dashboard />
-          </PrivateRoute>
-        }
-      />
+
       {/* Deprecated legacy lead route */}
       {/* <Route path="/lead/:id" element={<PrivateRoute><LeadDetail /></PrivateRoute>} /> */}
 
