@@ -64,21 +64,24 @@ router.get('/:orderId/client', auth, async (req, res) => {
         .select('*')
         .order('Created Date', { ascending: true });
 
-      const idsToSearch = [];
-      if (order.main_id) idsToSearch.push(order.main_id);
-      if (order.external_id) idsToSearch.push(order.external_id);
-      if (order.lead_id) idsToSearch.push(order.lead_id);
+      const orConditions = [];
 
-      const uniqueIds = [...new Set(idsToSearch.filter(Boolean))];
+      if (order.main_id) {
+        orConditions.push(`main_id.eq.${order.main_id}`);
+        // Fallback for legacy messages that might have used lead_id
+        orConditions.push(`lead_id.eq.${order.main_id}`);
+      }
+      if (order.external_id) {
+        orConditions.push(`lead_id.eq.${order.external_id}`);
+      }
+      if (order.lead_id) {
+        orConditions.push(`lead_id.eq.${order.lead_id}`);
+      }
 
-      if (uniqueIds.length > 0) {
-        query = query.in('lead_id', uniqueIds);
+      if (orConditions.length > 0) {
+        query = query.or(orConditions.join(','));
       } else {
-        // Fallback: If no IDs found on order, maybe try searching by contact?
-        // But the request says "strict link by main_id but if misses -> last active order".
-        // This likely means if THIS order has no ID, we are lost unless we find messages for this contact's other orders?
-        // But we are scoped to THIS orderId. Use what we have.
-        query = query.eq('lead_id', 'non_existent_id'); // Return empty if no IDs to link
+        query = query.eq('id', -1); // Force empty result if no IDs
       }
 
 
