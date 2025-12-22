@@ -85,13 +85,20 @@ const formatDate = (date: string | number | undefined): string => {
 };
 
 // Компонент сообщения клиента
-const ClientMessageBubble: React.FC<{
-  msg: Message;
-  onReply: (msg: Message) => void;
-}> = ({ msg, onReply }) => {
+const ClientMessageBubble = ({ msg, currentUserId, onReply, replyMessage }: { msg: Message; currentUserId: number; onReply: (msg: Message) => void; replyMessage?: Message }) => {
   const isFromClient = isClientMessage(msg.author_type);
+  const isOwn = msg.sender_id === currentUserId;
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const scrollToMessage = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      element.classList.add('highlight-message');
+      setTimeout(() => element.classList.remove('highlight-message'), 2000);
+    }
+  };
 
   const handlePlayVoice = () => {
     if (!msg.file_url) return;
@@ -113,7 +120,7 @@ const ClientMessageBubble: React.FC<{
     }
   };
 
-  const renderContent = () => {
+  const renderAttachment = () => {
     if (msg.message_type === 'voice' && msg.file_url) {
       return (
         <div
@@ -137,17 +144,10 @@ const ClientMessageBubble: React.FC<{
               borderRadius: 2,
               minWidth: 100,
             }} />
-            {msg.voice_duration && (
-              <span style={{ fontSize: 11, opacity: 0.7 }}>
-                {Math.floor(msg.voice_duration / 60)}:{(msg.voice_duration % 60).toString().padStart(2, '0')}
-              </span>
-            )}
           </div>
         </div>
       );
     }
-
-
 
     if (msg.message_type === 'video' || msg.message_type === 'video_note' || (msg.file_url && msg.file_url.endsWith('.mp4'))) {
       const isRound = msg.message_type === 'video_note';
@@ -167,7 +167,6 @@ const ClientMessageBubble: React.FC<{
               maxHeight: 300,
             }}
           />
-          {/* Use msg.content as caption if msg.caption is missing */}
           {(msg.caption || msg.content) && !isRound && (
             <div style={{ marginTop: 8, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
               {msg.caption || msg.content}
@@ -194,7 +193,6 @@ const ClientMessageBubble: React.FC<{
               }}
               onClick={() => window.open(msg.file_url, '_blank')}
             />
-            {/* Use msg.content as caption if msg.caption is missing */}
             {(msg.caption || msg.content) && (
               <div style={{ marginTop: 8, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                 {msg.caption || msg.content}
@@ -248,11 +246,12 @@ const ClientMessageBubble: React.FC<{
       }
     }
 
-    return <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{msg.content}</div>;
+    return null;
   };
 
   return (
     <div
+      id={`msg-client-${msg.message_id_tg || msg.id}`}
       style={{
         display: 'flex',
         justifyContent: isFromClient ? 'flex-start' : 'flex-end',
@@ -283,32 +282,67 @@ const ClientMessageBubble: React.FC<{
               ? 'linear-gradient(135deg, #f0f2f5 0%, #e8eaed 100%)'
               : 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
             color: isFromClient ? '#262626' : 'white',
-            padding: '10px 14px',
-            borderRadius: isFromClient ? '4px 16px 16px 16px' : '16px 4px 16px 16px',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+            padding: '8px 12px',
+            borderRadius: isFromClient ? '12px 12px 12px 0' : '12px 12px 0 12px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
             position: 'relative',
+            minWidth: 120,
           }}
         >
-          {msg.reply_to_mess_id_tg && (
-            <div style={{
-              fontSize: 11,
-              opacity: 0.7,
-              borderLeft: `2px solid ${isFromClient ? '#1890ff' : 'rgba(255,255,255,0.5)'}`,
-              paddingLeft: 8,
-              marginBottom: 6,
-            }}>
-              ↩️ Ответ на сообщение
+          {replyMessage && (
+            <div
+              onClick={(e) => { e.stopPropagation(); scrollToMessage(`msg-client-${replyMessage.message_id_tg || replyMessage.id}`); }}
+              style={{
+                marginBottom: 4,
+                padding: '4px 8px',
+                borderLeft: `2px solid ${isFromClient ? '#1890ff' : 'white'}`,
+                backgroundColor: isFromClient ? 'rgba(24, 144, 255, 0.1)' : 'rgba(255, 255, 255, 0.2)',
+                borderRadius: 4,
+                cursor: 'pointer',
+                fontSize: 12,
+                opacity: 0.9
+              }}
+            >
+              <div style={{ fontWeight: 'bold' }}>{replyMessage.author_type}</div>
+              <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200 }}>
+                {replyMessage.content || (replyMessage.message_type !== 'text' ? `[${replyMessage.message_type}]` : '...')}
+              </div>
             </div>
           )}
-          {renderContent()}
+
+          {msg.content && <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{msg.content}</div>}
+          {renderAttachment()}
+
           <div style={{
             fontSize: 11,
             opacity: 0.6,
             marginTop: 4,
             textAlign: 'right',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: 8,
           }}>
-            {msg.user && <span style={{ marginRight: 8 }}>{msg.user}</span>}
-            {formatTime(msg['Created Date'] || msg.created_at || msg.timestamp)}
+            <span
+              onClick={(e) => { e.stopPropagation(); onReply(msg); }}
+              style={{ cursor: 'pointer', opacity: 0.8, display: 'flex', alignItems: 'center' }}
+              title="Ответить"
+            >
+              <RollbackOutlined rotate={180} />
+            </span>
+            <span>
+              {formatTime(msg.created_at || msg['Created Date'])}
+            </span>
+            {isOwn && (
+              <span>
+                {/* Status icon logic if needed */}
+              </span>
+            )}
+            {msg.voice_duration && (
+              <span style={{ fontSize: 11, opacity: 0.7 }}>
+                {Math.floor(msg.voice_duration / 60)}:{(msg.voice_duration % 60).toString().padStart(2, '0')}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -317,12 +351,17 @@ const ClientMessageBubble: React.FC<{
 };
 
 // Компонент внутреннего сообщения
-const InternalMessageBubble: React.FC<{
-  msg: InternalMessage;
-  currentUserId: number;
-  onReply: (msg: InternalMessage) => void;
-}> = ({ msg, currentUserId, onReply }) => {
+const InternalMessageBubble = ({ msg, currentUserId, onReply, replyMessage }: { msg: InternalMessage; currentUserId: number; onReply: (msg: InternalMessage) => void; replyMessage?: InternalMessage }) => {
   const isOwn = msg.sender_id === currentUserId;
+
+  const scrollToMessage = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      element.classList.add('highlight-message');
+      setTimeout(() => element.classList.remove('highlight-message'), 2000);
+    }
+  };
 
   const renderAttachment = () => {
     const attachmentUrl = msg.attachment_url || msg.file_url;
@@ -443,15 +482,24 @@ const InternalMessageBubble: React.FC<{
               {msg.sender?.name}
             </div>
           )}
-          {msg.reply_to && (
-            <div style={{
-              fontSize: 11,
-              opacity: 0.7,
-              borderLeft: '2px solid rgba(255,255,255,0.5)',
-              paddingLeft: 8,
-              marginBottom: 6,
-            }}>
-              ↩️ {msg.reply_to.sender?.name}: {msg.reply_to.content.substring(0, 50)}...
+          {replyMessage && (
+            <div
+              onClick={(e) => { e.stopPropagation(); scrollToMessage(`msg-internal-${replyMessage.id}`); }}
+              style={{
+                marginBottom: 4,
+                padding: '4px 8px',
+                borderLeft: `2px solid ${isOwn ? 'white' : '#1890ff'}`,
+                backgroundColor: isOwn ? 'rgba(255, 255, 255, 0.2)' : 'rgba(24, 144, 255, 0.1)',
+                borderRadius: 4,
+                cursor: 'pointer',
+                fontSize: 12,
+                opacity: 0.9
+              }}
+            >
+              <div style={{ fontWeight: 'bold' }}>{replyMessage.sender?.name || 'Manager'}</div>
+              <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200 }}>
+                {replyMessage.content || '...'}
+              </div>
             </div>
           )}
           <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
@@ -468,13 +516,6 @@ const InternalMessageBubble: React.FC<{
             justifyContent: 'flex-end',
             gap: 8,
           }}>
-            <span
-              onClick={(e) => { e.stopPropagation(); onReply(msg); }}
-              style={{ cursor: 'pointer', opacity: 0.8, display: 'flex', alignItems: 'center' }}
-              title="Ответить"
-            >
-              <RollbackOutlined rotate={180} />
-            </span>
             <span
               onClick={(e) => { e.stopPropagation(); onReply(msg); }}
               style={{ cursor: 'pointer', opacity: 0.8, display: 'flex', alignItems: 'center' }}
@@ -838,7 +879,9 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
                   <ClientMessageBubble
                     key={msg.id}
                     msg={msg}
+                    currentUserId={manager?.id || 0}
                     onReply={(m) => setReplyTo(m)}
+                    replyMessage={msg.reply_to_mess_id_tg ? clientMessages.find(m => m.message_id_tg === msg.reply_to_mess_id_tg) : undefined}
                   />
                 ))}
               </div>
@@ -874,6 +917,7 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
                     msg={msg}
                     currentUserId={manager?.id || 0}
                     onReply={(m) => setReplyTo(m)}
+                    replyMessage={msg.reply_to_id ? internalMessages.find(m => m.id === msg.reply_to_id) : undefined}
                   />
                 ))}
               </div>

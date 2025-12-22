@@ -285,15 +285,25 @@ router.post('/webhook', async (req, res) => {
             const detectedExt = filePath.split('.').pop();
             const finalExt = detectedExt && detectedExt !== filePath ? detectedExt : ext;
 
+            // Explicitly set mime type for common video formats to ensure playback
+            const mimeMap = {
+              'mp4': 'video/mp4',
+              'mov': 'video/quicktime',
+              'webm': 'video/webm'
+            };
+            const finalMimeType = (type === 'video' || type === 'video_note') && mimeMap[finalExt]
+              ? mimeMap[finalExt]
+              : mimeType;
+
             const fileRes = await axios.get(`https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${filePath}`, {
               responseType: 'arraybuffer',
               maxContentLength: 50 * 1024 * 1024, // 50MB limit
               maxBodyLength: 50 * 1024 * 1024
             });
 
-            console.log(`[processTelegramFile] Downloaded ${type}, size: ${fileRes.data.length} bytes, ext: ${finalExt}`);
+            console.log(`[processTelegramFile] Downloaded ${type}, size: ${fileRes.data.length} bytes, ext: ${finalExt}, mime: ${finalMimeType}`);
             const buffer = Buffer.from(fileRes.data);
-            return { buffer, mimeType, ext: finalExt };
+            return { buffer, mimeType: finalMimeType, ext: finalExt };
           } else {
             console.error(`[processTelegramFile] Failed to get file path for ${type}:`, fileInfoRes.data);
             return null;
