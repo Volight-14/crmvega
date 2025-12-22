@@ -175,15 +175,12 @@ router.post('/:orderId/client', auth, async (req, res) => {
       }
     }
 
-    // ID для привязки сообщения (main_id или fallback)
-    const storeLeadId = order.main_id || order.lead_id;
-
     // Сохраняем сообщение в базе
     const { data: message, error: messageError } = await supabase
       .from('messages')
       .insert({
-        lead_id: storeLeadId,
-        main_id: order.main_id, // Заполняем оба поля для надежности
+        lead_id: order.main_id, // Backward compatibility if needed, using main_id value
+        main_id: order.main_id,
         content: content.trim(),
         author_type: 'Оператор',
         message_type: 'text',
@@ -209,8 +206,8 @@ router.post('/:orderId/client', auth, async (req, res) => {
     const io = req.app.get('io');
     if (io) {
       io.to(`order_${orderId}`).emit('new_client_message', message);
-      if (storeLeadId) {
-        io.to(`lead_${storeLeadId}`).emit('new_message', message);
+      if (order.main_id) {
+        io.to(`lead_${order.main_id}`).emit('new_message', message);
       }
     }
 
@@ -234,7 +231,7 @@ router.post('/:orderId/client/file', auth, upload.single('file'), async (req, re
     // Получаем заявку
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, contact_id, lead_id, main_id')
+      .select('id, contact_id, main_id')
       .eq('id', orderId)
       .single();
 
