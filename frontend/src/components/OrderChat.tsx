@@ -147,22 +147,33 @@ const ClientMessageBubble: React.FC<{
       );
     }
 
+
+
     if (msg.message_type === 'video' || msg.message_type === 'video_note' || (msg.file_url && msg.file_url.endsWith('.mp4'))) {
       const isRound = msg.message_type === 'video_note';
       return (
-        <video
-          controls
-          src={msg.file_url}
-          style={{
-            marginTop: 8,
-            maxWidth: '100%',
-            borderRadius: isRound ? '50%' : 8,
-            aspectRatio: isRound ? '1/1' : 'auto',
-            objectFit: 'cover',
-            width: isRound ? 200 : 'auto',
-            height: isRound ? 200 : 'auto'
-          }}
-        />
+        <div>
+          <video
+            controls
+            src={msg.file_url}
+            style={{
+              marginTop: 8,
+              maxWidth: '100%',
+              borderRadius: isRound ? '50%' : 8,
+              aspectRatio: isRound ? '1/1' : 'auto',
+              objectFit: 'cover',
+              width: isRound ? 200 : 'auto',
+              height: isRound ? 200 : 'auto',
+              maxHeight: 300,
+            }}
+          />
+          {/* Use msg.content as caption if msg.caption is missing */}
+          {(msg.caption || msg.content) && !isRound && (
+            <div style={{ marginTop: 8, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+              {msg.caption || msg.content}
+            </div>
+          )}
+        </div>
       );
     }
 
@@ -183,7 +194,12 @@ const ClientMessageBubble: React.FC<{
               }}
               onClick={() => window.open(msg.file_url, '_blank')}
             />
-            {msg.caption && <div style={{ marginTop: 8 }}>{msg.caption}</div>}
+            {/* Use msg.content as caption if msg.caption is missing */}
+            {(msg.caption || msg.content) && (
+              <div style={{ marginTop: 8, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                {msg.caption || msg.content}
+              </div>
+            )}
           </div>
         );
       }
