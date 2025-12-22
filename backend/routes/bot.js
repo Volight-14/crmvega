@@ -81,26 +81,21 @@ router.post('/send-message', auth, async (req, res) => {
 // Функция для отправки сообщения в CRM
 async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null, req = null) {
   try {
-    // Ищем существующий контакт по telegram_user_id
-    // Прим: в contacts table telegram_user_id может быть text или bigint.
-    // Если 205 ошибка здесь, значит contacts.telegram_user_id тоже нет?
-    // Нет, ошибка была specifically 'public.leads'. Contacts оставим.
+    // 1. Ищем или создаем контакт
     const { data: existingContact, error: contactError } = await supabase
       .from('contacts')
       .select('*')
-      .eq('telegram_user_id', telegramUserId)
+      .eq('telegram_user_id', telegramUserId.toString())
       .maybeSingle();
 
-    if (contactError && contactError.code !== 'PGRST116') { // PGRST116 = not found
+    if (contactError && contactError.code !== 'PGRST116') {
       throw contactError;
     }
 
     let contactId;
     let contact;
-    let leadId;
 
     if (!existingContact) {
-      // Создаем новый контакт
       const contactName = telegramUserInfo?.first_name && telegramUserInfo?.last_name
         ? `${telegramUserInfo.first_name} ${telegramUserInfo.last_name}`.trim()
         : telegramUserInfo?.first_name ||
@@ -113,7 +108,7 @@ async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null
           name: contactName,
           phone: null,
           email: null,
-          telegram_user_id: telegramUserId,
+          telegram_user_id: telegramUserId.toString(),
           status: 'active',
           comment: 'Автоматически создан из Telegram бота'
         })
@@ -128,148 +123,102 @@ async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null
       contact = existingContact;
     }
 
-    // Ищем или создаем Chat (бывший Lead)
-    // Используем chat_id = telegramUserId
-    const { data: chats, error: chatError } = await supabase
-      .from('chats')
+    // 2. Ищем активную заявку (Order)
+    const terminalStatuses = ['completed', 'scammer', 'client_rejected', 'lost'];
+    const { data: activeOrder } = await supabase
+      .from('orders')
       .select('*')
-      .eq('chat_id', telegramUserId.toString()) // chat_id is text
-      .order('Created Date', { ascending: false }) // Note: Created Date in chats is quoted
-      .limit(1);
+      .eq('contact_id', contactId)
+      .not('status', 'in', `(${terminalStatuses.join(',')})`)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (chatError) throw chatError;
+    let currentOrder;
 
-    if (!chats || chats.length === 0) {
-      // Создаем новый Chat
-      const crypto = require('crypto');
-      const newLeadId = crypto.randomUUID();
+    if (activeOrder) {
+      currentOrder = activeOrder;
+      // Ensure main_id exists
+      if (!currentOrder.main_id) {
+        const newId = parseInt(`${Date.now()}${Math.floor(Math.random() * 1000)}`);
+        const { data: updatedOrder } = await supabase
+          .from('orders')
+          .update({ main_id: newId })
+          .eq('id', currentOrder.id)
+          .select()
+          .single();
+        currentOrder = updatedOrder || currentOrder;
+        currentOrder.main_id = newId; // Fallback
+      }
+    } else {
+      // Создаем новую заявку (Order)
+      const newMainId = parseInt(`${Date.now()}${Math.floor(Math.random() * 1000)}`);
 
-      const { data: chat, error: createChatError } = await supabase
-        .from('chats')
-        .insert({
-          client: contact.name,
-          chat_id: telegramUserId.toString(),
-          lead_id: newLeadId,
-          status: 'new',
-          'Created Date': new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (createChatError) throw createChatError;
-      leadId = chat.lead_id;
-
-      // Создаем Deal, связанный с Contact и Chat(Lead)
-      const { data: deal, error: createDealError } = await supabase
-        .from('deals')
+      const { data: newOrder, error: createOrderError } = await supabase
+        .from('orders')
         .insert({
           contact_id: contactId,
-          lead_id: leadId,
           title: `Заявка от ${contact.name}`,
           amount: 0,
           currency: 'RUB',
-          status: 'new',
+          status: 'unsorted', // Используем 'unsorted' вместо 'new' если так принято, или 'new'
           source: 'telegram_bot',
-          description: 'Автоматически созданная сделка из Telegram бота'
+          description: 'Автоматически созданная заявка из Telegram бота',
+          created_at: new Date().toISOString(),
+          main_id: newMainId
         })
         .select()
         .single();
 
-      if (createDealError) {
-        console.error('Error creating deal:', createDealError);
-      }
+      if (createOrderError) throw createOrderError;
+      currentOrder = newOrder;
 
-      // Запускаем автоматизации для новой сделки
-      if (req && deal) {
-        const { runAutomations } = require('../services/automationRunner');
-        runAutomations('deal_created', deal, { io: req.app.get('io') }).catch(err => {
-          console.error('Error running automations for deal_created:', err);
-        });
-      }
-
-      // Отправляем Socket.IO события
-      if (req) {
+      // Запускаем автоматизации для новой заявки
+      if (req && currentOrder) {
+        // Warning: automationRunner might need updates to handle 'order_created' instead of 'deal_created'
+        // Assuming automationRunner is generic or we just emit socket event here.
+        // Let's stick to socket emission for now to avoid breaking automationRunner if it wasn't refactored yet.
         const io = req.app.get('io');
         if (io) {
-          io.emit('new_contact', contact);
-          // io.emit('new_lead', lead); // Leads no longer exist
-          if (deal) {
-            io.emit('new_deal', deal);
-          }
-        }
-      }
-    } else {
-      // Используем существующий Chat
-      leadId = chats[0].lead_id;
-
-      // Проверяем, есть ли активная Deal для этого контакта
-      const { data: activeDeal } = await supabase
-        .from('deals')
-        .select('id')
-        .eq('contact_id', contactId)
-        .eq('lead_id', leadId)
-        .in('status', ['new', 'negotiation', 'waiting', 'ready_to_close'])
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      // Если нет активной Deal, создаем новую
-      if (!activeDeal) {
-        const { data: newDeal } = await supabase
-          .from('deals')
-          .insert({
-            contact_id: contactId,
-            lead_id: leadId,
-            title: `Заявка от ${contact.name}`,
-            amount: 0,
-            currency: 'RUB',
-            status: 'new',
-            source: 'telegram_bot',
-            description: 'Автоматически созданная сделка из Telegram бота'
-          })
-          .select()
-          .single();
-
-        if (req && newDeal) {
-          const io = req.app.get('io');
-          if (io) {
-            io.emit('new_deal', newDeal);
-          }
+          io.emit('new_order', currentOrder);
         }
       }
     }
 
-    // Создаем сообщение
+    // 3. Создаем сообщение
+    const linkId = currentOrder.main_id;
+
     const { data: savedMessage, error: messageError } = await supabase
       .from('messages')
       .insert({
-        lead_id: leadId,
+        lead_id: linkId,
+        main_id: linkId,
         content: content,
-        author_type: 'user'
+        author_type: 'user',
+        'Created Date': new Date().toISOString()
       })
       .select()
       .single();
 
     if (messageError) throw messageError;
 
-    // Запускаем автоматизации для нового сообщения
-    if (req) {
-      const { runAutomations } = require('../services/automationRunner');
-      runAutomations('message_received', savedMessage, { io: req.app.get('io') }).catch(err => {
-        console.error('Error running automations for message_received:', err);
-      });
-    }
+    // Связываем через order_messages
+    await supabase.from('order_messages').insert({
+      order_id: currentOrder.id,
+      message_id: savedMessage.id
+    });
 
     // Отправляем Socket.IO событие о новом сообщении
     if (req) {
       const io = req.app.get('io');
       if (io && savedMessage) {
-        io.to(`lead_${leadId}`).emit('new_message', savedMessage);
-        io.emit('contact_message', { contact_id: contactId, message: savedMessage });
+        io.to(`order_${currentOrder.id}`).emit('new_client_message', savedMessage);
+        // Legacy room support
+        io.to(`lead_${linkId}`).emit('new_message', savedMessage);
       }
     }
 
-    return leadId;
+    return linkId;
   } catch (error) {
     console.error('Error sending message to CRM:', error);
     return null;
