@@ -59,49 +59,59 @@ router.get('/:orderId/client', auth, async (req, res) => {
     // 4. messages.lead_id == order.lead_id (Legacy)
 
     // Logic: Match any of the available IDs in message columns
-    if (order.main_id || order.external_id || order.lead_id) {
-      let query = supabase
-        .from('messages')
-        .select('*')
-        .order('Created Date', { ascending: true });
+    // We will use parallel queries to avoid complex OR syntax errors and type mismatches (numeric vs text)
+    const queries = [];
 
-      const orConditions = [];
+    // 1. Search in 'main_id' column (Numeric)
+    if (order.main_id) {
+      queries.push(
+        supabase
+          .from('messages')
+          .select('*')
+          .eq('main_id', order.main_id)
+      );
+    }
 
-      // !! IMPORTANT !!
-      // main_id is now NUMERIC in DB.
-      // lead_id is TEXT in DB.
-      // We must be careful about types. 
-      // 'main_id.eq.123' works for numeric column.
-      // 'lead_id.eq.123' works for text column (auto-cast usually works, but string is safer).
+    // 2. Search in 'lead_id' column (Text)
+    const leadIdValues = [];
+    if (order.main_id) leadIdValues.push(String(order.main_id));
+    if (order.external_id) leadIdValues.push(String(order.external_id));
+    if (order.lead_id) leadIdValues.push(String(order.lead_id));
 
-      if (order.main_id) {
-        orConditions.push(`main_id.eq.${order.main_id}`); // Check numeric main_id against numeric main_id
-        orConditions.push(`lead_id.eq.${order.main_id}`); // Check legacy text/mixed lead_id
+    // Remove duplicates
+    const uniqueLeadIds = [...new Set(leadIdValues)];
+
+    if (uniqueLeadIds.length > 0) {
+      queries.push(
+        supabase
+          .from('messages')
+          .select('*')
+          .in('lead_id', uniqueLeadIds)
+      );
+    }
+
+    if (queries.length > 0) {
+      const results = await Promise.all(queries);
+
+      // Check for errors
+      for (const res of results) {
+        if (res.error) throw res.error;
       }
 
-      if (order.external_id) {
-        orConditions.push(`lead_id.eq.${order.external_id}`);
+      // Merge results
+      const allMessages = results.flatMap(res => res.data || []);
+
+      // Deduplicate by ID
+      const seenIds = new Set();
+      clientMessages = [];
+      for (const msg of allMessages) {
+        if (!seenIds.has(msg.id)) {
+          seenIds.add(msg.id);
+          clientMessages.push(msg);
+        }
       }
-
-      if (order.lead_id) {
-        orConditions.push(`lead_id.eq.${order.lead_id}`);
-      }
-
-      if (orConditions.length > 0) {
-        // .or() expects format: "id.eq.1,name.eq.Steve"
-        query = query.or(orConditions.join(','));
-      } else {
-        query = query.eq('id', -1);
-      }
-
-
-
-
-      const { data: messagesByLeadOrMain, error: messagesError } = await query;
-
-      if (messagesError) throw messagesError;
-
-      clientMessages = messagesByLeadOrMain || [];
+    } else {
+      clientMessages = [];
     }
 
     // Добавляем сообщения из order_messages
