@@ -59,6 +59,10 @@ router.get('/:orderId/client', auth, async (req, res) => {
     // 4. messages.lead_id == order.lead_id (Legacy)
 
     if (order.main_id || order.external_id || order.lead_id) {
+      // Logic: 
+      // Match messages where (main_id = order.main_id) OR (lead_id = order.main_id) OR (lead_id = external_id) OR (lead_id = lead_id)
+
+
       let query = supabase
         .from('messages')
         .select('*')
@@ -67,13 +71,16 @@ router.get('/:orderId/client', auth, async (req, res) => {
       const orConditions = [];
 
       if (order.main_id) {
+        // Since both are numeric now, simple equality works
         orConditions.push(`main_id.eq.${order.main_id}`);
-        // Fallback for legacy messages that might have used lead_id
+        // Legacy fallback: some messages might have main_id stored in lead_id column
         orConditions.push(`lead_id.eq.${order.main_id}`);
       }
+
       if (order.external_id) {
         orConditions.push(`lead_id.eq.${order.external_id}`);
       }
+
       if (order.lead_id) {
         orConditions.push(`lead_id.eq.${order.lead_id}`);
       }
@@ -81,7 +88,8 @@ router.get('/:orderId/client', auth, async (req, res) => {
       if (orConditions.length > 0) {
         query = query.or(orConditions.join(','));
       } else {
-        query = query.eq('id', -1); // Force empty result if no IDs
+        // Should not happen given the if check above
+        query = query.eq('id', -1);
       }
 
 
