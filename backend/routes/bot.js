@@ -79,7 +79,7 @@ router.post('/send-message', auth, async (req, res) => {
 });
 
 // Функция для отправки сообщения в CRM
-async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null, req = null, messageType = 'text', attachmentData = null, replyToMessageId = null) {
+async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null, req = null, messageType = 'text', attachmentData = null, replyToMessageId = null, telegramMessageId = null) {
   try {
     // 1. Ищем или создаем контакт
     const { data: existingContact, error: contactError } = await supabase
@@ -374,7 +374,7 @@ router.post('/webhook', async (req, res) => {
       const telegramUserInfo = update.message.from;
       // Отправляем если есть текст ИЛИ если это не текст (т.е. вложение)
       if (messageText || messageType !== 'text') {
-        const leadId = await sendMessageToCRM(telegramUserId, messageText, telegramUserInfo, req, messageType, attachmentUrl, replyToMessageId);
+        const leadId = await sendMessageToCRM(telegramUserId, messageText, telegramUserInfo, req, messageType, attachmentUrl, replyToMessageId, messageId);
 
         if (leadId) {
           // await sendMessageToUser(telegramUserId, 'Ваше сообщение принято.');
