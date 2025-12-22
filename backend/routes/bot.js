@@ -79,7 +79,7 @@ router.post('/send-message', auth, async (req, res) => {
 });
 
 // Функция для отправки сообщения в CRM
-async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null, req = null) {
+async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null, req = null, messageType = 'text', attachmentData = null) {
   try {
     // 1. Ищем или создаем контакт
     const { data: existingContact, error: contactError } = await supabase
@@ -175,9 +175,6 @@ async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null
 
       // Запускаем автоматизации для новой заявки
       if (req && currentOrder) {
-        // Warning: automationRunner might need updates to handle 'order_created' instead of 'deal_created'
-        // Assuming automationRunner is generic or we just emit socket event here.
-        // Let's stick to socket emission for now to avoid breaking automationRunner if it wasn't refactored yet.
         const io = req.app.get('io');
         if (io) {
           io.emit('new_order', currentOrder);
@@ -185,7 +182,29 @@ async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null
       }
     }
 
-    // 3. Создаем сообщение
+    // 3. Загружаем файл (если есть)
+    let finalAttachmentUrl = null;
+    if (attachmentData && attachmentData.buffer) {
+      const fileName = `${Date.now()}_voice.ogg`;
+      const filePath = `order_files/${currentOrder.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('attachments')
+        .upload(filePath, attachmentData.buffer, {
+          contentType: attachmentData.mimeType || 'audio/ogg',
+        });
+
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError);
+      } else {
+        const { data: urlData } = supabase.storage
+          .from('attachments')
+          .getPublicUrl(filePath);
+        finalAttachmentUrl = urlData?.publicUrl;
+      }
+    }
+
+    // 4. Создаем сообщение
     const linkId = currentOrder.main_id;
 
     const { data: savedMessage, error: messageError } = await supabase
@@ -195,6 +214,8 @@ async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null
         main_id: linkId,
         content: content,
         author_type: 'user',
+        message_type: messageType,
+        file_url: finalAttachmentUrl,
         'Created Date': new Date().toISOString()
       })
       .select()
@@ -231,26 +252,61 @@ router.post('/webhook', async (req, res) => {
     const update = req.body;
 
     // Проверяем, что это сообщение
-    if (update.message && update.message.text) {
+    if (update.message) {
       const telegramUserId = update.message.from.id;
-      const messageText = update.message.text;
+      const messageId = update.message.message_id;
 
-      // Обрабатываем команды
-      if (messageText.startsWith('/')) {
+      let messageText = update.message.text || update.message.caption || '';
+      let messageType = 'text';
+      let attachmentUrl = null;
+
+      // Обработка голосового сообщения
+      if (update.message.voice) {
+        messageType = 'voice';
+        const fileId = update.message.voice.file_id;
+        const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+        const axios = require('axios'); // Ensure axios is available
+
+        try {
+          // 1. Получаем путь к файлу
+          const fileInfoRes = await axios.get(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`);
+
+          if (fileInfoRes.data.ok && fileInfoRes.data.result.file_path) {
+            const filePath = fileInfoRes.data.result.file_path;
+
+            // 2. Скачиваем файл как arraybuffer
+            const fileRes = await axios.get(`https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${filePath}`, {
+              responseType: 'arraybuffer'
+            });
+            const buffer = Buffer.from(fileRes.data);
+
+            attachmentUrl = { buffer, mimeType: 'audio/ogg', ext: 'ogg' };
+          }
+        } catch (e) {
+          console.error('Error processing voice:', e);
+          messageText = '[Ошибка загрузки голосового сообщения]';
+        }
+      }
+
+      // Обрабатываем команды (только если есть текст)
+      if (messageText && messageText.startsWith('/')) {
         if (messageText === '/start') {
           await sendMessageToUser(telegramUserId, 'Привет! Я бот поддержки CRM системы. Напишите ваше сообщение, и менеджер свяжется с вами.');
         }
         return res.status(200).end();
       }
 
-      // Отправляем сообщение в CRM (передаем req для доступа к io и информацию о пользователе)
-      const telegramUserInfo = update.message.from; // first_name, last_name, username
-      const leadId = await sendMessageToCRM(telegramUserId, messageText, telegramUserInfo, req);
+      // Отправляем сообщение в CRM
+      const telegramUserInfo = update.message.from;
+      // Отправляем если есть текст ИЛИ если это не текст (т.е. голосовое)
+      if (messageText || messageType !== 'text') {
+        const leadId = await sendMessageToCRM(telegramUserId, messageText, telegramUserInfo, req, messageType, attachmentUrl);
 
-      if (leadId) {
-        await sendMessageToUser(telegramUserId, 'Ваше сообщение отправлено менеджеру. Ожидайте ответа.');
-      } else {
-        await sendMessageToUser(telegramUserId, 'Произошла ошибка при отправке сообщения. Попробуйте позже.');
+        if (leadId) {
+          // await sendMessageToUser(telegramUserId, 'Ваше сообщение принято.');
+        } else {
+          await sendMessageToUser(telegramUserId, 'Произошла ошибка при отправке сообщения. Попробуйте позже.');
+        }
       }
     }
 
