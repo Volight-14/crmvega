@@ -58,6 +58,7 @@ router.get('/:orderId/client', auth, async (req, res) => {
     // 3. messages.lead_id == order.external_id (Bubble legacy)
     // 4. messages.lead_id == order.lead_id (Legacy)
 
+    // Logic: Match any of the available IDs in message columns
     if (order.main_id || order.external_id || order.lead_id) {
       let query = supabase
         .from('messages')
@@ -66,11 +67,16 @@ router.get('/:orderId/client', auth, async (req, res) => {
 
       const orConditions = [];
 
+      // !! IMPORTANT !!
+      // main_id is now NUMERIC in DB.
+      // lead_id is TEXT in DB.
+      // We must be careful about types. 
+      // 'main_id.eq.123' works for numeric column.
+      // 'lead_id.eq.123' works for text column (auto-cast usually works, but string is safer).
+
       if (order.main_id) {
-        // Since both are numeric now, simple equality works
-        orConditions.push(`main_id.eq.${order.main_id}`);
-        // Legacy fallback: some messages might have main_id stored in lead_id column
-        orConditions.push(`lead_id.eq.${order.main_id}`);
+        orConditions.push(`main_id.eq.${order.main_id}`); // Check numeric main_id against numeric main_id
+        orConditions.push(`lead_id.eq.${order.main_id}`); // Check legacy text/mixed lead_id
       }
 
       if (order.external_id) {
@@ -82,11 +88,13 @@ router.get('/:orderId/client', auth, async (req, res) => {
       }
 
       if (orConditions.length > 0) {
+        // .or() expects format: "id.eq.1,name.eq.Steve"
         query = query.or(orConditions.join(','));
       } else {
-        // Should not happen given the if check above
         query = query.eq('id', -1);
       }
+
+
 
 
       const { data: messagesByLeadOrMain, error: messagesError } = await query;
