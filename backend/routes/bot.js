@@ -185,7 +185,8 @@ async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null
     // 3. Загружаем файл (если есть)
     let finalAttachmentUrl = null;
     if (attachmentData && attachmentData.buffer) {
-      const fileName = `${Date.now()}_voice.ogg`;
+      const ext = attachmentData.ext || 'bin';
+      const fileName = `${Date.now()}_file.${ext}`;
       const filePath = `order_files/${currentOrder.id}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
@@ -260,32 +261,63 @@ router.post('/webhook', async (req, res) => {
       let messageType = 'text';
       let attachmentUrl = null;
 
-      // Обработка голосового сообщения
-      if (update.message.voice) {
-        messageType = 'voice';
-        const fileId = update.message.voice.file_id;
+      // Helper to process file from Telegram
+      const processTelegramFile = async (utils) => {
+        const { fileId, type, mimeType, ext } = utils;
         const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-        const axios = require('axios'); // Ensure axios is available
+        const axios = require('axios');
 
         try {
-          // 1. Получаем путь к файлу
           const fileInfoRes = await axios.get(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`);
-
           if (fileInfoRes.data.ok && fileInfoRes.data.result.file_path) {
             const filePath = fileInfoRes.data.result.file_path;
-
-            // 2. Скачиваем файл как arraybuffer
             const fileRes = await axios.get(`https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${filePath}`, {
               responseType: 'arraybuffer'
             });
             const buffer = Buffer.from(fileRes.data);
-
-            attachmentUrl = { buffer, mimeType: 'audio/ogg', ext: 'ogg' };
+            return { buffer, mimeType, ext };
           }
         } catch (e) {
-          console.error('Error processing voice:', e);
-          messageText = '[Ошибка загрузки голосового сообщения]';
+          console.error(`Error processing ${type}:`, e);
+          return null;
         }
+      };
+
+      // 1. Голосовое сообщение
+      if (update.message.voice) {
+        messageType = 'voice';
+        attachmentUrl = await processTelegramFile({
+          fileId: update.message.voice.file_id,
+          type: 'voice',
+          mimeType: 'audio/ogg',
+          ext: 'ogg'
+        });
+        if (!attachmentUrl) messageText = '[Ошибка загрузки голосового сообщения]';
+      }
+      // 2. Фото
+      else if (update.message.photo) {
+        messageType = 'image';
+        // Берем самое большое фото (последний элемент массива)
+        const photo = update.message.photo[update.message.photo.length - 1];
+        attachmentUrl = await processTelegramFile({
+          fileId: photo.file_id,
+          type: 'photo',
+          mimeType: 'image/jpeg',
+          ext: 'jpg'
+        });
+        if (!attachmentUrl) messageText = '[Ошибка загрузки фото]';
+      }
+      // 3. Документ
+      else if (update.message.document) {
+        messageType = 'file';
+        const doc = update.message.document;
+        attachmentUrl = await processTelegramFile({
+          fileId: doc.file_id,
+          type: 'document',
+          mimeType: doc.mime_type || 'application/octet-stream',
+          ext: doc.file_name ? doc.file_name.split('.').pop() : 'bin'
+        });
+        if (!attachmentUrl) messageText = '[Ошибка загрузки файла]';
       }
 
       // Обрабатываем команды (только если есть текст)
@@ -298,7 +330,7 @@ router.post('/webhook', async (req, res) => {
 
       // Отправляем сообщение в CRM
       const telegramUserInfo = update.message.from;
-      // Отправляем если есть текст ИЛИ если это не текст (т.е. голосовое)
+      // Отправляем если есть текст ИЛИ если это не текст (т.е. вложение)
       if (messageText || messageType !== 'text') {
         const leadId = await sendMessageToCRM(telegramUserId, messageText, telegramUserInfo, req, messageType, attachmentUrl);
 

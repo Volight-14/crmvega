@@ -292,8 +292,8 @@ const InternalMessageBubble: React.FC<{
     const attachmentUrl = msg.attachment_url || msg.file_url;
     if (!attachmentUrl) return null;
 
-    // Если это голосовое сообщение или аудиофайл
-    if (msg.message_type === 'voice' || msg.attachment_name?.endsWith('.ogg') || msg.attachment_name?.endsWith('.oga') || msg.attachment_name?.endsWith('.mp3')) {
+    // Voice / Audio
+    if (msg.message_type === 'voice' || attachmentUrl.endsWith('.ogg') || attachmentUrl.endsWith('.mp3')) {
       return (
         <audio
           controls
@@ -303,26 +303,29 @@ const InternalMessageBubble: React.FC<{
       );
     }
 
-    if (msg.attachment_type === 'image') {
+    // Image
+    if (msg.message_type === 'image' || attachmentUrl.match(/\.(jpeg|jpg|gif|png)$/)) {
       return (
-        <img
-          src={attachmentUrl}
-          alt={msg.attachment_name || 'Image'}
-          style={{
-            maxWidth: '100%',
-            maxHeight: 200,
-            borderRadius: 8,
-            marginTop: 8,
-            cursor: 'pointer',
-          }}
-          onClick={() => window.open(msg.attachment_url, '_blank')}
-        />
+        <a href={attachmentUrl} target="_blank" rel="noopener noreferrer">
+          <img
+            src={attachmentUrl}
+            alt="Attachment"
+            style={{
+              maxWidth: '100%',
+              maxHeight: 200,
+              borderRadius: 8,
+              marginTop: 8,
+              cursor: 'pointer',
+            }}
+          />
+        </a>
       );
     }
 
+    // Default: File
     return (
       <a
-        href={msg.attachment_url}
+        href={attachmentUrl}
         target="_blank"
         rel="noopener noreferrer"
         style={{
@@ -333,8 +336,8 @@ const InternalMessageBubble: React.FC<{
           color: isOwn ? 'rgba(255,255,255,0.9)' : '#1890ff',
         }}
       >
-        <FileOutlined />
-        <span>{msg.attachment_name || 'Файл'}</span>
+        <PaperClipOutlined />
+        <span>Скачать файл</span>
       </a>
     );
   };
