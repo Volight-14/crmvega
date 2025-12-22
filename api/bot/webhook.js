@@ -43,15 +43,20 @@ async function sendMessageToUser(telegramUserId, message) {
 async function sendMessageToCRM(telegramUserId, content, telegramMessageId) {
   try {
     // 1. Находим или создаем контакт
-    let contactId = null;
-    const { data: contact } = await supabase
+    // 1. Ищем контакт по Telegram ID
+    // Use .limit(1) instead of .single() to avoid errors if duplicates somehow exist
+    const { data: existingContacts, error: findError } = await supabase
       .from('contacts')
       .select('id')
-      .eq('telegram_user_id', telegramUserId.toString())
-      .maybeSingle();
+      .eq('telegram_user_id', telegramUserId) // telegramUserId is number from bot, ensure DB column matches
+      .limit(1);
 
-    if (contact) {
-      contactId = contact.id;
+    if (findError) console.error('Error searching contact:', findError);
+
+    let contactId = null;
+
+    if (existingContacts && existingContacts.length > 0) {
+      contactId = existingContacts[0].id;
     } else {
       // Создаем контакт
       const { data: newContact, error: createError } = await supabase
