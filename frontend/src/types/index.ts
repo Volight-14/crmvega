@@ -14,7 +14,7 @@ export interface Message {
   main_id?: string;
   author_type: 'manager' | 'user' | 'Клиент' | 'Оператор' | 'Бот' | 'Админ' | 'Менеджер' | 'Служба заботы';
   content: string;
-  message_type?: 'text' | 'image' | 'file' | 'voice';
+  message_type?: 'text' | 'image' | 'file' | 'voice' | 'video' | 'video_note' | 'sticker';
   message_id_tg?: number | string;
   timestamp?: number;
   'Modified Date'?: string;
@@ -52,7 +52,7 @@ export interface InternalMessage {
   created_at: string;
   updated_at: string;
   sender?: Manager;
-  message_type?: 'text' | 'image' | 'file' | 'voice';
+  message_type?: 'text' | 'image' | 'file' | 'voice' | 'video' | 'video_note' | 'sticker';
   file_url?: string;
   reply_to?: {
     id: number;
