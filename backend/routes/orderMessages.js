@@ -59,10 +59,6 @@ router.get('/:orderId/client', auth, async (req, res) => {
     // 4. messages.lead_id == order.lead_id (Legacy)
 
     if (order.main_id || order.external_id || order.lead_id) {
-      // Logic: 
-      // Match messages where (main_id = order.main_id) OR (lead_id = order.main_id) OR (lead_id = external_id) OR (lead_id = lead_id)
-
-
       let query = supabase
         .from('messages')
         .select('*')
