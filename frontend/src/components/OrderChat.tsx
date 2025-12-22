@@ -303,8 +303,28 @@ const InternalMessageBubble: React.FC<{
       );
     }
 
-    // Image
-    if (msg.message_type === 'image' || attachmentUrl.match(/\.(jpeg|jpg|gif|png)$/)) {
+    // Video / Video Note
+    if (msg.message_type === 'video' || msg.message_type === 'video_note' || attachmentUrl.endsWith('.mp4')) {
+      const isRound = msg.message_type === 'video_note';
+      return (
+        <video
+          controls
+          src={attachmentUrl}
+          style={{
+            marginTop: 8,
+            maxWidth: '100%',
+            borderRadius: isRound ? '50%' : 8,
+            aspectRatio: isRound ? '1/1' : 'auto',
+            objectFit: 'cover',
+            width: isRound ? 200 : 'auto',
+            height: isRound ? 200 : 'auto'
+          }}
+        />
+      );
+    }
+
+    // Image / Sticker
+    if (msg.message_type === 'image' || msg.message_type === 'sticker' || attachmentUrl.match(/\.(jpeg|jpg|gif|png|webp)$/)) {
       return (
         <a href={attachmentUrl} target="_blank" rel="noopener noreferrer">
           <img

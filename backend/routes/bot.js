@@ -79,7 +79,7 @@ router.post('/send-message', auth, async (req, res) => {
 });
 
 // Функция для отправки сообщения в CRM
-async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null, req = null, messageType = 'text', attachmentData = null) {
+async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null, req = null, messageType = 'text', attachmentData = null, replyToMessageId = null) {
   try {
     // 1. Ищем или создаем контакт
     const { data: existingContact, error: contactError } = await supabase
@@ -214,6 +214,8 @@ async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null
         lead_id: linkId,
         main_id: linkId,
         content: content,
+        message_id_tg: telegramMessageId,
+        reply_to_mess_id_tg: replyToMessageId, // Save reply ID
         author_type: 'user',
         message_type: messageType,
         file_url: finalAttachmentUrl,
@@ -260,6 +262,12 @@ router.post('/webhook', async (req, res) => {
       let messageText = update.message.text || update.message.caption || '';
       let messageType = 'text';
       let attachmentUrl = null;
+      let replyToMessageId = null;
+
+      // Handle Replies
+      if (update.message.reply_to_message) {
+        replyToMessageId = update.message.reply_to_message.message_id;
+      }
 
       // Helper to process file from Telegram
       const processTelegramFile = async (utils) => {
@@ -319,6 +327,40 @@ router.post('/webhook', async (req, res) => {
         });
         if (!attachmentUrl) messageText = '[Ошибка загрузки файла]';
       }
+      // 4. Стикер
+      else if (update.message.sticker) {
+        messageType = 'image'; // Treat as image for now, frontend handles webp
+        // Telegram stickers are often .webp
+        attachmentUrl = await processTelegramFile({
+          fileId: update.message.sticker.file_id,
+          type: 'sticker',
+          mimeType: 'image/webp',
+          ext: 'webp'
+        });
+        messageText = '[Стикер]'; // Add text if missing
+      }
+      // 5. Видео
+      else if (update.message.video) {
+        messageType = 'video';
+        attachmentUrl = await processTelegramFile({
+          fileId: update.message.video.file_id,
+          type: 'video',
+          mimeType: update.message.video.mime_type || 'video/mp4',
+          ext: 'mp4'
+        });
+        if (!attachmentUrl) messageText = '[Ошибка загрузки видео]';
+      }
+      // 6. Видео-сообщение (кружочек)
+      else if (update.message.video_note) {
+        messageType = 'video_note';
+        attachmentUrl = await processTelegramFile({
+          fileId: update.message.video_note.file_id,
+          type: 'video_note',
+          mimeType: 'video/mp4',
+          ext: 'mp4'
+        });
+        if (!attachmentUrl) messageText = '[Видеообращение]';
+      }
 
       // Обрабатываем команды (только если есть текст)
       if (messageText && messageText.startsWith('/')) {
@@ -332,7 +374,7 @@ router.post('/webhook', async (req, res) => {
       const telegramUserInfo = update.message.from;
       // Отправляем если есть текст ИЛИ если это не текст (т.е. вложение)
       if (messageText || messageType !== 'text') {
-        const leadId = await sendMessageToCRM(telegramUserId, messageText, telegramUserInfo, req, messageType, attachmentUrl);
+        const leadId = await sendMessageToCRM(telegramUserId, messageText, telegramUserInfo, req, messageType, attachmentUrl, replyToMessageId);
 
         if (leadId) {
           // await sendMessageToUser(telegramUserId, 'Ваше сообщение принято.');
