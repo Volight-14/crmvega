@@ -70,18 +70,23 @@ async function sendMessageToCRM(telegramUserId, content, telegramMessageId) {
 
     // 2. Ищем активную заявку (Order)
     const terminalStatuses = ['completed', 'scammer', 'client_rejected', 'lost'];
-    const { data: activeOrders } = await supabase
+
+    // Fetch recent orders effectively and filter in JS to avoid query syntax risks
+    const { data: recentOrders, error: fetchOrderError } = await supabase
       .from('orders')
       .select('*')
       .eq('contact_id', contactId)
-      .not('status', 'in', `(${terminalStatuses.join(',')})`)
       .order('created_at', { ascending: false })
-      .limit(1);
+      .limit(50);
+
+    if (fetchOrderError) console.error('Error fetching contact orders:', fetchOrderError);
+
+    const activeOrders = recentOrders ? recentOrders.filter(o => !terminalStatuses.includes(o.status)) : [];
 
     let currentOrder = null;
 
     if (activeOrders && activeOrders.length > 0) {
-      currentOrder = activeOrders[0];
+      currentOrder = activeOrders[0]; // Take the most recent active one
     } else {
       // Генерируем новый main_id (numeric)
       // Используем timestamp + random suffix to fit in numeric? 
