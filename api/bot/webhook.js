@@ -40,15 +40,16 @@ async function sendMessageToUser(telegramUserId, message) {
 }
 
 // Функция для отправки сообщения в CRM
-async function sendMessageToCRM(telegramUserId, content, telegramMessageId) {
+async function sendMessageToCRM(telegramUserId, content, telegramMessageId, messageType = 'text', attachmentData = null) {
   try {
     // 1. Находим или создаем контакт
+    // ... code for finding contact ...
     // 1. Ищем контакт по Telegram ID
     // Use .limit(1) instead of .single() to avoid errors if duplicates somehow exist
     const { data: existingContacts, error: findError } = await supabase
       .from('contacts')
       .select('id')
-      .eq('telegram_user_id', telegramUserId) // telegramUserId is number from bot, ensure DB column matches
+      .eq('telegram_user_id', telegramUserId)
       .limit(1);
 
     if (findError) console.error('Error searching contact:', findError);
@@ -94,11 +95,6 @@ async function sendMessageToCRM(telegramUserId, content, telegramMessageId) {
       currentOrder = activeOrders[0]; // Take the most recent active one
     } else {
       // Генерируем новый main_id (numeric)
-      // Используем timestamp + random suffix to fit in numeric? 
-      // Or just a large random number. Numeric implies db might hold it as arbitrary precision or integer?
-      // Postgres numeric is arbitrary precision. Javascript numbers are doubles.
-      // Let's use Date.now() + distinct random part.
-      // Note: Safe max integer in JS is 9e15. Date.now() is 1.7e12. we have space.
       const newMainId = parseInt(`${Date.now()}${Math.floor(Math.random() * 1000)}`);
 
       const { data: newOrder, error: orderError } = await supabase
@@ -117,11 +113,33 @@ async function sendMessageToCRM(telegramUserId, content, telegramMessageId) {
       currentOrder = newOrder;
     }
 
-    // 3. Сохраняем сообщение
+    // 3. Загружаем файл (если есть)
+    let finalAttachmentUrl = null;
+    if (attachmentData && attachmentData.buffer) {
+      const fileName = `${Date.now()}_voice.ogg`;
+      // Используем папку order_files как в orderMessages.js
+      const filePath = `order_files/${currentOrder.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('attachments')
+        .upload(filePath, attachmentData.buffer, {
+          contentType: attachmentData.mimeType || 'audio/ogg',
+        });
+
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError);
+      } else {
+        const { data: urlData } = supabase.storage
+          .from('attachments')
+          .getPublicUrl(filePath);
+        finalAttachmentUrl = urlData?.publicUrl;
+      }
+    }
+
+    // 4. Сохраняем сообщение
     let linkId = currentOrder.main_id;
 
     if (!linkId) {
-      // Если у найденной старой заявки нет main_id, создадим его
       const newId = parseInt(`${Date.now()}${Math.floor(Math.random() * 1000)}`);
       await supabase.from('orders').update({ main_id: newId }).eq('id', currentOrder.id);
       linkId = newId;
@@ -130,11 +148,13 @@ async function sendMessageToCRM(telegramUserId, content, telegramMessageId) {
     const { data: savedMessage, error: msgError } = await supabase
       .from('messages')
       .insert({
-        lead_id: linkId, // Дублируем для совместимости
+        lead_id: linkId,
         main_id: linkId,
         content: content,
         author_type: 'user',
         message_id_tg: telegramMessageId,
+        message_type: messageType,
+        attachment_url: finalAttachmentUrl,
         'Created Date': new Date().toISOString()
       })
       .select()
@@ -172,26 +192,64 @@ module.exports = async (req, res) => {
     const update = req.body;
 
     // Проверяем, что это сообщение
-    if (update.message && update.message.text) {
+    if (update.message) {
       const telegramUserId = update.message.from.id;
-      const messageText = update.message.text;
       const messageId = update.message.message_id;
 
+      let messageText = update.message.text || update.message.caption || '';
+      let messageType = 'text';
+      let attachmentUrl = null;
+      let attachmentName = null;
+
+      // Обработка голосового сообщения
+      if (update.message.voice) {
+        messageType = 'voice';
+        const fileId = update.message.voice.file_id;
+        const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+
+        try {
+          // 1. Получаем путь к файлу
+          const fileInfoRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`);
+          const fileInfo = await fileInfoRes.json();
+
+          if (fileInfo.ok && fileInfo.result.file_path) {
+            const filePath = fileInfo.result.file_path;
+
+            // 2. Скачиваем файл
+            const fileRes = await fetch(`https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${filePath}`);
+            const arrayBuffer = await fileRes.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+
+            // 3. Загружаем в Supabase
+            // Нам нужен OrderId для пути, но мы его еще не знаем.
+            // Можно временно сохранить в общую папку или сначала найти Order.
+            // Придется сначала найти Order внутри sendMessageToCRM... 
+            // Либо перенести логику поиска Order наружу.
+            // Для упрощения (чтобы не дублировать код поиска) передадим Buffer в sendMessageToCRM
+            // Но sendMessageToCRM - это отдельная функция.
+            // Давайте передадим буфер и метаданные в sendMessageToCRM и там загрузим.
+
+            // UPD: actually best to just fetch file link? No, Telegram links expire. Must re-upload.
+            // Let's pass the buffer to sendMessageToCRM.
+            attachmentUrl = { buffer, mimeType: 'audio/ogg', ext: 'ogg' };
+          }
+        } catch (e) {
+          console.error('Error processing voice:', e);
+          messageText = '[Ошибка загрузки голосового сообщения]';
+        }
+      }
+
       // Игнорируем команды
-      if (messageText.startsWith('/')) {
+      if (messageText && messageText.startsWith('/')) {
         if (messageText === '/start') {
           await sendMessageToUser(telegramUserId, 'Привет! Я бот поддержки. Напишите, и мы создадим заявку.');
         }
         return res.status(200).end();
       }
 
-      // Отправляем сообщение в CRM
-      const leadId = await sendMessageToCRM(telegramUserId, messageText, messageId);
-
-      // Не отправляем подтверждение каждый раз, чтобы не спамить?
-      // Или отправляем? Пользователь не уточнял. Оставим молчание или "Принято".
-      if (!leadId) {
-        // await sendMessageToUser(telegramUserId, 'Ошибка обработки.'); 
+      // Отправляем сообщение в CRM (если есть текст или вложение)
+      if (messageText || messageType !== 'text') {
+        const leadId = await sendMessageToCRM(telegramUserId, messageText, messageId, messageType, attachmentUrl);
       }
     }
 

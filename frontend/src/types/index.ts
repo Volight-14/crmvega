@@ -52,6 +52,7 @@ export interface InternalMessage {
   created_at: string;
   updated_at: string;
   sender?: Manager;
+  message_type?: 'text' | 'image' | 'file' | 'voice';
   reply_to?: {
     id: number;
     content: string;

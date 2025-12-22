@@ -291,6 +291,17 @@ const InternalMessageBubble: React.FC<{
   const renderAttachment = () => {
     if (!msg.attachment_url) return null;
 
+    // Если это голосовое сообщение или аудиофайл
+    if (msg.message_type === 'voice' || msg.attachment_name?.endsWith('.ogg') || msg.attachment_name?.endsWith('.oga') || msg.attachment_name?.endsWith('.mp3')) {
+      return (
+        <audio
+          controls
+          src={msg.attachment_url}
+          style={{ marginTop: 8, maxWidth: '100%', borderRadius: 8 }}
+        />
+      );
+    }
+
     if (msg.attachment_type === 'image') {
       return (
         <img
@@ -549,11 +560,17 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
       if (activeTab === 'client') {
         const replyId = replyTo && 'message_id_tg' in replyTo ? replyTo.message_id_tg as number : undefined;
         const newMsg = await orderMessagesAPI.sendClientMessage(orderId, messageText.trim(), replyId);
-        setClientMessages(prev => [...prev, newMsg]);
+        setClientMessages(prev => {
+          if (prev.some(m => m.id === newMsg.id)) return prev;
+          return [...prev, newMsg];
+        });
       } else {
         const replyId = replyTo && 'id' in replyTo && !('message_id_tg' in replyTo) ? (replyTo as InternalMessage).id : undefined;
         const newMsg = await orderMessagesAPI.sendInternalMessage(orderId, messageText.trim(), replyId);
-        setInternalMessages(prev => [...prev, newMsg]);
+        setInternalMessages(prev => {
+          if (prev.some(m => m.id === newMsg.id)) return prev;
+          return [...prev, newMsg];
+        });
       }
       setMessageText('');
       setReplyTo(null);
@@ -571,11 +588,17 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
       if (activeTab === 'client') {
         const replyId = replyTo && 'message_id_tg' in replyTo ? replyTo.message_id_tg as number : undefined;
         const newMsg = await orderMessagesAPI.sendClientFile(orderId, file, undefined, replyId);
-        setClientMessages(prev => [...prev, newMsg]);
+        setClientMessages(prev => {
+          if (prev.some(m => m.id === newMsg.id)) return prev;
+          return [...prev, newMsg];
+        });
       } else {
         const replyId = replyTo && 'id' in replyTo && !('message_id_tg' in replyTo) ? (replyTo as InternalMessage).id : undefined;
         const newMsg = await orderMessagesAPI.sendInternalFile(orderId, file, replyId);
-        setInternalMessages(prev => [...prev, newMsg]);
+        setInternalMessages(prev => {
+          if (prev.some(m => m.id === newMsg.id)) return prev;
+          return [...prev, newMsg];
+        });
       }
       setReplyTo(null);
     } catch (error: any) {
