@@ -32,7 +32,7 @@ router.get('/:orderId/client', auth, async (req, res) => {
     // Получаем заявку
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, contact_id, lead_id, external_id, main_id')
+      .select('id, contact_id, external_id, main_id')
       .eq('id', orderId)
       .single();
 
