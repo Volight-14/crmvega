@@ -279,14 +279,23 @@ router.post('/webhook', async (req, res) => {
           const fileInfoRes = await axios.get(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`);
           if (fileInfoRes.data.ok && fileInfoRes.data.result.file_path) {
             const filePath = fileInfoRes.data.result.file_path;
+            console.log(`[processTelegramFile] Downloading ${type} from ${filePath}...`);
+
             const fileRes = await axios.get(`https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${filePath}`, {
-              responseType: 'arraybuffer'
+              responseType: 'arraybuffer',
+              maxContentLength: 50 * 1024 * 1024, // 50MB limit
+              maxBodyLength: 50 * 1024 * 1024
             });
+
+            console.log(`[processTelegramFile] Downloaded ${type}, size: ${fileRes.data.length} bytes`);
             const buffer = Buffer.from(fileRes.data);
             return { buffer, mimeType, ext };
+          } else {
+            console.error(`[processTelegramFile] Failed to get file path for ${type}:`, fileInfoRes.data);
+            return null;
           }
         } catch (e) {
-          console.error(`Error processing ${type}:`, e);
+          console.error(`[processTelegramFile] Error processing ${type}:`, e.message, e.response?.data);
           return null;
         }
       };

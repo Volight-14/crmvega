@@ -147,6 +147,25 @@ const ClientMessageBubble: React.FC<{
       );
     }
 
+    if (msg.message_type === 'video' || msg.message_type === 'video_note' || (msg.file_url && msg.file_url.endsWith('.mp4'))) {
+      const isRound = msg.message_type === 'video_note';
+      return (
+        <video
+          controls
+          src={msg.file_url}
+          style={{
+            marginTop: 8,
+            maxWidth: '100%',
+            borderRadius: isRound ? '50%' : 8,
+            aspectRatio: isRound ? '1/1' : 'auto',
+            objectFit: 'cover',
+            width: isRound ? 200 : 'auto',
+            height: isRound ? 200 : 'auto'
+          }}
+        />
+      );
+    }
+
     if ((msg.message_type === 'file' || msg.message_type === 'image') && msg.file_url) {
       const isImage = msg.message_type === 'image' || msg.file_url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
 
