@@ -18,6 +18,7 @@ import {
   AudioOutlined,
   CloseOutlined,
   FileOutlined,
+  RollbackOutlined,
   PlayCircleOutlined,
   PauseCircleOutlined,
   UserOutlined,
@@ -427,7 +428,25 @@ const InternalMessageBubble: React.FC<{
             opacity: 0.6,
             marginTop: 4,
             textAlign: 'right',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: 8,
           }}>
+            <span
+              onClick={(e) => { e.stopPropagation(); onReply(msg); }}
+              style={{ cursor: 'pointer', opacity: 0.8, display: 'flex', alignItems: 'center' }}
+              title="Ответить"
+            >
+              <RollbackOutlined rotate={180} />
+            </span>
+            <span
+              onClick={(e) => { e.stopPropagation(); onReply(msg); }}
+              style={{ cursor: 'pointer', opacity: 0.8, display: 'flex', alignItems: 'center' }}
+              title="Ответить"
+            >
+              <RollbackOutlined rotate={180} />
+            </span>
             {formatTime(msg.created_at)}
             {!msg.is_read && !isOwn && (
               <span style={{ marginLeft: 8, color: '#faad14' }}>●</span>
