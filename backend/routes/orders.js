@@ -105,6 +105,7 @@ router.post('/', auth, async (req, res) => {
         description,
         due_date,
         manager_id: req.manager.id,
+        main_id: req.body.main_id || parseInt(`${Date.now()}${Math.floor(Math.random() * 1000)}`) // Ensure main_id exists
       })
       .select()
       .single();
