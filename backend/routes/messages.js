@@ -97,7 +97,7 @@ router.get('/contact/:contactId', auth, async (req, res) => {
     // Получаем все заявки контакта
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
-      .select('id, lead_id, main_id, title')
+      .select('id, main_id, title')
       .eq('contact_id', contactId);
 
     if (ordersError) throw ordersError;
@@ -105,10 +105,11 @@ router.get('/contact/:contactId', auth, async (req, res) => {
     const orderIds = orders?.map(o => o.id) || [];
     let leadIds = [];
 
-    // Собираем все ID потоков (lead_id, main_id)
+    // Собираем все ID потоков (lead_id is legacy, main_id is current)
+    // IMPORTANT: messages still has lead_id column (text) used for linking
+    // orders.main_id is numeric.
     orders?.forEach(o => {
-      if (o.lead_id) leadIds.push(o.lead_id);
-      if (o.main_id) leadIds.push(o.main_id);
+      if (o.main_id) leadIds.push(String(o.main_id));
     });
 
     // Убираем дубликаты
@@ -171,7 +172,7 @@ router.post('/contact/:contactId', auth, async (req, res) => {
     // Находим активную заявку контакта или создаем новую
     const { data: activeOrder } = await supabase
       .from('orders')
-      .select('id, lead_id, main_id')
+      .select('id, main_id')
       .eq('contact_id', contactId)
       .in('status', ['new', 'negotiation', 'waiting', 'ready_to_close'])
       .order('created_at', { ascending: false })
@@ -179,7 +180,7 @@ router.post('/contact/:contactId', auth, async (req, res) => {
       .single();
 
     let orderId = activeOrder?.id;
-    let leadId = activeOrder?.main_id || activeOrder?.lead_id;
+    let leadId = activeOrder?.main_id;
 
     // Если нет активной заявки, создаем новую
     if (!orderId) {
@@ -200,14 +201,12 @@ router.post('/contact/:contactId', auth, async (req, res) => {
 
     // Генерируем leadId (thread ID) если нет
     if (!leadId) {
-      // Если у заявки нет ID чата, генерируем новый UUID и сохраняем его как lead_id (или main_id)
-      // Сейчас мы используем main_id как основной идентификатор, но для совместимости пишем в lead_id тоже?
-      // Используем lead_id в orders как поле для связки с messages.lead_id
-      leadId = crypto.randomUUID();
+      // Если у заявки нет ID чата, генерируем новый NUMERIC ID
+      leadId = parseInt(`${Date.now()}${Math.floor(Math.random() * 1000)}`);
 
       await supabase
         .from('orders')
-        .update({ lead_id: leadId, main_id: leadId }) // Обновляем оба
+        .update({ main_id: leadId }) // Обновляем только main_id
         .eq('id', orderId);
     }
 
