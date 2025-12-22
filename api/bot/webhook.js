@@ -154,13 +154,16 @@ async function sendMessageToCRM(telegramUserId, content, telegramMessageId, mess
         author_type: 'user',
         message_id_tg: telegramMessageId,
         message_type: messageType,
-        attachment_url: finalAttachmentUrl,
+        file_url: finalAttachmentUrl, // Correct column name matches DB
         'Created Date': new Date().toISOString()
       })
       .select()
       .single();
 
-    if (msgError) throw msgError;
+    if (msgError) {
+      console.error('Error inserting message:', msgError);
+      throw msgError;
+    }
 
     // Также привяжем через order_messages для надежности
     if (savedMessage) {

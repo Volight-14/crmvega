@@ -53,6 +53,7 @@ export interface InternalMessage {
   updated_at: string;
   sender?: Manager;
   message_type?: 'text' | 'image' | 'file' | 'voice';
+  file_url?: string;
   reply_to?: {
     id: number;
     content: string;

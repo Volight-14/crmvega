@@ -289,14 +289,15 @@ const InternalMessageBubble: React.FC<{
   const isOwn = msg.sender_id === currentUserId;
 
   const renderAttachment = () => {
-    if (!msg.attachment_url) return null;
+    const attachmentUrl = msg.attachment_url || msg.file_url;
+    if (!attachmentUrl) return null;
 
     // Если это голосовое сообщение или аудиофайл
     if (msg.message_type === 'voice' || msg.attachment_name?.endsWith('.ogg') || msg.attachment_name?.endsWith('.oga') || msg.attachment_name?.endsWith('.mp3')) {
       return (
         <audio
           controls
-          src={msg.attachment_url}
+          src={attachmentUrl}
           style={{ marginTop: 8, maxWidth: '100%', borderRadius: 8 }}
         />
       );
@@ -305,7 +306,7 @@ const InternalMessageBubble: React.FC<{
     if (msg.attachment_type === 'image') {
       return (
         <img
-          src={msg.attachment_url}
+          src={attachmentUrl}
           alt={msg.attachment_name || 'Image'}
           style={{
             maxWidth: '100%',
