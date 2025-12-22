@@ -95,13 +95,16 @@ async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null
     let contactId;
     let contact;
 
-    if (!existingContact) {
-      const contactName = telegramUserInfo?.first_name && telegramUserInfo?.last_name
-        ? `${telegramUserInfo.first_name} ${telegramUserInfo.last_name}`.trim()
-        : telegramUserInfo?.first_name ||
-        telegramUserInfo?.username ||
-        `Пользователь ${telegramUserId}`;
+    // Определяем лучшее имя из Telegram (Best Effort)
+    const firstName = telegramUserInfo?.first_name || '';
+    const lastName = telegramUserInfo?.last_name || '';
+    const username = telegramUserInfo?.username ? `@${telegramUserInfo.username}` : '';
 
+    let contactName = [firstName, lastName].filter(Boolean).join(' ');
+    if (!contactName && username) contactName = username;
+    if (!contactName) contactName = `Пользователь ${telegramUserId}`;
+
+    if (!existingContact) {
       const { data: newContact, error: createContactError } = await supabase
         .from('contacts')
         .insert({
@@ -121,6 +124,29 @@ async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null
     } else {
       contactId = existingContact.id;
       contact = existingContact;
+
+      // Проверяем, нужно ли обновить имя (если оно было generic "User ..." или "Пользователь ...")
+      // и у нас есть более качественное имя
+      const isGenericName = !contact.name ||
+        contact.name.startsWith('User ') ||
+        contact.name.startsWith('Пользователь ') ||
+        contact.name === telegramUserId.toString();
+
+      const validNewName = contactName && !contactName.startsWith('Пользователь ');
+
+      if (isGenericName && validNewName) {
+        console.log(`[bot.js] Updating contact name from "${contact.name}" to "${contactName}"`);
+        const { data: updatedContact, error: updateError } = await supabase
+          .from('contacts')
+          .update({ name: contactName })
+          .eq('id', contact.id)
+          .select()
+          .single();
+
+        if (!updateError && updatedContact) {
+          contact = updatedContact;
+        }
+      }
     }
 
     // 2. Ищем активную заявку (Order)
