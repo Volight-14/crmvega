@@ -8,8 +8,24 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
+// Функция для экранирования специальных символов MarkdownV2
+// Telegram требует экранирования: _ * [ ] ( ) ~ ` > # + - = | { } . !
+function escapeMarkdownV2(text) {
+  if (!text) return text;
+
+  // Символы, которые нужно экранировать в MarkdownV2
+  const specialChars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!'];
+
+  let escaped = text;
+  specialChars.forEach(char => {
+    escaped = escaped.replace(new RegExp('\\' + char, 'g'), '\\' + char);
+  });
+
+  return escaped;
+}
+
 // Функция для отправки сообщения пользователю через Telegram Bot API
-async function sendMessageToUser(telegramUserId, message) {
+async function sendMessageToUser(telegramUserId, message, options = {}) {
   try {
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
     if (!TELEGRAM_BOT_TOKEN) {
@@ -18,14 +34,37 @@ async function sendMessageToUser(telegramUserId, message) {
     }
 
     const axios = require('axios');
-    await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+
+    // Формируем тело запроса с поддержкой Markdown
+    const requestBody = {
       chat_id: telegramUserId,
-      text: message
-    });
+      text: message,
+      parse_mode: 'MarkdownV2', // Поддержка Markdown форматирования
+      ...options // Дополнительные опции (reply_to_message_id и т.д.)
+    };
+
+    await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, requestBody);
 
     return true;
   } catch (error) {
     console.error('Error sending message via bot:', error.response?.data || error.message);
+
+    // Если ошибка связана с parse_mode, пробуем отправить без форматирования
+    if (error.response?.data?.description?.includes('parse')) {
+      try {
+        const axios = require('axios');
+        await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          chat_id: telegramUserId,
+          text: message
+        });
+        console.log('[sendMessageToUser] Sent without formatting due to parse error');
+        return true;
+      } catch (retryError) {
+        console.error('Error sending message without formatting:', retryError.message);
+        return false;
+      }
+    }
+
     return false;
   }
 }
@@ -445,4 +484,6 @@ router.get('/webhook', (req, res) => {
   res.json({ status: 'ok', message: 'Telegram webhook endpoint' });
 });
 
+// Экспортируем вспомогательные функции
 module.exports = router;
+module.exports.escapeMarkdownV2 = escapeMarkdownV2;

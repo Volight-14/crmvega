@@ -155,9 +155,13 @@ router.post('/:orderId/client', auth, async (req, res) => {
 
     if (TELEGRAM_BOT_TOKEN) {
       try {
+        // Импортируем функцию экранирования
+        const { escapeMarkdownV2 } = require('./bot');
+
         const telegramPayload = {
           chat_id: telegramUserId,
-          text: content,
+          text: escapeMarkdownV2(content),
+          parse_mode: 'MarkdownV2', // Включаем поддержку Markdown
         };
 
         if (reply_to_message_id) {
@@ -171,7 +175,32 @@ router.post('/:orderId/client', auth, async (req, res) => {
         telegramMessageId = response.data?.result?.message_id;
       } catch (tgError) {
         console.error('Telegram send error:', tgError.response?.data || tgError.message);
-        return res.status(400).json({ error: 'Ошибка отправки в Telegram: ' + (tgError.response?.data?.description || tgError.message) });
+
+        // Если ошибка связана с парсингом Markdown, пробуем отправить без форматирования
+        if (tgError.response?.data?.description?.includes('parse')) {
+          try {
+            console.log('[orderMessages] Retrying without MarkdownV2 due to parse error');
+            const telegramPayload = {
+              chat_id: telegramUserId,
+              text: content, // Отправляем оригинальный текст без экранирования
+            };
+
+            if (reply_to_message_id) {
+              telegramPayload.reply_to_message_id = reply_to_message_id;
+            }
+
+            const response = await axios.post(
+              `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+              telegramPayload
+            );
+            telegramMessageId = response.data?.result?.message_id;
+          } catch (retryError) {
+            console.error('Retry send error:', retryError.response?.data || retryError.message);
+            return res.status(400).json({ error: 'Ошибка отправки в Telegram: ' + (retryError.response?.data?.description || retryError.message) });
+          }
+        } else {
+          return res.status(400).json({ error: 'Ошибка отправки в Telegram: ' + (tgError.response?.data?.description || tgError.message) });
+        }
       }
     }
 
