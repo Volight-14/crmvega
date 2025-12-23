@@ -11,3 +11,26 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Highlight animation for scrolled-to messages */
+@keyframes highlight-pulse {
+  0%, 100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(24, 144, 255, 0.2);
+  }
+}
+
+.highlight-message {
+  animation: highlight-pulse 1s ease-in-out 2;
+}
+
+/* Link styles in chat messages */
+.message-content a {
+  transition: opacity 0.2s ease;
+}
+
+.message-content a:hover {
+  opacity: 0.8;
+}

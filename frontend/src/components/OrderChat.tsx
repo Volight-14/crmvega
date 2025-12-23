@@ -84,6 +84,66 @@ const formatDate = (date: string | number | undefined): string => {
   return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 };
 
+// Функция для преобразования текста со ссылками и упоминаниями в кликабельные элементы
+const linkifyText = (text: string): React.ReactNode => {
+  if (!text) return null;
+
+  // Регулярные выражения для поиска URL и @username
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const mentionRegex = /(@\w+)/g;
+
+  // Комбинированный regex для разделения текста
+  const combinedRegex = /(https?:\/\/[^\s]+|@\w+)/g;
+
+  const parts = text.split(combinedRegex);
+
+  return parts.map((part, index) => {
+    // Проверяем, является ли часть URL
+    if (urlRegex.test(part)) {
+      return (
+        <a
+          key={index}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: 'inherit',
+            textDecoration: 'underline',
+            wordBreak: 'break-all'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {part}
+        </a>
+      );
+    }
+
+    // Проверяем, является ли часть @username
+    if (mentionRegex.test(part)) {
+      const username = part.substring(1); // Убираем @
+      return (
+        <a
+          key={index}
+          href={`https://t.me/${username}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: 'inherit',
+            textDecoration: 'underline',
+            fontWeight: 500
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {part}
+        </a>
+      );
+    }
+
+    // Обычный текст
+    return part;
+  });
+};
+
 // Компонент сообщения клиента
 const ClientMessageBubble = ({ msg, currentUserId, onReply, replyMessage }: { msg: Message; currentUserId: number; onReply: (msg: Message) => void; replyMessage?: Message }) => {
   const isFromClient = isClientMessage(msg.author_type);
@@ -310,7 +370,7 @@ const ClientMessageBubble = ({ msg, currentUserId, onReply, replyMessage }: { ms
             </div>
           )}
 
-          {msg.content && <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{msg.content}</div>}
+          {msg.content && <div className="message-content" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{linkifyText(msg.content)}</div>}
           {renderAttachment()}
 
           <div style={{
@@ -502,8 +562,8 @@ const InternalMessageBubble = ({ msg, currentUserId, onReply, replyMessage }: { 
               </div>
             </div>
           )}
-          <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-            {msg.content}
+          <div className="message-content" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+            {linkifyText(msg.content)}
           </div>
           {renderAttachment()}
           <div style={{
