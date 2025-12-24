@@ -116,7 +116,7 @@ router.get('/summary', auth, async (req, res) => {
         const { data: msg } = await supabase
           .from('messages')
           .select('content, "Created Date", author_type')
-          .in('lead_id', leadIds)
+          .in('main_id', leadIds)
           .order('"Created Date"', { ascending: false })
           .limit(1)
           .maybeSingle();

@@ -136,7 +136,7 @@ router.get('/contact/:contactId', auth, async (req, res) => {
       const { data: messages, error: messagesError } = await supabase
         .from('messages')
         .select(`*`)
-        .in('lead_id', leadIds)
+        .in('main_id', leadIds)
         .order('"Created Date"', { ascending: true });
 
       if (messagesError) throw messagesError;
