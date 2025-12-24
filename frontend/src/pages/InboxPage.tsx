@@ -14,13 +14,22 @@ import {
     Empty,
     Badge,
     Space,
-    Tag
+    Tag,
+    Tooltip,
+    Upload,
+    Popover,
+    message as antMessage
 } from 'antd';
 import {
     SearchOutlined,
     SendOutlined,
     UserOutlined,
-    PaperClipOutlined
+    PaperClipOutlined,
+    PlayCircleOutlined,
+    PauseCircleOutlined,
+    FileOutlined,
+    DownloadOutlined,
+    LoadingOutlined
 } from '@ant-design/icons';
 
 const { Content, Sider } = Layout;
@@ -30,6 +39,117 @@ const { TextArea } = Input;
 interface ExtendedInboxContact extends InboxContact {
     telegram_user_id?: number | string;
 }
+
+// --- Helper Functions from OrderChat ---
+
+const getAvatarColor = (authorType: string): string => {
+    const colors: Record<string, string> = {
+        'Клиент': '#52c41a',
+        'user': '#52c41a',
+        'Оператор': '#1890ff',
+        'Менеджер': '#722ed1',
+        'Админ': '#eb2f96',
+        'Бот': '#faad14',
+        'manager': '#1890ff',
+    };
+    return colors[authorType] || '#8c8c8c';
+};
+
+const formatTime = (dateStr?: string | number) => {
+    if (!dateStr) return '';
+    return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+const linkifyText = (text: string): React.ReactNode => {
+    if (!text) return null;
+    const combinedRegex = /(https?:\/\/[^\s]+|@\w+)/g;
+    const parts = text.split(combinedRegex);
+    return parts.map((part, index) => {
+        if (/(https?:\/\/[^\s]+)/g.test(part)) {
+            return (
+                <a key={index} href={part} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline', wordBreak: 'break-all' }} onClick={(e) => e.stopPropagation()}>
+                    {part}
+                </a>
+            );
+        }
+        return part;
+    });
+};
+
+const MessageBubble = ({ msg, isOwn }: { msg: Message, isOwn: boolean }) => {
+    const [isPlaying, setIsPlaying] = useState(false);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    const handlePlayVoice = () => {
+        if (!msg.file_url) return;
+        if (audioRef.current) {
+            if (isPlaying) {
+                audioRef.current.pause();
+                setIsPlaying(false);
+            } else {
+                audioRef.current.play();
+                setIsPlaying(true);
+            }
+        } else {
+            const audio = new Audio(msg.file_url);
+            audioRef.current = audio;
+            audio.onended = () => setIsPlaying(false);
+            audio.play();
+            setIsPlaying(true);
+        }
+    };
+
+    const renderAttachment = () => {
+        if ((msg.message_type === 'voice' || msg.content?.includes('.ogg')) && msg.file_url) {
+            return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginTop: 4 }} onClick={handlePlayVoice}>
+                    {isPlaying ? <PauseCircleOutlined style={{ fontSize: 24 }} /> : <PlayCircleOutlined style={{ fontSize: 24 }} />}
+                    <span style={{ fontSize: 12 }}>Голосовое сообщение</span>
+                </div>
+            );
+        }
+        if ((msg.message_type === 'image' || (msg.message_type as any) === 'photo') && msg.file_url) {
+            return (
+                <img src={msg.file_url} alt="Attachment" style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 8, marginTop: 4, cursor: 'pointer' }} onClick={() => window.open(msg.file_url, '_blank')} />
+            );
+        }
+        if (msg.file_url && !msg.file_url.endsWith('.ogg')) {
+            return (
+                <a href={msg.file_url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, color: isOwn ? 'white' : '#1890ff' }}>
+                    <FileOutlined /> <span>Файл</span> <DownloadOutlined />
+                </a>
+            );
+        }
+        return null;
+    };
+
+    return (
+        <div style={{ display: 'flex', justifyContent: isOwn ? 'flex-end' : 'flex-start', marginBottom: 16 }}>
+            <div style={{ display: 'flex', flexDirection: isOwn ? 'row-reverse' : 'row', alignItems: 'flex-end', gap: 8, maxWidth: '75%' }}>
+                <Tooltip title={msg.author_type}>
+                    <Avatar size={32} style={{ backgroundColor: getAvatarColor(msg.author_type), flexShrink: 0 }} icon={<UserOutlined />} >
+                        {msg.author_type ? msg.author_type[0].toUpperCase() : '?'}
+                    </Avatar>
+                </Tooltip>
+                <div style={{
+                    background: isOwn ? 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)' : 'linear-gradient(135deg, #f0f2f5 0%, #e8eaed 100%)',
+                    color: isOwn ? 'white' : '#262626',
+                    padding: '8px 12px',
+                    borderRadius: isOwn ? '12px 12px 0 12px' : '12px 12px 12px 0',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                    position: 'relative',
+                    minWidth: 120
+                }}>
+                    <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{linkifyText(msg.content)}</div>
+                    {renderAttachment()}
+                    <div style={{ fontSize: 10, opacity: 0.7, marginTop: 4, textAlign: 'right' }}>
+                        {formatTime(msg['Created Date'] || msg.created_at)}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const InboxPage: React.FC = () => {
     const { manager } = useAuth();
@@ -41,6 +161,7 @@ const InboxPage: React.FC = () => {
     const [isLoadingMessages, setIsLoadingMessages] = useState(false);
     const [messageInput, setMessageInput] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
+    const [sending, setSending] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // URL params handling
@@ -96,34 +217,31 @@ const InboxPage: React.FC = () => {
     };
 
     const handleSendMessage = async () => {
-        if (!selectedContact || !messageInput.trim()) return;
+        if (!selectedContact || !messageInput.trim() || sending) return;
 
         try {
+            setSending(true);
             const newMessage = await contactMessagesAPI.sendToContact(selectedContact.id, messageInput, 'manager');
             setMessages([...messages, newMessage]);
             setMessageInput('');
-            fetchContacts(); // Update last message in sidebar
+            fetchContacts();
             scrollToBottom();
         } catch (error) {
             console.error('Error sending message:', error);
-            // Could use Antd Message.error here
+            antMessage.error('Не удалось отправить сообщение');
+        } finally {
+            setSending(false);
         }
     };
+
+    // NOTE: File upload for inbox generic chat needs backend support or existing endpoint adaptation.
+    // For now assuming we can't easily upload files without a specific endpoint in 'contactMessagesAPI'.
+    // Logic will be added if requested or if endpoints exist.
 
     const scrollToBottom = () => {
         setTimeout(() => {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
         }, 100);
-    };
-
-    const formatTime = (dateStr?: string) => {
-        if (!dateStr) return '';
-        return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    };
-
-    const formatDate = (dateStr?: string) => {
-        if (!dateStr) return '';
-        return new Date(dateStr).toLocaleDateString([], { month: 'numeric', day: 'numeric' });
     };
 
     return (
@@ -157,7 +275,7 @@ const InboxPage: React.FC = () => {
                                     className="hover:bg-gray-50"
                                 >
                                     <List.Item.Meta
-                                        avatar={<Avatar icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />}
+                                        avatar={<Avatar style={{ backgroundColor: '#1890ff' }} icon={<UserOutlined />} />}
                                         title={
                                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                                 <Text strong style={{ maxWidth: 160 }} ellipsis>{contact.name}</Text>
@@ -193,10 +311,12 @@ const InboxPage: React.FC = () => {
                             display: 'flex',
                             justifyContent: 'space-between',
                             alignItems: 'center',
-                            background: '#fff'
+                            background: '#fff',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                            zIndex: 1
                         }}>
                             <Space>
-                                <Avatar size="large" icon={<UserOutlined />} style={{ backgroundColor: '#87d068' }} />
+                                <Avatar size="large" style={{ backgroundColor: '#87d068' }} icon={<UserOutlined />} />
                                 <div>
                                     <Title level={5} style={{ margin: 0 }}>{selectedContact.name}</Title>
                                     <Space size="small">
@@ -214,15 +334,14 @@ const InboxPage: React.FC = () => {
                             </Link>
                         </div>
 
-                        {/* Messages */}
+                        {/* Messages Area */}
                         <div style={{
                             flex: 1,
-                            padding: 24,
+                            padding: '24px',
                             overflowY: 'auto',
                             background: '#f5f5f5',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 16
+                            backgroundImage: 'url("https://gw.alipayobjects.com/zos/rmsportal/FfdJeJRQWjEeGTpqgBKj.png")', // Subtle pattern
+                            backgroundBlendMode: 'overlay',
                         }}>
                             {isLoadingMessages ? (
                                 <div style={{ textAlign: 'center', marginTop: 40 }}><Spin /></div>
@@ -231,81 +350,44 @@ const InboxPage: React.FC = () => {
                             ) : (
                                 messages.map((msg) => {
                                     const isOwn = msg.author_type === 'manager' || msg.author_type === 'Админ' || msg.author_type === 'Менеджер';
-                                    return (
-                                        <div key={msg.id} style={{
-                                            display: 'flex',
-                                            justifyContent: isOwn ? 'flex-end' : 'flex-start'
-                                        }}>
-                                            <div style={{
-                                                maxWidth: '70%',
-                                                padding: '12px 16px',
-                                                borderRadius: 12,
-                                                borderBottomRightRadius: isOwn ? 0 : 12,
-                                                borderBottomLeftRadius: isOwn ? 12 : 0,
-                                                background: isOwn ? '#1890ff' : '#fff',
-                                                color: isOwn ? '#fff' : 'inherit',
-                                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                                            }}>
-                                                {msg.file_url && (
-                                                    <div style={{ marginBottom: 8 }}>
-                                                        {(msg.message_type === 'image' || (msg.message_type as any) === 'photo') ? (
-                                                            <img src={msg.file_url} alt="Attachment" style={{ maxWidth: '100%', borderRadius: 8 }} />
-                                                        ) : (
-                                                            <a href={msg.file_url} target="_blank" rel="noopener noreferrer" style={{ color: isOwn ? '#fff' : '#1890ff', textDecoration: 'underline' }}>
-                                                                <PaperClipOutlined /> Вложение
-                                                            </a>
-                                                        )}
-                                                    </div>
-                                                )}
-                                                <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>
-                                                <div style={{
-                                                    textAlign: 'right',
-                                                    marginTop: 4,
-                                                    fontSize: 10,
-                                                    opacity: 0.7
-                                                }}>
-                                                    {formatTime(msg['Created Date'] || msg.created_at)}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
+                                    return <MessageBubble key={msg.id} msg={msg} isOwn={isOwn} />;
                                 })
                             )}
                             <div ref={messagesEndRef} />
                         </div>
 
-                        {/* Input */}
+                        {/* Input Area */}
                         <div style={{ padding: 16, background: '#fff', borderTop: '1px solid #f0f0f0' }}>
-                            <div style={{ display: 'flex', gap: 10 }}>
+                            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
                                 <TextArea
-                                    rows={2}
+                                    rows={1}
+                                    autoSize={{ minRows: 1, maxRows: 4 }}
                                     placeholder="Напишите сообщение..."
                                     value={messageInput}
                                     onChange={(e) => setMessageInput(e.target.value)}
-                                    // Make 'Enter' send message (optional, usually ctrl+enter for textarea)
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' && !e.shiftKey) {
                                             e.preventDefault();
                                             handleSendMessage();
                                         }
                                     }}
-                                    style={{ resize: 'none' }}
+                                    style={{ borderRadius: 12, resize: 'none' }}
                                 />
                                 <Button
                                     type="primary"
+                                    shape="circle"
+                                    size="large"
                                     icon={<SendOutlined />}
                                     onClick={handleSendMessage}
-                                    style={{ height: 'auto' }}
+                                    loading={sending}
                                     disabled={!messageInput.trim()}
-                                >
-
-                                </Button>
+                                />
                             </div>
                         </div>
                     </>
                 ) : (
                     <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#f5f5f5' }}>
-                        <Empty description="Выберите диалог, чтобы начать общение" />
+                        <Empty description="Выберите диалог" />
                     </div>
                 )}
             </Content>
