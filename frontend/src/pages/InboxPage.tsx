@@ -42,10 +42,24 @@ interface ExtendedInboxContact extends InboxContact {
 
 // --- Helper Functions from OrderChat ---
 
-const getAvatarColor = (authorType: string): string => {
+// Helper to identify client messages (consistent with OrderChat)
+const isClientMessage = (authorType?: string): boolean => {
+    if (!authorType) return false; // If unknown, assume not client (so Manager/System -> Right)? 
+    // Wait, OrderChat logic: 
+    // const clientTypes = ['Клиент', 'user'];
+    // return clientTypes.includes(authorType);
+    // And uses: justifyContent: isFromClient ? 'flex-start' : 'flex-end'
+    // So if authorType is undefined -> isFromClient=false -> Right side.
+    const clientTypes = ['Клиент', 'user', 'client'];
+    return clientTypes.includes(authorType);
+};
+
+const getAvatarColor = (authorType?: string): string => {
+    if (!authorType) return '#8c8c8c';
     const colors: Record<string, string> = {
         'Клиент': '#52c41a',
         'user': '#52c41a',
+        'client': '#52c41a',
         'Оператор': '#1890ff',
         'Менеджер': '#722ed1',
         'Админ': '#eb2f96',
@@ -379,7 +393,7 @@ const InboxPage: React.FC = () => {
                                                 <span style={{ background: '#e0e0e0', padding: '4px 12px', borderRadius: 12 }}>{group.date}</span>
                                             </div>
                                             {group.msgs.map(msg => {
-                                                const isOwn = msg.author_type === 'manager' || msg.author_type === 'Админ' || msg.author_type === 'Менеджер';
+                                                const isOwn = !isClientMessage(msg.author_type);
                                                 return <MessageBubble key={msg.id} msg={msg} isOwn={isOwn} />;
                                             })}
                                         </div>
