@@ -79,7 +79,7 @@ router.get('/summary', auth, async (req, res) => {
 
     let query = supabase
       .from('contacts')
-      .select('id, name, phone, telegram_user_id, last_message_at')
+      .select('id, name, phone, telegram_user_id, telegram_username, first_name, last_name, last_message_at')
       .order('last_message_at', { ascending: false, nullsFirst: false })
       .range(offsetNum, offsetNum + limitNum - 1);
 
@@ -123,8 +123,26 @@ router.get('/summary', auth, async (req, res) => {
         lastMessage = msg;
       }
 
+      // Generate display name with fallback logic
+      let displayName = contact.name;
+      if (!displayName || displayName.startsWith('User ')) {
+        // Try telegram_username first
+        if (contact.telegram_username) {
+          displayName = `@${contact.telegram_username}`;
+        }
+        // Then try first_name + last_name
+        else if (contact.first_name || contact.last_name) {
+          displayName = [contact.first_name, contact.last_name].filter(Boolean).join(' ');
+        }
+        // Fallback to original name if nothing else
+        else {
+          displayName = contact.name || `User ${contact.telegram_user_id}`;
+        }
+      }
+
       return {
         ...contact,
+        name: displayName, // Override with better display name
         last_message: lastMessage,
         // Fallback if last_message_at was not populated yet
         last_active: contact.last_message_at || lastMessage?.['Created Date']

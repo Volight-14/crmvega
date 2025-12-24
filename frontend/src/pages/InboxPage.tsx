@@ -228,7 +228,7 @@ const InboxPage: React.FC = () => {
         try {
             setIsLoadingMessages(true);
             const data = await contactMessagesAPI.getByContactId(contactId, { limit: 50 });
-            setMessages(data.reverse()); // Show newest at bottom
+            setMessages(data); // Backend returns in ascending order (oldest first)
             scrollToBottom();
         } catch (error) {
             console.error('Error fetching messages:', error);
