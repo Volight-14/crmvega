@@ -142,21 +142,21 @@ router.get('/summary', auth, async (req, res) => {
         lastMessage = msg;
       }
 
-      // Generate display name with fallback logic
-      let displayName = contact.name;
-      if (!displayName || displayName.startsWith('User ')) {
-        // Try telegram_username first (if field exists)
-        if (contact.telegram_username) {
-          displayName = `@${contact.telegram_username}`;
-        }
-        // Then try first_name + last_name (if fields exist)
-        else if (contact.first_name || contact.last_name) {
-          displayName = [contact.first_name, contact.last_name].filter(Boolean).join(' ');
-        }
-        // Fallback to original name if nothing else
-        else {
-          displayName = contact.name || `User ${contact.telegram_user_id}`;
-        }
+      // Generate display name with proper fallback chain:
+      // 1. first_name + last_name (if available)
+      // 2. telegram_username (if available)
+      // 3. name field (existing)
+      // 4. "User {telegram_user_id}" as last resort
+      let displayName = null;
+
+      if (contact.first_name || contact.last_name) {
+        displayName = [contact.first_name, contact.last_name].filter(Boolean).join(' ');
+      } else if (contact.telegram_username) {
+        displayName = `@${contact.telegram_username}`;
+      } else if (contact.name && !contact.name.startsWith('User ')) {
+        displayName = contact.name;
+      } else {
+        displayName = `User ${contact.telegram_user_id}`;
       }
 
       return {
