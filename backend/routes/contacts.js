@@ -70,6 +70,81 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+// Получить список контактов с последними сообщениями (для Inbox)
+router.get('/summary', auth, async (req, res) => {
+  try {
+    const { limit = 50, offset = 0, search } = req.query;
+    const limitNum = parseInt(limit);
+    const offsetNum = parseInt(offset);
+
+    let query = supabase
+      .from('contacts')
+      .select('id, name, phone, telegram_user_id, last_message_at')
+      .order('last_message_at', { ascending: false, nullsFirst: false })
+      .range(offsetNum, offsetNum + limitNum - 1);
+
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`);
+    }
+
+    const { data: contacts, error } = await query;
+    if (error) throw error;
+
+    // Для каждого контакта получаем последнее сообщение
+    // Оптимизация: можно было бы делать это одним запросом join, но пока так
+    const contactsWithMessages = await Promise.all(contacts.map(async (contact) => {
+      // Find latest message linked to this contact via orders or direct link?
+      // Logic from messages.js: get all orders, then messages.
+      // Simplified: Search messages by lead_id (main_id) of active orders OR direct link if we implemented it.
+      // CURRENT DATA MODEL: messages usually link to lead_id (which is correct main_id of an order).
+      // Contact -> Orders -> main_id -> Messages.
+
+      // Fast path: Just get latest message created_at?
+      // We already have last_message_at on contact (if maintained).
+      // Let's assume we need to fetch the actual content snippet.
+
+      // 1. Get all main_ids (lead_ids) for this contact
+      const { data: orders } = await supabase
+        .from('orders')
+        .select('main_id')
+        .eq('contact_id', contact.id);
+
+      const leadIds = orders?.map(o => String(o.main_id)).filter(Boolean) || [];
+
+      let lastMessage = null;
+      if (leadIds.length > 0) {
+        const { data: msg } = await supabase
+          .from('messages')
+          .select('content, created_at, author_type')
+          .in('lead_id', leadIds)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        lastMessage = msg;
+      }
+
+      return {
+        ...contact,
+        last_message: lastMessage,
+        // Fallback if last_message_at was not populated yet
+        last_active: contact.last_message_at || lastMessage?.created_at
+      };
+    }));
+
+    // Sort again just in case (if we used values from messages)
+    const sorted = contactsWithMessages.sort((a, b) => {
+      const tA = new Date(a.last_active || 0).getTime();
+      const tB = new Date(b.last_active || 0).getTime();
+      return tB - tA;
+    });
+
+    res.json(sorted);
+  } catch (error) {
+    console.error('Error fetching inbox summary:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // Получить контакт по ID
 router.get('/:id', auth, async (req, res) => {
   try {
