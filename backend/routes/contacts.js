@@ -88,7 +88,26 @@ router.get('/summary', auth, async (req, res) => {
     }
 
     const { data: contacts, error } = await query;
-    if (error) throw error;
+
+    if (error) {
+      console.error('Error fetching contacts:', error);
+      // Fallback to basic fields if extended query fails
+      const fallbackQuery = supabase
+        .from('contacts')
+        .select('id, name, phone, telegram_user_id, last_message_at')
+        .order('last_message_at', { ascending: false, nullsFirst: false })
+        .range(offsetNum, offsetNum + limitNum - 1);
+
+      if (search) {
+        fallbackQuery.or(`name.ilike.%${search}%,phone.ilike.%${search}%`);
+      }
+
+      const { data: fallbackContacts, error: fallbackError } = await fallbackQuery;
+      if (fallbackError) throw fallbackError;
+
+      // Use fallback data
+      contacts = fallbackContacts;
+    }
 
     // Для каждого контакта получаем последнее сообщение
     // Оптимизация: можно было бы делать это одним запросом join, но пока так
@@ -126,11 +145,11 @@ router.get('/summary', auth, async (req, res) => {
       // Generate display name with fallback logic
       let displayName = contact.name;
       if (!displayName || displayName.startsWith('User ')) {
-        // Try telegram_username first
+        // Try telegram_username first (if field exists)
         if (contact.telegram_username) {
           displayName = `@${contact.telegram_username}`;
         }
-        // Then try first_name + last_name
+        // Then try first_name + last_name (if fields exist)
         else if (contact.first_name || contact.last_name) {
           displayName = [contact.first_name, contact.last_name].filter(Boolean).join(' ');
         }
