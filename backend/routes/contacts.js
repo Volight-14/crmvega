@@ -204,12 +204,14 @@ router.delete('/:id', auth, async (req, res) => {
 router.get('/summary', auth, async (req, res) => {
   try {
     const { limit = 50, offset = 0, search } = req.query;
+    const limitNum = parseInt(limit);
+    const offsetNum = parseInt(offset);
 
     let query = supabase
       .from('contacts')
       .select('id, name, phone, telegram_user_id, last_message_at')
       .order('last_message_at', { ascending: false, nullsFirst: false })
-      .range(offset, offset + limit - 1);
+      .range(offsetNum, offsetNum + limitNum - 1);
 
     if (search) {
       query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`);

@@ -42,6 +42,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       label: 'Контакты',
     },
     {
+      key: '/inbox',
+      icon: <MessageOutlined />,
+      label: 'Диалоги',
+    },
+    {
       key: '/analytics',
       icon: <BarChartOutlined />,
       label: 'Аналитика',
@@ -55,11 +60,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       key: '/ai-agent',
       icon: <RobotOutlined style={{ color: '#52c41a' }} />,
       label: 'AI Агент',
-    },
-    {
-      key: '/inbox',
-      icon: <MessageOutlined />,
-      label: 'Диалоги',
     },
     {
       key: '/settings',
