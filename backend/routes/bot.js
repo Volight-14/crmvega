@@ -188,6 +188,11 @@ async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null
       }
     }
 
+    // Обновляем last_message_at у контакта
+    if (contactId) {
+      await supabase.from('contacts').update({ last_message_at: new Date().toISOString() }).eq('id', contactId);
+    }
+
     // 2. Ищем активную заявку (Order)
     const terminalStatuses = ['completed', 'scammer', 'client_rejected', 'lost'];
     const { data: activeOrder } = await supabase
@@ -227,6 +232,7 @@ async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null
           amount: 0,
           currency: 'RUB',
           status: 'unsorted', // Используем 'unsorted' вместо 'new' если так принято, или 'new'
+          type: 'inquiry',
           source: 'telegram_bot',
           description: 'Автоматически созданная заявка из Telegram бота',
           created_at: new Date().toISOString(),

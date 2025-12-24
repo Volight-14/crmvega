@@ -150,6 +150,7 @@ async function migrateOrders() {
             const dealData = {
                 external_id: externalId,
                 title: `Заказ #${order.orderID || externalId} (${order.CurrPair1} -> ${order.CurrPair2})`,
+                type: 'exchange',
                 status: mapStatus(order.OrderStatus),
                 created_at: order['Created Date'],
                 description: order.Comment,

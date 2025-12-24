@@ -16,6 +16,7 @@ import AutomationPage from './pages/AutomationPage';
 import SettingsPage from './pages/SettingsPage';
 import AIAgentPage from './pages/AIAgentPage';
 import ResetPassword from './pages/ResetPassword';
+import InboxPage from './pages/InboxPage';
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { manager, isLoading } = useAuth();
@@ -35,6 +36,15 @@ const AppRoutes: React.FC = () => {
 
       {/* Deprecated legacy lead route */}
       {/* <Route path="/lead/:id" element={<PrivateRoute><LeadDetail /></PrivateRoute>} /> */}
+
+      <Route
+        path="/inbox"
+        element={
+          <PrivateRoute>
+            <InboxPage />
+          </PrivateRoute>
+        }
+      />
 
       <Route
         path="/orders"

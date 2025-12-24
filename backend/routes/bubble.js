@@ -77,7 +77,76 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       caption,
       order_status,
       main_ID, // Main linking key
+      telegram_user_id, // Added for fallback resolution
     } = req.body;
+
+    // --- Fallback Logic for missing main_ID ---
+    let finalMainId = main_ID;
+    let finalContactId = null;
+
+    if (!finalMainId && telegram_user_id) {
+      console.log(`[Bubble Webhook] main_ID missing, attempting resolution for TG ID: ${telegram_user_id}`);
+
+      // 1. Find Contact
+      const { data: contact } = await supabase
+        .from('contacts')
+        .select('id, name')
+        .eq('telegram_user_id', String(telegram_user_id))
+        .maybeSingle();
+
+      if (contact) {
+        finalContactId = contact.id;
+
+        // 2. Find Latest Active Order
+        const terminalStatuses = ['completed', 'scammer', 'client_rejected', 'lost'];
+        const { data: activeOrder } = await supabase
+          .from('orders')
+          .select('id, main_id')
+          .eq('contact_id', contact.id)
+          .not('status', 'in', `(${terminalStatuses.join(',')})`)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (activeOrder && activeOrder.main_id) {
+          finalMainId = activeOrder.main_id;
+          console.log(`[Bubble Webhook] Found active order ${activeOrder.id} with main_id ${finalMainId}`);
+        } else {
+          // 3. Create New Order (Fallback)
+          const newMainId = parseInt(`${Date.now()}${Math.floor(Math.random() * 1000)}`);
+          const { data: newOrder, error: createOrderError } = await supabase
+            .from('orders')
+            .insert({
+              contact_id: contact.id,
+              title: `Заявка от ${contact.name || 'Unknown'} (Bubble Msg)`,
+              amount: 0,
+              currency: 'RUB',
+              status: 'unsorted',
+              type: 'inquiry', // New field: message-only order
+              source: 'bubble_webhook_msg',
+              description: 'Автоматически созданная заявка из сообщения Bubble (нет активной)',
+              created_at: new Date().toISOString(),
+              main_id: newMainId
+            })
+            .select()
+            .single();
+
+          if (!createOrderError && newOrder) {
+            finalMainId = newMainId;
+            console.log(`[Bubble Webhook] Created new fallback order ${newOrder.id} with main_id ${finalMainId}`);
+
+            // Optional: Emit event for new order if needed, similar to bot.js
+            const io = req.app.get('io');
+            if (io) io.emit('new_order', newOrder);
+          } else {
+            console.error('[Bubble Webhook] Failed to create fallback order:', createOrderError);
+          }
+        }
+      } else {
+        console.warn(`[Bubble Webhook] Contact not found for TG ID: ${telegram_user_id}, cannot resolve main_ID`);
+      }
+    }
+    // ------------------------------------------
 
     if (!content || typeof content !== 'string' || content.trim().length === 0) {
       return res.status(400).json({
@@ -108,8 +177,8 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
 
     // Нормализация и подготовка данных для вставки
     const messageData = {
-      lead_id: lead_id ? String(lead_id).trim() : null,
-      main_id: main_ID ? String(main_ID).trim() : null,
+      lead_id: lead_id ? String(lead_id).trim() : (finalMainId ? String(finalMainId).trim() : null),
+      main_id: finalMainId ? String(finalMainId).trim() : null,
       content: content.trim(),
       'Created Date': createdDate || new Date().toISOString(),
       author_type: normalizedAuthorType,
@@ -177,6 +246,14 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       runAutomations('message_received', result, { io }).catch(err => {
         console.error('Error running automations for message_received:', err);
       });
+    }
+
+    // Обновляем last_message_at у контакта (если нашли его ранее)
+    if (finalContactId) {
+      await supabase
+        .from('contacts')
+        .update({ last_message_at: new Date().toISOString() })
+        .eq('id', finalContactId);
     }
 
     console.log(`[Bubble Webhook] Message ${existingMessage ? 'updated' : 'created'}:`, result.id);
@@ -276,6 +353,7 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
       external_id: data.external_id || data.order_id || data._id || data.ID || null, // Bubble ID with fallbacks
       main_id: data.main_ID || null,
       title: data.title || `Order from Bubble ${data.order_id || data.ID || ''}`,
+      type: 'exchange', // Full order with details
       status: mapStatus(data.status || data.OrderStatus),
       created_at: data.created_at || new Date().toISOString(),
       description: data.description || data.comment || null,

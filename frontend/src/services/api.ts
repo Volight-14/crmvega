@@ -1,6 +1,6 @@
 import axios from 'axios';
 import {
-  Manager, Message, Contact, Order, Note, Automation, ApiResponse,
+  Manager, Message, Contact, InboxContact, Order, Note, Automation, ApiResponse,
   AISettings, AISettingsRaw, OperatorStyle, KnowledgeArticle, AnswerScript,
   WebsiteContent, AISuggestion, SuccessfulResponse, AIAnalytics, AIModel,
   AIInstruction, InstructionLevel, InstructionLevelInfo, InternalMessage
@@ -100,6 +100,11 @@ export const contactsAPI = {
 
   delete: async (id: number): Promise<void> => {
     await api.delete(`/contacts/${id}`);
+  },
+
+  getSummary: async (params?: { limit?: number; offset?: number; search?: string }): Promise<InboxContact[]> => {
+    const response = await api.get('/contacts/summary', { params });
+    return response.data;
   },
 };
 

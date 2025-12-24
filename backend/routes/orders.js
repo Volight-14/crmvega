@@ -91,6 +91,7 @@ router.post('/', auth, async (req, res) => {
       source,
       description,
       due_date,
+      type,
     } = req.body;
 
     const { data, error } = await supabase
@@ -101,6 +102,7 @@ router.post('/', auth, async (req, res) => {
         amount,
         currency: currency || 'RUB',
         status: status || 'new',
+        type: type || 'exchange', // Manual creation defaults to exchange
         source,
         description,
         due_date,

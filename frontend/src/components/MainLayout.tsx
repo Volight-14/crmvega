@@ -12,6 +12,7 @@ import {
   UserOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  MessageOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -54,6 +55,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       key: '/ai-agent',
       icon: <RobotOutlined style={{ color: '#52c41a' }} />,
       label: 'AI Агент',
+    },
+    {
+      key: '/inbox',
+      icon: <MessageOutlined />,
+      label: 'Диалоги',
     },
     {
       key: '/settings',

@@ -174,7 +174,7 @@ router.post('/contact/:contactId', auth, async (req, res) => {
       .from('orders')
       .select('id, main_id')
       .eq('contact_id', contactId)
-      .in('status', ['new', 'negotiation', 'waiting', 'ready_to_close'])
+      .in('status', ['unsorted', 'new', 'negotiation', 'waiting', 'ready_to_close'])
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
@@ -190,6 +190,7 @@ router.post('/contact/:contactId', auth, async (req, res) => {
           contact_id: parseInt(contactId),
           title: `Сообщение от ${new Date().toLocaleDateString('ru-RU')}`,
           status: 'new',
+          type: 'inquiry',
           manager_id: req.manager.id,
         })
         .select()
@@ -223,6 +224,9 @@ router.post('/contact/:contactId', auth, async (req, res) => {
       .single();
 
     if (messageError) throw messageError;
+
+    // Обновляем last_message_at у контакта
+    await supabase.from('contacts').update({ last_message_at: new Date().toISOString() }).eq('id', contactId);
 
     // Связываем сообщение с заявкой
     if (orderId && message && message.id) {
