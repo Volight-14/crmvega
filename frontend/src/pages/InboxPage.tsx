@@ -60,6 +60,19 @@ const formatTime = (dateStr?: string | number) => {
     return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
+const formatDate = (dateStr?: string | number) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (d.toDateString() === today.toDateString()) return 'Сегодня';
+    if (d.toDateString() === yesterday.toDateString()) return 'Вчера';
+
+    return d.toLocaleDateString([], { month: 'long', day: 'numeric', year: d.getFullYear() !== today.getFullYear() ? 'numeric' : undefined });
+};
+
 const linkifyText = (text: string): React.ReactNode => {
     if (!text) return null;
     const combinedRegex = /(https?:\/\/[^\s]+|@\w+)/g;
@@ -318,7 +331,7 @@ const InboxPage: React.FC = () => {
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                 <Avatar size="large" style={{ backgroundColor: '#87d068' }} icon={<UserOutlined />} />
                                 <div>
-                                    <Title level={5} style={{ margin: 0 }}>{selectedContact.name}</Title>
+                                    <Title level={5} style={{ margin: 0, whiteSpace: 'nowrap' }}>{selectedContact.name}</Title>
                                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                         {selectedContact.phone && <Text type="secondary" style={{ fontSize: 12 }}>{selectedContact.phone}</Text>}
                                         {selectedContact.telegram_user_id && (
@@ -348,10 +361,30 @@ const InboxPage: React.FC = () => {
                             ) : messages.length === 0 ? (
                                 <Empty description="История сообщений пуста" style={{ marginTop: 60 }} />
                             ) : (
-                                messages.map((msg) => {
-                                    const isOwn = msg.author_type === 'manager' || msg.author_type === 'Админ' || msg.author_type === 'Менеджер';
-                                    return <MessageBubble key={msg.id} msg={msg} isOwn={isOwn} />;
-                                })
+                                (() => {
+                                    const groupedMessages: { date: string, msgs: Message[] }[] = [];
+                                    messages.forEach(msg => {
+                                        const dateKey = formatDate(msg['Created Date'] || msg.created_at);
+                                        const lastGroup = groupedMessages[groupedMessages.length - 1];
+                                        if (lastGroup && lastGroup.date === dateKey) {
+                                            lastGroup.msgs.push(msg);
+                                        } else {
+                                            groupedMessages.push({ date: dateKey, msgs: [msg] });
+                                        }
+                                    });
+
+                                    return groupedMessages.map(group => (
+                                        <div key={group.date}>
+                                            <div style={{ textAlign: 'center', margin: '24px 0 16px', opacity: 0.5, fontSize: 12 }}>
+                                                <span style={{ background: '#e0e0e0', padding: '4px 12px', borderRadius: 12 }}>{group.date}</span>
+                                            </div>
+                                            {group.msgs.map(msg => {
+                                                const isOwn = msg.author_type === 'manager' || msg.author_type === 'Админ' || msg.author_type === 'Менеджер';
+                                                return <MessageBubble key={msg.id} msg={msg} isOwn={isOwn} />;
+                                            })}
+                                        </div>
+                                    ));
+                                })()
                             )}
                             <div ref={messagesEndRef} />
                         </div>
