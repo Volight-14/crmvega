@@ -75,7 +75,7 @@ router.get('/lead/:leadId', auth, async (req, res) => {
     const { data, error } = await supabase
       .from('messages')
       .select(`*`)
-      .eq('lead_id', leadId)
+      .eq('main_id', leadId)
       .order('"Created Date"', { ascending: true })
       .range(offset, offset + limit - 1);
 
@@ -236,7 +236,6 @@ router.post('/contact/:contactId', auth, async (req, res) => {
     const { data: message, error: messageError } = await supabase
       .from('messages')
       .insert({
-        lead_id: leadId, // Link via lead_id column in messages
         main_id: leadId,
         content,
         author_type: sender_type === 'user' ? 'user' : 'Менеджер',
@@ -307,7 +306,6 @@ router.post('/', auth, async (req, res) => {
     const { data, error } = await supabase
       .from('messages')
       .insert({
-        lead_id,
         main_id: lead_id,
         content,
         author_type: sender_type === 'user' ? 'user' : 'Менеджер'
@@ -334,7 +332,7 @@ router.post('/', auth, async (req, res) => {
       const { data: order } = await supabase
         .from('orders')
         .select('contact_id')
-        .eq('lead_id', lead_id) // or .or(`lead_id.eq.${lead_id},main_id.eq.${lead_id}`)
+        .eq('main_id', lead_id)
         .maybeSingle();
 
       if (order && order.contact_id) {
