@@ -102,17 +102,18 @@ router.get('/contact/:contactId', auth, async (req, res) => {
 
     if (ordersError) throw ordersError;
 
+    console.log(`[GET /contact/${contactId}] Found ${orders?.length} orders`);
+
     const orderIds = orders?.map(o => o.id) || [];
     let leadIds = [];
 
-    // Собираем все ID потоков (lead_id is legacy, main_id is current)
-    // IMPORTANT: messages still has lead_id column (text) used for linking
-    // orders.main_id is numeric.
     orders?.forEach(o => {
       if (o.main_id) leadIds.push(String(o.main_id));
     });
 
-    // Также добавляем telegram_user_id контакта, так как некоторые сообщения могли быть привязаны напрямую
+    console.log(`[GET /contact/${contactId}] Order leadIds:`, leadIds);
+
+    // Также добавляем telegram_user_id контакта
     const { data: contact } = await supabase
       .from('contacts')
       .select('telegram_user_id')
@@ -120,11 +121,14 @@ router.get('/contact/:contactId', auth, async (req, res) => {
       .maybeSingle();
 
     if (contact?.telegram_user_id) {
-      leadIds.push(String(contact.telegram_user_id));
+      const tgId = String(contact.telegram_user_id);
+      console.log(`[GET /contact/${contactId}] Adding TG ID:`, tgId);
+      leadIds.push(tgId);
     }
 
     // Убираем дубликаты
     leadIds = [...new Set(leadIds)];
+    console.log(`[GET /contact/${contactId}] Final leadIds to search:`, leadIds);
 
     // Получаем сообщения из messages
     let allMessages = [];
@@ -192,9 +196,11 @@ router.post('/contact/:contactId', auth, async (req, res) => {
 
     let orderId = activeOrder?.id;
     let leadId = activeOrder?.main_id;
+    console.log(`[POST /contact/${contactId}] Initial: orderId=${orderId}, leadId=${leadId}`);
 
     // Если нет активной заявки, создаем новую
     if (!orderId) {
+      console.log(`[POST /contact/${contactId}] No active order. Creating new.`);
       const { data: newOrder, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -209,18 +215,22 @@ router.post('/contact/:contactId', auth, async (req, res) => {
 
       if (orderError) throw orderError;
       orderId = newOrder.id;
+      console.log(`[POST /contact/${contactId}] Created new order:`, newOrder.id);
     }
 
     // Генерируем leadId (thread ID) если нет
     if (!leadId) {
       // Если у заявки нет ID чата, генерируем новый NUMERIC ID
       leadId = parseInt(`${Date.now()}${Math.floor(Math.random() * 1000)}`);
+      console.log(`[POST /contact/${contactId}] Generated new leadId:`, leadId);
 
       await supabase
         .from('orders')
         .update({ main_id: leadId }) // Обновляем только main_id
         .eq('id', orderId);
     }
+
+    console.log(`[POST /contact/${contactId}] Final leadId for message:`, leadId);
 
     // Создаем сообщение
     const { data: message, error: messageError } = await supabase
