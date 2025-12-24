@@ -112,6 +112,17 @@ router.get('/contact/:contactId', auth, async (req, res) => {
       if (o.main_id) leadIds.push(String(o.main_id));
     });
 
+    // Также добавляем telegram_user_id контакта, так как некоторые сообщения могли быть привязаны напрямую
+    const { data: contact } = await supabase
+      .from('contacts')
+      .select('telegram_user_id')
+      .eq('id', contactId)
+      .single();
+
+    if (contact?.telegram_user_id) {
+      leadIds.push(String(contact.telegram_user_id));
+    }
+
     // Убираем дубликаты
     leadIds = [...new Set(leadIds)];
 

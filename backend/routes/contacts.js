@@ -316,6 +316,10 @@ router.get('/summary', auth, async (req, res) => {
 
       const leadIds = orders?.map(o => String(o.main_id)).filter(Boolean) || [];
 
+      if (contact.telegram_user_id) {
+        leadIds.push(String(contact.telegram_user_id));
+      }
+
       let lastMessage = null;
       if (leadIds.length > 0) {
         const { data: msg } = await supabase
