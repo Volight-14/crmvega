@@ -315,20 +315,20 @@ const InboxPage: React.FC = () => {
                             boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
                             zIndex: 1
                         }}>
-                            <Space>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                 <Avatar size="large" style={{ backgroundColor: '#87d068' }} icon={<UserOutlined />} />
                                 <div>
                                     <Title level={5} style={{ margin: 0 }}>{selectedContact.name}</Title>
-                                    <Space size="small">
+                                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                         {selectedContact.phone && <Text type="secondary" style={{ fontSize: 12 }}>{selectedContact.phone}</Text>}
                                         {selectedContact.telegram_user_id && (
                                             <Text type="secondary" style={{ fontSize: 12 }}>
                                                 Telegram: {selectedContact.telegram_user_id}
                                             </Text>
                                         )}
-                                    </Space>
+                                    </div>
                                 </div>
-                            </Space>
+                            </div>
                             <Link to={`/contacts/${selectedContact.id}`}>
                                 <Button type="link">Открыть профиль</Button>
                             </Link>

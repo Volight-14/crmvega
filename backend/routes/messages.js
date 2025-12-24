@@ -117,7 +117,7 @@ router.get('/contact/:contactId', auth, async (req, res) => {
       .from('contacts')
       .select('telegram_user_id')
       .eq('id', contactId)
-      .single();
+      .maybeSingle();
 
     if (contact?.telegram_user_id) {
       leadIds.push(String(contact.telegram_user_id));
