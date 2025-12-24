@@ -76,7 +76,7 @@ router.get('/lead/:leadId', auth, async (req, res) => {
       .from('messages')
       .select(`*`)
       .eq('lead_id', leadId)
-      .order('created_at', { ascending: true })
+      .order('"Created Date"', { ascending: true })
       .range(offset, offset + limit - 1);
 
     if (error) throw error;
@@ -133,7 +133,7 @@ router.get('/contact/:contactId', auth, async (req, res) => {
         .from('messages')
         .select(`*`)
         .in('lead_id', leadIds)
-        .order('created_at', { ascending: true });
+        .order('"Created Date"', { ascending: true });
 
       if (messagesError) throw messagesError;
       allMessages = messages || [];
@@ -164,7 +164,7 @@ router.get('/contact/:contactId', auth, async (req, res) => {
     // Сортируем по дате и убираем дубликаты
     allMessages = allMessages
       .filter((msg, index, self) => index === self.findIndex(m => m.id === msg.id))
-      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .sort((a, b) => new Date(a['Created Date']).getTime() - new Date(b['Created Date']).getTime())
       .slice(offset, offset + limit);
 
     res.json(allMessages);
