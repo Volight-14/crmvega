@@ -446,10 +446,22 @@ const OrdersPage: React.FC = () => {
     if (!activeOrder) return;
 
     const validStatuses = Object.keys(ORDER_STATUSES);
-    if (!validStatuses.includes(over.id)) return;
 
-    const newStatus = over.id as OrderStatus;
-    if (activeOrder.status === newStatus) return;
+    // Определяем целевой статус: либо это ID колонки, либо ID карточки
+    let newStatus: OrderStatus | null = null;
+
+    if (validStatuses.includes(over.id)) {
+      // Брошено на колонку
+      newStatus = over.id as OrderStatus;
+    } else {
+      // Брошено на другую карточку - найдем статус этой карточки
+      const targetOrder = orders.find(d => d.id === over.id);
+      if (targetOrder) {
+        newStatus = targetOrder.status;
+      }
+    }
+
+    if (!newStatus || activeOrder.status === newStatus) return;
 
     // Оптимистичное обновление
     setOrders(prev => prev.map(d =>
