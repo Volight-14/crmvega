@@ -202,19 +202,47 @@ messages.sender_id -> managers.id (для сообщений менеджеро�
 
 ## Развертывание
 
-### Vercel (рекомендуется для быстрого старта)
+### Текущая архитектура (Production)
+
+```
+Frontend (React)  → Vercel
+Backend (Node.js) → Render (для поддержки WebSocket/Socket.IO)
+Database          → Supabase
+```
+
+### Frontend на Vercel
 
 1. Создайте репозиторий на GitHub и запушьте код
 2. Перейдите на [vercel.com](https://vercel.com) и импортируйте репозиторий
-3. Vercel автоматически обнаружит конфигурацию из `vercel.json`
+3. Выберите папку `frontend` как Root Directory
 4. Настройте переменные окружения в Vercel dashboard:
+   - `REACT_APP_API_URL` - URL вашего backend на Render (например: `https://your-app.onrender.com/api`)
+   - `REACT_APP_SOCKET_URL` - URL для Socket.IO (например: `https://your-app.onrender.com`)
+5. Deploy будет автоматическим при пуше в main ветку
+
+### Backend на Render
+
+1. Перейдите на [render.com](https://render.com)
+2. Создайте новый **Web Service**
+3. Подключите ваш GitHub репозиторий
+4. Настройки:
+   - **Root Directory**: `backend`
+   - **Build Command**: `npm install`
+   - **Start Command**: `node index.js`
+5. Добавьте Environment Variables:
    - `SUPABASE_URL`
    - `SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `JWT_SECRET`
-   - `TELEGRAM_BOT_TOKEN`
-   - `CRM_API_TOKEN`
-5. Деплой будет автоматическим при пуше в main ветку
+   - `TELEGRAM_BOT_TOKEN` ← **Здесь меняем токен бота!**
+   - `FRONTEND_URL` - URL вашего frontend на Vercel
+   - `PORT=5001`
+6. Deploy будет автоматическим
+
+**Почему Render для backend?**
+- ✅ Поддержка WebSocket (Socket.IO для real-time чата)
+- ✅ Постоянное соединение (не serverless)
+- ✅ Бесплатный план с достаточными ресурсами
 
 ### Production (традиционный сервер)
 

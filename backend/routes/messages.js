@@ -297,74 +297,7 @@ router.post('/contact/:contactId', auth, async (req, res) => {
   }
 });
 
-// Отправить сообщение (generic endpoint by lead_id)
-router.post('/', auth, async (req, res) => {
-  try {
-    const { lead_id, content, sender_type = 'manager' } = req.body;
-
-    // Сохраняем сообщение в базе
-    const { data, error } = await supabase
-      .from('messages')
-      .insert({
-        main_id: lead_id,
-        content,
-        author_type: sender_type === 'user' ? 'user' : 'Менеджер'
-      })
-      .select(`*`)
-      .single();
-
-    if (error) throw error;
-
-    // Получаем io для уведомлений
-    const io = req.app.get('io');
-
-    // Запускаем автоматизации для нового сообщения
-    if (sender_type === 'user') {
-      runAutomations('message_received', data, { io }).catch(err => {
-        console.error('Error running automations for message_received:', err);
-      });
-    }
-
-    // Если сообщение от менеджера, отправляем через бота
-    if (sender_type === 'manager') {
-      // Пытаемся найти contact через order который привязан к этому lead_id
-      // Чтобы получить telegram_user_id
-      const { data: order } = await supabase
-        .from('orders')
-        .select('contact_id')
-        .eq('main_id', lead_id)
-        .maybeSingle();
-
-      if (order && order.contact_id) {
-        const { data: contact } = await supabase
-          .from('contacts')
-          .select('telegram_user_id')
-          .eq('id', order.contact_id)
-          .single();
-
-        if (contact && contact.telegram_user_id) {
-          sendMessageToTelegram(contact.telegram_user_id, content).catch(err => {
-            console.error('Failed to send message via bot:', err);
-          });
-        }
-      }
-
-      // Трекаем ответ для аналитики AI
-      trackOperatorResponse(lead_id, content).catch(err => {
-        console.error('Failed to track operator response:', err);
-      });
-    }
-
-    // Отправляем событие о новом сообщении через Socket.IO
-    if (io) {
-      io.to(`lead_${lead_id}`).emit('new_message', data);
-    }
-
-    res.json(data);
-  } catch (error) {
-    console.error('Error sending message:', error);
-    res.status(400).json({ error: error.message });
-  }
-});
+// REMOVED: Generic POST /messages/ endpoint - not used in frontend
+// Use /messages/contact/:contactId or /order-messages/:orderId/client instead
 
 module.exports = router;

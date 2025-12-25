@@ -13,8 +13,6 @@ services:
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - JWT_SECRET=${JWT_SECRET}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-    depends_on:
-      - crm-bot
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -33,14 +31,3 @@ services:
       - ./frontend:/app
       - /app/node_modules
 
-  crm-bot:
-    build:
-      context: ./bot
-      dockerfile: Dockerfile
-    environment:
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - API_BASE_URL=http://crm-backend:5000/api
-    volumes:
-      - ./bot:/app
-      - /app/node_modules
-    restart: unless-stopped

@@ -6,7 +6,9 @@ import {
   AIInstruction, InstructionLevel, InstructionLevelInfo, InternalMessage
 } from '../types';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://crmvega.vercel.app/api';
+// Backend is deployed on Render (not Vercel!)
+// Production URL is set via REACT_APP_API_URL in Vercel environment variables
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -69,11 +71,8 @@ export const messagesAPI = {
     const response = await api.get(`/messages/lead/${leadId}`, { params });
     return response.data;
   },
-
-  send: async (message: { lead_id: string | number; content: string; author_type?: 'manager' | 'user' }): Promise<Message> => {
-    const response = await api.post('/messages', { ...message, sender_type: message.author_type });
-    return response.data;
-  },
+  // REMOVED: send() method - backend endpoint deleted
+  // Use contactMessagesAPI.sendToContact() or orderMessagesAPI.sendClientMessage() instead
 };
 
 // Contacts API

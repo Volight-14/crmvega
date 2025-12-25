@@ -69,53 +69,8 @@ async function sendMessageToUser(telegramUserId, message, options = {}) {
   }
 }
 
-// Отправка сообщения пользователю через бота
-router.post('/send-message', auth, async (req, res) => {
-  try {
-    const { lead_id, message } = req.body;
-
-    // Получаем информацию о заявке (чате)
-    const { data: chat, error: chatError } = await supabase
-      .from('chats')
-      .select('chat_id, client')
-      .eq('lead_id', lead_id)
-      .single();
-
-    if (chatError || !chat) {
-      return res.status(404).json({ error: 'Чат не найден' });
-    }
-
-    if (!chat.chat_id) {
-      return res.status(400).json({ error: 'У чата нет Telegram ID пользователя' });
-    }
-
-    // Отправляем сообщение через бота
-    const success = await sendMessageToUser(chat.chat_id, message);
-
-    if (success) {
-      // Сохраняем сообщение в базе
-      const { data: savedMessage, error: messageError } = await supabase
-        .from('messages')
-        .insert({
-          lead_id,
-          content: message,
-          sender_id: req.manager.id,
-          sender_type: 'manager'
-        })
-        .select()
-        .single();
-
-      if (messageError) throw messageError;
-
-      res.json(savedMessage);
-    } else {
-      res.status(500).json({ error: 'Не удалось отправить сообщение' });
-    }
-  } catch (error) {
-    console.error('Error sending message:', error);
-    res.status(400).json({ error: error.message });
-  }
-});
+// REMOVED: /send-message endpoint - used non-existent 'chats' table
+// Use /api/order-messages/:orderId/client instead
 
 // Функция для отправки сообщения в CRM
 async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null, req = null, messageType = 'text', attachmentData = null, replyToMessageId = null, telegramMessageId = null) {
