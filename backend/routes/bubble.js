@@ -47,10 +47,11 @@ router.use((req, res, next) => {
 router.get('/', (req, res) => {
   res.json({
     success: true,
-    message: 'Bubble webhook endpoint is working (Refactored: Orders Only)',
+    message: 'Bubble webhook endpoint is working',
     endpoints: {
       message: 'POST /api/webhook/bubble/message',
       order: 'POST /api/webhook/bubble/order',
+      contact: 'POST /api/webhook/bubble/contact',
       updateMessage: 'PATCH /api/webhook/bubble/message/:id'
     },
     note: 'All POST/PATCH endpoints require X-Webhook-Token header'
@@ -422,6 +423,162 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
 
   } catch (error) {
     console.error('Error creating order from Bubble:', error);
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Webhook для создания/обновления контакта из Bubble
+router.post('/contact', verifyWebhookToken, async (req, res) => {
+  try {
+    console.log('[Bubble Webhook] Received contact data:', JSON.stringify(req.body, null, 2));
+
+    let data = req.body;
+
+    // Unwrap nested Bubble payload if needed
+    if (data.response && data.response.results && data.response.results.length > 0) {
+      console.log('[Bubble Webhook] Unwrapping nested Bubble contact payload');
+      data = data.response.results[0];
+    }
+
+    // Extract contact fields from Bubble
+    const {
+      name,
+      phone,
+      email,
+      telegram_user_id,
+      tg_amo, // "username, ID: 123456789"
+      telegram_username,
+      first_name,
+      last_name,
+      company,
+      position,
+      address,
+      birthday,
+      comment,
+      status,
+      rating,
+      manager_id
+    } = data;
+
+    // Resolve Telegram ID from tg_amo if not provided directly
+    let telegramId = telegram_user_id;
+    if (!telegramId && tg_amo && tg_amo.includes('ID:')) {
+      const match = tg_amo.match(/ID:\s*(\d+)/);
+      if (match) telegramId = match[1];
+    }
+
+    // Validate required fields
+    if (!name && !telegramId && !phone) {
+      return res.status(400).json({
+        success: false,
+        error: 'At least one of: name, telegram_user_id, or phone is required'
+      });
+    }
+
+    // Try to find existing contact
+    let existingContact = null;
+
+    // 1. Try by Telegram ID (most reliable)
+    if (telegramId) {
+      const { data: contact } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('telegram_user_id', telegramId)
+        .maybeSingle();
+
+      if (contact) {
+        existingContact = contact;
+        console.log(`[Bubble Webhook] Found contact by Telegram ID: ${contact.id}`);
+      }
+    }
+
+    // 2. Try by phone if not found
+    if (!existingContact && phone && phone !== '123' && phone.length > 5) {
+      const { data: contact } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('phone', phone)
+        .maybeSingle();
+
+      if (contact) {
+        existingContact = contact;
+        console.log(`[Bubble Webhook] Found contact by phone: ${contact.id}`);
+      }
+    }
+
+    // 3. Try by email if not found
+    if (!existingContact && email) {
+      const { data: contact } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (contact) {
+        existingContact = contact;
+        console.log(`[Bubble Webhook] Found contact by email: ${contact.id}`);
+      }
+    }
+
+    // Prepare contact data (only fields that exist in Supabase)
+    const contactData = {
+      name: name || existingContact?.name || `User ${telegramId || 'Unknown'}`,
+      phone: (phone && phone !== '123' && phone.length > 5) ? phone : null,
+      email: email || null,
+      telegram_user_id: telegramId || null,
+      telegram_username: telegram_username || null,
+      first_name: first_name || null,
+      last_name: last_name || null,
+      company: company || null,
+      position: position || null,
+      address: address || null,
+      birthday: birthday || null,
+      comment: comment || null,
+      status: status || 'active',
+      rating: rating ? parseInt(rating) : null,
+      manager_id: manager_id ? parseInt(manager_id) : null,
+    };
+
+    let result;
+
+    if (existingContact) {
+      // Update existing contact
+      const { data: updatedContact, error: updateError } = await supabase
+        .from('contacts')
+        .update(contactData)
+        .eq('id', existingContact.id)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+
+      result = updatedContact;
+      console.log(`[Bubble Webhook] Updated contact ${result.id}: ${result.name}`);
+    } else {
+      // Create new contact
+      const { data: newContact, error: createError } = await supabase
+        .from('contacts')
+        .insert(contactData)
+        .select()
+        .single();
+
+      if (createError) throw createError;
+
+      result = newContact;
+      console.log(`[Bubble Webhook] Created new contact ${result.id}: ${result.name}`);
+    }
+
+    res.json({
+      success: true,
+      data: result,
+      action: existingContact ? 'updated' : 'created'
+    });
+
+  } catch (error) {
+    console.error('[Bubble Webhook] Error processing contact:', error);
     res.status(400).json({
       success: false,
       error: error.message
