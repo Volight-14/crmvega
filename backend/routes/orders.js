@@ -2,6 +2,7 @@ const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 const auth = require('../middleware/auth');
 const { runAutomations } = require('../services/automationRunner');
+const { sendBubbleStatusWebhook } = require('../utils/bubbleWebhook');
 
 const router = express.Router();
 const supabase = createClient(
@@ -147,6 +148,18 @@ router.patch('/:id', auth, async (req, res) => {
     const { id } = req.params;
     const updateData = req.body;
 
+    // Если меняется статус, получаем старый статус для вебхука
+    let oldOrder = null;
+    if (updateData.status) {
+      const { data: existingOrder } = await supabase
+        .from('orders')
+        .select('status, main_id')
+        .eq('id', id)
+        .single();
+
+      oldOrder = existingOrder;
+    }
+
     const { data, error } = await supabase
       .from('orders')
       .update(updateData)
@@ -159,12 +172,27 @@ router.patch('/:id', auth, async (req, res) => {
     // Получаем io для уведомлений
     const io = req.app.get('io');
 
-    // Если изменился статус, запускаем автоматизации
-    if (updateData.status) {
+    // Если изменился статус, запускаем автоматизации и отправляем вебхук на Bubble
+    if (updateData.status && oldOrder) {
+      // Запускаем автоматизации
       runAutomations('order_status_changed', data, { io }).catch(err => {
         console.error('Error running automations for order_status_changed:', err);
       });
+
+      // Отправляем вебхук на Bubble (асинхронно, не блокируем ответ)
+      if (data.main_id) {
+        sendBubbleStatusWebhook({
+          mainId: data.main_id,
+          newStatus: data.status,
+          oldStatus: oldOrder.status
+        }).catch(err => {
+          console.error('Error sending Bubble webhook:', err);
+        });
+      } else {
+        console.warn('[Bubble Webhook] Skipping: main_id is missing for order', id);
+      }
     }
+
     if (io) {
       io.emit('order_updated', data);
     }

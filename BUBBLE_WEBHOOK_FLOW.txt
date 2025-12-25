@@ -1,0 +1,130 @@
+┌─────────────────────────────────────────────────────────────────────┐
+│                    BUBBLE WEBHOOK INTEGRATION                        │
+│                     Отправка статусов заявок                         │
+└─────────────────────────────────────────────────────────────────────┘
+
+FLOW:
+═════
+
+1. ИЗМЕНЕНИЕ СТАТУСА
+   ┌──────────────┐
+   │   Frontend   │  Пользователь перетаскивает заявку
+   │  (Kanban)    │  на канбан-доске
+   └──────┬───────┘
+          │ PATCH /api/orders/:id
+          │ { status: "survey" }
+          ▼
+   ┌──────────────┐
+   │   Backend    │
+   │ routes/      │
+   │ orders.js    │
+   └──────┬───────┘
+          │
+          ▼
+
+2. ПОЛУЧЕНИЕ СТАРОГО СТАТУСА
+   ┌──────────────┐
+   │  Supabase    │  SELECT status, main_id
+   │   Database   │  FROM orders WHERE id = :id
+   └──────┬───────┘
+          │ { status: "moderation", main_id: 123... }
+          ▼
+
+3. ОБНОВЛЕНИЕ ЗАЯВКИ
+   ┌──────────────┐
+   │  Supabase    │  UPDATE orders
+   │   Database   │  SET status = "survey"
+   └──────┬───────┘
+          │ { status: "survey", main_id: 123... }
+          ▼
+
+4. ОТПРАВКА ВЕБХУКА (асинхронно)
+   ┌──────────────┐
+   │ bubbleWeb    │  sendBubbleStatusWebhook({
+   │ hook.js      │    mainId: 123...,
+   └──────┬───────┘    newStatus: "survey",
+          │            oldStatus: "moderation"
+          │          })
+          ▼
+   ┌──────────────┐
+   │  Маппинг     │  survey → 75360614
+   │  статусов    │  moderation → 69707910
+   └──────┬───────┘
+          │
+          ▼
+   ┌──────────────┐
+   │  HTTP POST   │  POST https://vegaexchanges.bubbleapps.io/
+   │  Request     │       version-live/api/1.1/wf/wh_order2/
+   └──────┬───────┘
+          │ {
+          │   "leads": {
+          │     "status": [{
+          │       "id": "123...",
+          │       "status_id": "75360614",
+          │       "old_status_id": "69707910",
+          │       "last_modified": "1735140087"
+          │     }]
+          │   }
+          │ }
+          ▼
+   ┌──────────────┐
+   │    Bubble    │  Обработка вебхука
+   │   Platform   │  
+   └──────┬───────┘
+          │ { status: "success", response: {} }
+          ▼
+   ┌──────────────┐
+   │   Логи       │  [Bubble Webhook] ✅ Success
+   │  Backend     │  
+   └──────────────┘
+
+
+RETRY LOGIC:
+════════════
+
+Попытка 1 ──[FAIL]──> Ждем 1 секунду  ──> Попытка 2
+                                              │
+                                         [FAIL]
+                                              │
+                                              ▼
+                                        Ждем 2 секунды
+                                              │
+                                              ▼
+                                         Попытка 3
+                                              │
+                                         [SUCCESS/FAIL]
+                                              │
+                                              ▼
+                                         Логирование
+
+
+СТАТУСЫ:
+════════
+
+Внутренний          Bubble ID      Название
+─────────────────────────────────────────────────────────
+unsorted         →  68464454       Неразобранное
+moderation       →  69707910       На модерации
+survey           →  75360614       Опрос
+in_progress      →  71445094       Работа с клиентом
+completed        →  142            Успешно реализована
+scammer          →  70836166       Мошенник
+client_rejected  →  70835430       Отказ клиента
+... (см. полный список в BUBBLE_WEBHOOK.md)
+
+
+ЛОГИРОВАНИЕ:
+════════════
+
+[Bubble Webhook] Sending status change: {
+  mainId: 1735140087123,
+  oldStatus: 'moderation (69707910)',
+  newStatus: 'survey (75360614)',
+  timestamp: '2025-12-25T15:43:16.953Z'
+}
+
+[Bubble Webhook] ✅ Success (attempt 1/3): {
+  mainId: 1735140087123,
+  status: 200,
+  data: { status: 'success', response: {} }
+}
