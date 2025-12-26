@@ -61,9 +61,10 @@ const COLUMN_COLORS: Record<string, string> = {
 interface OrderCardProps {
   order: Order;
   onClick: () => void;
+  onStatusChange?: (newStatus: OrderStatus) => void;
 }
 
-const OrderCard: React.FC<OrderCardProps> = ({ order, onClick }) => {
+const OrderCard: React.FC<OrderCardProps> = ({ order, onClick, onStatusChange }) => {
   const {
     attributes,
     listeners,
@@ -78,6 +79,15 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onClick }) => {
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
+
+  const sortedStatusOptions = Object.entries(ORDER_STATUSES)
+    .sort(([, a], [, b]) => (a.order || 0) - (b.order || 0))
+    .map(([key, value]) => ({
+      value: key as OrderStatus,
+      label: value.label,
+      icon: value.icon,
+      color: value.color,
+    }));
 
   return (
     <div
@@ -189,17 +199,56 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onClick }) => {
           </div>
         )}
 
-        {/* Индикатор задач */}
+        {/* Нижняя панель с статусом и индикатором задач */}
         <div style={{
-          marginTop: 6,
-          fontSize: 11,
-          color: '#f5222d',
+          marginTop: 8,
           display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
-          gap: 4,
+          gap: 8,
         }}>
-          <span style={{ color: '#f5222d' }}>●</span>
-          Нет задач
+          {/* Индикатор задач */}
+          <div style={{
+            fontSize: 11,
+            color: '#f5222d',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            flexShrink: 0,
+          }}>
+            <span style={{ color: '#f5222d' }}>●</span>
+            Нет задач
+          </div>
+
+          {/* Дропдаун статуса */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{ flexShrink: 0 }}
+          >
+            <Select
+              size="small"
+              value={order.status}
+              onChange={(newStatus) => onStatusChange?.(newStatus)}
+              style={{ width: 130, fontSize: 11 }}
+              popupMatchSelectWidth={false}
+              bordered={false}
+              className="status-select-compact"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              }}
+            >
+              {sortedStatusOptions.map((opt) => (
+                <Option key={opt.value} value={opt.value}>
+                  <Space size={4}>
+                    <span>{opt.icon}</span>
+                    <span style={{ fontSize: 11 }}>{opt.label}</span>
+                  </Space>
+                </Option>
+              ))}
+            </Select>
+          </div>
         </div>
       </Card>
     </div>
@@ -211,9 +260,10 @@ interface KanbanColumnProps {
   orders: Order[];
   onOrderClick: (order: Order) => void;
   onAddOrder: () => void;
+  onStatusChange: (orderId: number, newStatus: OrderStatus) => void;
 }
 
-const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClick, onAddOrder }) => {
+const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClick, onAddOrder, onStatusChange }) => {
   const statusInfo = ORDER_STATUSES[status];
   const orderIds = orders.map(d => d.id);
   const columnColor = COLUMN_COLORS[status] || '#8c8c8c';
@@ -314,7 +364,12 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClic
           ) : (
             <>
               {orders.map((order) => (
-                <OrderCard key={order.id} order={order} onClick={() => onOrderClick(order)} />
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  onClick={() => onOrderClick(order)}
+                  onStatusChange={(status) => onStatusChange(order.id, status)}
+                />
               ))}
               {/* Кнопка добавления внизу */}
               <Button
@@ -484,6 +539,27 @@ const OrdersPage: React.FC = () => {
     }
   };
 
+  const handleStatusChange = async (orderId: number, newStatus: OrderStatus) => {
+    const order = orders.find(d => d.id === orderId);
+    if (!order || order.status === newStatus) return;
+
+    // Optimistic update
+    setOrders(prev => prev.map(d =>
+      d.id === orderId ? { ...d, status: newStatus } : d
+    ));
+
+    try {
+      await ordersAPI.update(orderId, { status: newStatus });
+      message.success('Статус обновлен');
+    } catch (error) {
+      // Rollback
+      setOrders(prev => prev.map(d =>
+        d.id === orderId ? order : d
+      ));
+      message.error('Ошибка обновления статуса');
+    }
+  };
+
   const handleCreateOrder = async (values: any) => {
     try {
       await ordersAPI.create({ ...values, status: createStatus });
@@ -615,6 +691,7 @@ const OrdersPage: React.FC = () => {
                 orders={ordersByStatus[status] || []}
                 onOrderClick={(order) => navigate(`/order/${order.id}`)}
                 onAddOrder={() => openCreateModal(status)}
+                onStatusChange={handleStatusChange}
               />
             ))}
           </div>
