@@ -196,7 +196,8 @@ const InboxPage: React.FC = () => {
 
     useEffect(() => {
         fetchContacts();
-        const interval = setInterval(fetchContacts, 10000); // Poll for updates every 10s
+        // Увеличен интервал с 10s до 30s для снижения нагрузки
+        const interval = setInterval(fetchContacts, 30000);
         return () => clearInterval(interval);
     }, [searchQuery]);
 

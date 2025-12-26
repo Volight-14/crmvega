@@ -411,7 +411,12 @@ const OrdersPage: React.FC = () => {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const { orders: fetchedOrders } = await ordersAPI.getAll({ limit: 500 });
+      // Используем minimal=true для быстрой загрузки канбана
+      // Загружаем только необходимые поля без тегов и полных данных контактов
+      const { orders: fetchedOrders } = await ordersAPI.getAll({
+        limit: 500,
+        minimal: true
+      });
       setOrders(fetchedOrders);
     } catch (error) {
       console.error('Error fetching orders:', error);

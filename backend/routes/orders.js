@@ -3,6 +3,7 @@ const { createClient } = require('@supabase/supabase-js');
 const auth = require('../middleware/auth');
 const { runAutomations } = require('../services/automationRunner');
 const { sendBubbleStatusWebhook } = require('../utils/bubbleWebhook');
+const { ordersCache, generateCacheKey, clearCache } = require('../utils/cache');
 
 const router = express.Router();
 const supabase = createClient(
@@ -13,18 +14,41 @@ const supabase = createClient(
 // Получить все заявки (orders)
 router.get('/', auth, async (req, res) => {
   try {
-    const { contact_id, status, limit = 50, offset = 0 } = req.query;
+    const { contact_id, status, limit = 50, offset = 0, minimal } = req.query;
 
-    let query = supabase
-      .from('orders')
-      .select(`
-        *,
-        contact:contacts(name, email, phone),
-        manager:managers(name),
-        tags:order_tags(tag:tags(*))
-      `)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+    // Генерируем ключ кэша
+    const cacheKey = generateCacheKey('orders', req.query);
+
+    // Проверяем кэш
+    const cachedData = ordersCache.get(cacheKey);
+    if (cachedData) {
+      // console.log(`[Cache] Hit for ${cacheKey}`);
+      return res.json(cachedData);
+    }
+
+    const isMinimal = minimal === 'true';
+
+    let query;
+
+    if (isMinimal) {
+      // Минимальный режим для канбан-доски - только необходимые поля
+      query = supabase
+        .from('orders')
+        .select('id, contact_id, title, amount, currency, status, created_at, main_id')
+        .order('created_at', { ascending: false })
+        .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+    } else {
+      // Полный режим - загружаем связанные данные, но БЕЗ тегов (они отдельно)
+      query = supabase
+        .from('orders')
+        .select(`
+          *,
+          contact:contacts(id, name, email, phone),
+          manager:managers(id, name)
+        `)
+        .order('created_at', { ascending: false })
+        .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+    }
 
     if (contact_id) {
       query = query.eq('contact_id', contact_id);
@@ -38,14 +62,46 @@ router.get('/', auth, async (req, res) => {
 
     if (error) throw error;
 
-    // Преобразуем теги и amount (из строки в число)
-    const orders = data.map(order => ({
+    // Преобразуем amount (из строки в число)
+    let orders = data.map(order => ({
       ...order,
       amount: parseFloat(order.amount) || 0,
-      tags: order.tags?.map(t => t.tag).filter(Boolean) || []
     }));
 
-    res.json({ orders });
+    // Загружаем теги отдельным запросом (эффективнее чем N+1)
+    if (!isMinimal && orders.length > 0) {
+      const orderIds = orders.map(o => o.id);
+      const { data: tagsData } = await supabase
+        .from('order_tags')
+        .select('order_id, tag:tags(*)')
+        .in('order_id', orderIds);
+
+      // Группируем теги по order_id
+      const tagsByOrder = {};
+      tagsData?.forEach(t => {
+        if (!tagsByOrder[t.order_id]) tagsByOrder[t.order_id] = [];
+        tagsByOrder[t.order_id].push(t.tag);
+      });
+
+      // Присваиваем теги к ордерам
+      orders = orders.map(order => ({
+        ...order,
+        tags: tagsByOrder[order.id] || []
+      }));
+    } else {
+      // В минимальном режиме теги не нужны
+      orders = orders.map(order => ({
+        ...order,
+        tags: []
+      }));
+    }
+
+    const response = { orders };
+
+    // Сохраняем в кэш
+    ordersCache.set(cacheKey, response);
+
+    res.json(response);
   } catch (error) {
     console.error('Error fetching orders:', error);
     res.status(400).json({ error: error.message });
@@ -115,6 +171,9 @@ router.post('/', auth, async (req, res) => {
 
     if (error) throw error;
 
+    // Сбрасываем кэш ордеров
+    clearCache('orders');
+
     // Получаем io для уведомлений
     const io = req.app.get('io');
 
@@ -169,6 +228,9 @@ router.patch('/:id', auth, async (req, res) => {
 
     if (error) throw error;
 
+    // Сбрасываем кэш ордеров
+    clearCache('orders');
+
     // Получаем io для уведомлений
     const io = req.app.get('io');
 
@@ -215,6 +277,9 @@ router.delete('/:id', auth, async (req, res) => {
       .eq('id', id);
 
     if (error) throw error;
+
+    // Сбрасываем кэш ордеров
+    clearCache('orders');
 
     res.json({ success: true });
   } catch (error) {

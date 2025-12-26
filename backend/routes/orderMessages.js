@@ -29,83 +29,37 @@ router.get('/:orderId/client', auth, async (req, res) => {
     const { orderId } = req.params;
     const { limit = 200, offset = 0 } = req.query;
 
-    // Получаем заявку
+    // Получаем заявку - нужен только main_id
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, contact_id, external_id, main_id')
+      .select('id, main_id')
       .eq('id', orderId)
       .single();
 
     if (orderError) throw orderError;
 
-    // Основной ID для связи - это main_id. Но поддерживаем и старые.
-    // Сообщения привязываются к orders через поле lead_id (в messages) которое должно совпадать с main_id ордера.
-    // Либо через таблицу order_messages.
-
-    // Также ищем сообщения через order_messages
-    const { data: orderMessages } = await supabase
-      .from('order_messages')
-      .select('message_id')
-      .eq('order_id', orderId);
-
-    const messageIds = orderMessages?.map(dm => dm.message_id) || [];
-
-    let clientMessages = [];
-
-    // Logic: Match by:
-    // 1. messages.main_id == order.main_id (Priority)
-    // 2. messages.lead_id == order.main_id
-    // 3. messages.lead_id == order.external_id (Bubble legacy)
-    // 4. messages.lead_id == order.lead_id (Legacy)
-
-    // Logic: STRICT Match by main_id ONLY as per user request.
-    // We ignore legacy lead_id fallbacks.
-
-    if (order.main_id) {
-      const { data: messagesByMain, error: messagesError } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('main_id', order.main_id)
-        .order('Created Date', { ascending: true });
-
-      if (messagesError) throw messagesError;
-      clientMessages = messagesByMain || [];
-    } else {
-      clientMessages = [];
+    // Если нет main_id - нет сообщений
+    if (!order.main_id) {
+      return res.json({
+        messages: [],
+        total: 0,
+        mainId: null,
+      });
     }
 
-    // Добавляем сообщения из order_messages
-    if (messageIds.length > 0) {
-      const { data: messagesByOrder } = await supabase
-        .from('messages')
-        .select('*')
-        .in('id', messageIds)
-        .order('Created Date', { ascending: true });
+    // Один оптимизированный запрос для всех сообщений
+    const { data: messages, count, error: messagesError } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact' })
+      .eq('main_id', order.main_id)
+      .order('Created Date', { ascending: true })
+      .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
-      if (messagesByOrder) {
-        const existingIds = new Set(clientMessages.map(m => m.id));
-        for (const msg of messagesByOrder) {
-          if (!existingIds.has(msg.id)) {
-            clientMessages.push(msg);
-          }
-        }
-      }
-    }
-
-    // Сортируем по дате
-    clientMessages.sort((a, b) => {
-      const dateA = new Date(a['Created Date'] || a.timestamp || 0);
-      const dateB = new Date(b['Created Date'] || b.timestamp || 0);
-      return dateA.getTime() - dateB.getTime();
-    });
-
-    // Применяем пагинацию
-    const paginatedMessages = clientMessages.slice(offset, offset + parseInt(limit));
+    if (messagesError) throw messagesError;
 
     res.json({
-      messages: paginatedMessages,
-      total: clientMessages.length,
-      externalId: order.external_id,
+      messages: messages || [],
+      total: count || 0,
       mainId: order.main_id,
     });
   } catch (error) {

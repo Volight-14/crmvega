@@ -94,84 +94,60 @@ router.get('/contact/:contactId', auth, async (req, res) => {
     const { contactId } = req.params;
     const { limit = 200, offset = 0 } = req.query;
 
-    // Получаем все заявки контакта
-    const { data: orders, error: ordersError } = await supabase
-      .from('orders')
-      .select('id, main_id, title')
-      .eq('contact_id', contactId);
-
-    if (ordersError) throw ordersError;
-
-    console.log(`[GET /contact/${contactId}] Found ${orders?.length} orders`);
-
-    const orderIds = orders?.map(o => o.id) || [];
-    let leadIds = [];
-
-    orders?.forEach(o => {
-      if (o.main_id) leadIds.push(String(o.main_id));
-    });
-
-    console.log(`[GET /contact/${contactId}] Order leadIds:`, leadIds);
-
-    // Также добавляем telegram_user_id контакта
-    const { data: contact } = await supabase
+    // Оптимизированный запрос: получаем контакт с заявками одним запросом
+    const { data: contact, error: contactError } = await supabase
       .from('contacts')
-      .select('telegram_user_id')
+      .select(`
+        id,
+        telegram_user_id,
+        orders(id, main_id, title)
+      `)
       .eq('id', contactId)
-      .maybeSingle();
+      .single();
 
+    if (contactError) throw contactError;
+
+    console.log(`[GET /contact/${contactId}] Found ${contact?.orders?.length || 0} orders`);
+
+    // Собираем все main_id в Set для уникальности
+    const leadIds = new Set();
+
+    // Добавляем telegram_user_id контакта
     if (contact?.telegram_user_id) {
       const tgId = String(contact.telegram_user_id);
       console.log(`[GET /contact/${contactId}] Adding TG ID:`, tgId);
-      leadIds.push(tgId);
+      leadIds.add(tgId);
     }
 
-    // Убираем дубликаты
-    leadIds = [...new Set(leadIds)];
-    console.log(`[GET /contact/${contactId}] Final leadIds to search:`, leadIds);
+    // Добавляем main_id из всех заявок
+    contact?.orders?.forEach(o => {
+      if (o.main_id) {
+        leadIds.add(String(o.main_id));
+      }
+    });
 
-    // Получаем сообщения из messages
+    const leadIdsArray = Array.from(leadIds);
+    console.log(`[GET /contact/${contactId}] Final leadIds to search:`, leadIdsArray);
+
+    // Получаем сообщения одним запросом
     let allMessages = [];
-    if (leadIds.length > 0) {
+    if (leadIdsArray.length > 0) {
       const { data: messages, error: messagesError } = await supabase
         .from('messages')
-        .select(`*`)
-        .in('main_id', leadIds)
-        .order('"Created Date"', { ascending: true });
+        .select('*')
+        .in('main_id', leadIdsArray)
+        .order('Created Date', { ascending: true });
 
       if (messagesError) throw messagesError;
       allMessages = messages || [];
     }
 
-    // Получаем сообщения из order_messages
-    if (orderIds.length > 0) {
-      const { data: orderMessages } = await supabase
-        .from('order_messages')
-        .select(`
-          message:messages(*),
-          order:orders(id, title)
-        `)
-        .in('order_id', orderIds);
-
-      if (orderMessages && orderMessages.length > 0) {
-        const messagesFromOrders = orderMessages
-          .filter(om => om.message)
-          .map(om => ({
-            ...om.message,
-            order_title: om.order?.title,
-            order_id: om.order?.id,
-          }));
-        allMessages = [...allMessages, ...messagesFromOrders];
-      }
-    }
-
-    // Сортируем по дате и убираем дубликаты
-    allMessages = allMessages
+    // Убираем дубликаты по id и применяем пагинацию
+    const uniqueMessages = allMessages
       .filter((msg, index, self) => index === self.findIndex(m => m.id === msg.id))
-      .sort((a, b) => new Date(a['Created Date']).getTime() - new Date(b['Created Date']).getTime())
-      .slice(offset, offset + limit);
+      .slice(parseInt(offset), parseInt(offset) + parseInt(limit));
 
-    res.json(allMessages);
+    res.json(uniqueMessages);
   } catch (error) {
     console.error('Error fetching contact messages:', error);
     res.status(400).json({ error: error.message });

@@ -109,7 +109,7 @@ export const contactsAPI = {
 
 // Orders API (Renamed from Deals API)
 export const ordersAPI = {
-  getAll: async (params?: { contact_id?: number; status?: string; limit?: number; offset?: number }): Promise<{ orders: Order[] }> => {
+  getAll: async (params?: { contact_id?: number; status?: string; limit?: number; offset?: number; minimal?: boolean }): Promise<{ orders: Order[] }> => {
     // If backend expects 'deals' response structure or 'orders', ensure backend returns { orders: [] }
     const response = await api.get('/orders', { params });
     return response.data;
