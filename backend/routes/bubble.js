@@ -348,6 +348,15 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
       }
     }
 
+    // Helper to safely parse numeric values from Bubble
+    const parseNumeric = (value) => {
+      if (value === null || value === undefined || value === 'null' || value === '') return null;
+      const parsed = parseFloat(value);
+      return isNaN(parsed) ? null : parsed;
+    };
+
+    // ... inside the router.post('/order') ...
+
     // 2. Prepare Order Data
     const orderData = {
       contact_id: contactId,
@@ -364,8 +373,8 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
       city_2: data.city_2 || data.CityEsp02 || data.city,
       currency_give: data.currency_give || data.CurrPair1,
       currency_get: data.currency_get || data.CurrPair2,
-      amount_give: data.amount_give || data.SumInput,
-      amount_get: data.amount_get || data.SumOutput,
+      amount_give: parseNumeric(data.amount_give || data.SumInput),
+      amount_get: parseNumeric(data.amount_get || data.SumOutput),
       bank_1: data.bank_1 || data.BankRus01,
       bank_2: data.bank_2 || data.BankRus02,
       atm: data.atm || data.ATM,
@@ -374,7 +383,7 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
       is_paid: data.is_paid || data['OrderPaid?'],
       client_phone: data.client_phone || data.MobilePhone,
       telegram_amo_id: data.tg_amo || data.telegram_amo_id,
-      amount_partly_paid: data.amount_partly_paid || data.SumPartly,
+      amount_partly_paid: parseNumeric(data.amount_partly_paid || data.SumPartly),
       order_date: data.order_date || data.date,
       external_creator_id: data.external_creator_id || data['Created By'],
       external_user_id: data.external_user_id || data.User,
@@ -385,12 +394,12 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
       delivery_day_type: data.delivery_day_type || data.NextDay,
       mongo_id: data.mongo_id || data._id || data.ID,
       external_updated_at: data.external_updated_at || data['Modified Date'],
-      cashback_usdt: data.cashback_usdt,
-      cashback_eur: data.cashback_eur,
+      cashback_usdt: parseNumeric(data.cashback_usdt),
+      cashback_eur: parseNumeric(data.cashback_eur),
       order_time_type: data.order_time_type,
       is_first_order: data.is_first_order,
-      sum_equivalent_eur: data.sum_equivalent_eur,
-      loyalty_points: data.loyalty_points,
+      sum_equivalent_eur: parseNumeric(data.sum_equivalent_eur),
+      loyalty_points: parseNumeric(data.loyalty_points),
       crypto_wallet: data.crypto_wallet,
       message_iban: data.message_iban || data.СlientIBAN,
       payee_name: data.payee_name || data.PayeeName,
