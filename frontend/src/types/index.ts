@@ -37,6 +37,7 @@ export interface Message {
   sender_type?: 'manager' | 'user';
   sender_id?: number;
   telegram_message_id?: number;
+  reactions?: any[];
 }
 
 export interface InternalMessage {

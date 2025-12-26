@@ -404,9 +404,32 @@ const ClientMessageBubble = ({ msg, currentUserId, onReply, replyMessage }: { ms
               </span>
             )}
           </div>
+
+          {/* Реакции */}
+          {msg.reactions && msg.reactions.length > 0 && (
+            <div style={{
+              position: 'absolute',
+              bottom: -10,
+              right: isFromClient ? -5 : 'auto',
+              left: isFromClient ? 'auto' : -5,
+              backgroundColor: '#fff',
+              border: '1px solid #f0f0f0',
+              borderRadius: 12,
+              padding: '2px 6px',
+              fontSize: 12,
+              display: 'flex',
+              gap: 2,
+              boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+              zIndex: 10,
+            }}>
+              {msg.reactions.map((r: any, idx: number) => (
+                <span key={idx}>{r.emoji}</span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 
@@ -673,6 +696,10 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
         if (prev.some(m => m.id === msg.id)) return prev;
         return [...prev, msg];
       });
+    });
+
+    socketRef.current.on('message_updated', (msg: Message) => {
+      setClientMessages(prev => prev.map(m => m.id === msg.id ? { ...m, ...msg } : m));
     });
 
     socketRef.current.on('new_internal_message', (msg: InternalMessage) => {

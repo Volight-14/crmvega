@@ -433,6 +433,47 @@ router.post('/webhook', async (req, res) => {
       }
     }
 
+    // Обработка реакций на сообщения
+    if (update.message_reaction) {
+      const reaction = update.message_reaction;
+      const tgMessageId = reaction.message_id;
+      const newReactions = reaction.new_reaction; // Array of reaction objects e.g. [{ type: 'emoji', emoji: '👍' }]
+
+      // Находим сообщение в базе по ID сообщения в Telegram
+      const { data: messageData, error: findError } = await supabase
+        .from('messages')
+        .select('id, lead_id, content')
+        .eq('message_id_tg', tgMessageId)
+        .maybeSingle();
+
+      if (messageData) {
+        // Обновляем реакции в базе
+        const { data: updatedMessage, error: updateError } = await supabase
+          .from('messages')
+          .update({ reactions: newReactions })
+          .eq('id', messageData.id)
+          .select()
+          .single();
+
+        if (!updateError) {
+          console.log(`[bot.js] Updated reactions for message ${messageData.id}:`, newReactions);
+
+          const io = req.app.get('io');
+          if (io) {
+            // Отправляем событие обновления сообщения
+            io.emit('message_updated', updatedMessage);
+            if (updatedMessage.lead_id) {
+              io.to(`lead_${updatedMessage.lead_id}`).emit('message_updated', updatedMessage);
+            }
+          }
+        } else {
+          console.error('[bot.js] Error updating reactions:', updateError);
+        }
+      } else {
+        console.warn(`[bot.js] Message not found for reaction update (TG ID: ${tgMessageId})`);
+      }
+    }
+
     res.status(200).end();
   } catch (error) {
     console.error('Webhook error:', error);
