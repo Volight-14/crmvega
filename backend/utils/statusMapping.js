@@ -15,6 +15,10 @@ const STATUS_MAPPING = {
     '68627678': 'accepted_stas',
     'Принято Стас': 'accepted_stas',
 
+    // Принято Люси
+    '00000000': 'accepted_lusi', // TODO: Update with real Bubble ID
+    'Принято Люси': 'accepted_lusi',
+
     // Работа с клиентом
     '71445094': 'in_progress',
     'Работа с клиентом': 'in_progress',

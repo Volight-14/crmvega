@@ -251,7 +251,7 @@ router.patch('/:id', auth, async (req, res) => {
           console.error('Error sending Bubble webhook:', err);
         });
       } else {
-        console.warn('[Bubble Webhook] Skipping: main_id is missing for order', id);
+        console.warn(`[Bubble Webhook] Skipping: main_id is missing for order ${id}. Note: Order MUST have a 'main_id' (Bubble Lead ID) to sync. Linked Contact (id: ${data.contact_id}) is not enough.`);
       }
     }
 
