@@ -17,8 +17,7 @@ const STATUS_TO_BUBBLE_ID = {
     'client_rejected': '70835430',
     'scammer': '70836166',
     'moderation': '69707910',
-    'completed': '142',
-    'accepted_lusi': '00000000' // TODO: Update with real Bubble ID
+    'completed': '142'
 };
 
 /**
