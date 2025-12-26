@@ -65,10 +65,10 @@ const STATUS_MAPPING = {
     'Выполнен': 'completed', // Legacy
     'Исполнена': 'completed', // Frontend label
 
-    // Дубль или контакт -> ??
-    // Mapping to client_rejected as safe fallback
-    '143': 'client_rejected',
-    'Дубль или контакт': 'client_rejected'
+    // Дубль или контакт
+    '143': 'duplicate',
+    'Дубль или контакт': 'duplicate',
+    'duplicate': 'duplicate'
 };
 
 const mapStatus = (inputStatus) => {

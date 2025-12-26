@@ -84,7 +84,7 @@ export const ORDER_STATUSES = {
   accepted_anna: { label: 'Принято Анна', color: 'cyan', icon: '👩', order: 1 },
   accepted_kostya: { label: 'Принято Костя', color: 'cyan', icon: '👨', order: 2 },
   accepted_stas: { label: 'Принято Стас', color: 'cyan', icon: '👨', order: 3 },
-  accepted_lusi: { label: 'Принято Люси', color: 'cyan', icon: '👩', order: 4 },
+
 
   // Рабочие этапы
   in_progress: { label: 'Работа с клиентом', color: 'blue', icon: '💼', order: 5 },
@@ -102,6 +102,7 @@ export const ORDER_STATUSES = {
 
   // Закрытые
   client_rejected: { label: 'Отказ клиента', color: 'red', icon: '❌', order: 13 },
+  duplicate: { label: 'Дубль', color: 'gray', icon: '👯', order: 17 },
   scammer: { label: 'Мошенник', color: 'magenta', icon: '🚫', order: 14 },
   moderation: { label: 'На модерации', color: 'geekblue', icon: '🔍', order: 15 },
 
