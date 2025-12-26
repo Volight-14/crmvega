@@ -108,4 +108,10 @@ async function sendBubbleStatusWebhook({ mainId, newStatus, oldStatus, retries =
     }
 }
 
-module.exports = { sendBubbleStatusWebhook, STATUS_TO_BUBBLE_ID };
+// Обратный маппинг: Bubble status_id -> внутренний статус
+const BUBBLE_ID_TO_STATUS = Object.entries(STATUS_TO_BUBBLE_ID).reduce((acc, [key, value]) => {
+    acc[value] = key;
+    return acc;
+}, {});
+
+module.exports = { sendBubbleStatusWebhook, STATUS_TO_BUBBLE_ID, BUBBLE_ID_TO_STATUS };

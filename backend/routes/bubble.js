@@ -595,4 +595,105 @@ router.post('/contact', verifyWebhookToken, async (req, res) => {
   }
 });
 
+// Webhook для обновления статуса из Bubble
+router.post('/status', verifyWebhookToken, async (req, res) => {
+  try {
+    const { leads } = req.body;
+
+    // Структура: { "leads": { "status": [ { "id": "main_id", "status_id": "..." } ] } }
+    if (!leads || !leads.status || !Array.isArray(leads.status)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid payload structure. Expected { leads: { status: [...] } }'
+      });
+    }
+
+    const { BUBBLE_ID_TO_STATUS } = require('../utils/bubbleWebhook');
+    const updates = [];
+    const errors = [];
+
+    // Обрабатываем каждый элемент массива status
+    for (const item of leads.status) {
+      const mainId = item.id;
+      const bubbleStatusId = item.status_id;
+
+      if (!mainId || !bubbleStatusId) {
+        errors.push({ item, error: 'Missing id (main_id) or status_id' });
+        continue;
+      }
+
+      // 1. Маппинг статуса
+      const internalStatus = BUBBLE_ID_TO_STATUS[bubbleStatusId];
+      if (!internalStatus) {
+        console.warn(`[Bubble Webhook Status] Unknown bubble status ID: ${bubbleStatusId} for main_id ${mainId}`);
+        errors.push({ item, error: 'Unknown status_id mapping' });
+        continue;
+      }
+
+      // 2. Поиск заказа по main_id
+      const { data: order, error: findError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('main_id', mainId)
+        .maybeSingle();
+
+      if (findError || !order) {
+        console.warn(`[Bubble Webhook Status] Order not found for main_id: ${mainId}`);
+        errors.push({ item, error: 'Order not found' });
+        continue;
+      }
+
+      // 3. Если статус тот же, пропускаем
+      if (order.status === internalStatus) {
+        updates.push({ id: order.id, status: 'skipped (same status)' });
+        continue;
+      }
+
+      // 4. Обновляем статус
+      const { data: updatedOrder, error: updateError } = await supabase
+        .from('orders')
+        .update({ status: internalStatus })
+        .eq('id', order.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        errors.push({ item, error: updateError.message });
+        continue;
+      }
+
+      // 5. Запускаем ВНУТРЕННИЕ автоматизации и уведомления
+      // ВАЖНО: Мы НЕ вызываем sendBubbleStatusWebhook, чтобы избежать цикла!
+      const io = req.app.get('io');
+
+      // Socket.IO для фронтенда
+      if (io) {
+        io.emit('order_updated', updatedOrder);
+      }
+
+      // Внутренние автоматизации (уведомления менеджерам и т.д.)
+      runAutomations('order_status_changed', updatedOrder, { io }).catch(err => {
+        console.error('Error running automations for order_status_changed (from Bubble webhook):', err);
+      });
+
+      updates.push({ id: updatedOrder.id, old_status: order.status, new_status: internalStatus });
+      console.log(`[Bubble Webhook Status] Updated order ${updatedOrder.id} status: ${order.status} -> ${internalStatus}`);
+    }
+
+    res.json({
+      success: true,
+      processed: updates.length,
+      errors: errors.length > 0 ? errors : undefined,
+      updates
+    });
+
+  } catch (error) {
+    console.error('[Bubble Webhook] Error processing status update:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
