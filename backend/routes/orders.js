@@ -166,7 +166,7 @@ router.post('/', auth, async (req, res) => {
         manager_id: req.manager.id,
         main_id: req.body.main_id || parseInt(`${Date.now()}${Math.floor(Math.random() * 1000)}`) // Ensure main_id exists
       })
-      .select()
+      .select('*, contact:contacts(name, phone, email)')
       .single();
 
     if (error) throw error;
@@ -223,7 +223,7 @@ router.patch('/:id', auth, async (req, res) => {
       .from('orders')
       .update(updateData)
       .eq('id', id)
-      .select()
+      .select('*, contact:contacts(name, phone, email)')
       .single();
 
     if (error) throw error;

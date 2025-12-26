@@ -412,7 +412,7 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
     const { data: newOrder, error } = await supabase
       .from('orders')
       .insert(orderData)
-      .select()
+      .select('*, contact:contacts(name, phone, email)')
       .single();
 
     if (error) throw error;
@@ -654,7 +654,7 @@ router.post('/status', verifyWebhookToken, async (req, res) => {
         .from('orders')
         .update({ status: internalStatus })
         .eq('id', order.id)
-        .select()
+        .select('*, contact:contacts(name, phone, email)')
         .single();
 
       if (updateError) {
