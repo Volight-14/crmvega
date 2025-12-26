@@ -34,7 +34,7 @@ router.get('/', auth, async (req, res) => {
       // Минимальный режим для канбан-доски - только необходимые поля
       query = supabase
         .from('orders')
-        .select('id, contact_id, title, amount, currency, status, created_at, main_id')
+        .select('id, contact_id, title, amount, currency, status, created_at, main_id, contact:contacts(name)')
         .order('created_at', { ascending: false })
         .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
     } else {
