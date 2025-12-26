@@ -510,12 +510,16 @@ const OrdersPage: React.FC = () => {
     // Определяем целевой статус: либо это ID колонки, либо ID карточки
     let newStatus: OrderStatus | null = null;
 
-    if (validStatuses.includes(over.id)) {
+    // Convert to string for checking against status keys
+    const overIdString = String(over.id);
+
+    if (validStatuses.includes(overIdString)) {
       // Брошено на колонку
-      newStatus = over.id as OrderStatus;
+      newStatus = overIdString as OrderStatus;
     } else {
       // Брошено на другую карточку - найдем статус этой карточки
-      const targetOrder = orders.find(d => d.id === over.id);
+      // dnd-kit might return string or number, try to match loosely or convert
+      const targetOrder = orders.find(d => d.id == over.id);
       if (targetOrder) {
         newStatus = targetOrder.status;
       }
@@ -523,17 +527,19 @@ const OrdersPage: React.FC = () => {
 
     if (!newStatus || activeOrder.status === newStatus) return;
 
+    const statusToUpdate = newStatus as OrderStatus;
+
     // Оптимистичное обновление
     setOrders(prev => prev.map(d =>
-      d.id === active.id ? { ...d, status: newStatus } : d
+      d.id === activeOrder.id ? { ...d, status: statusToUpdate } : d
     ));
 
     try {
-      await ordersAPI.update(active.id, { status: newStatus });
+      await ordersAPI.update(activeOrder.id, { status: statusToUpdate });
       message.success('Статус обновлен');
     } catch (error) {
       setOrders(prev => prev.map(d =>
-        d.id === active.id ? activeOrder : d
+        d.id === activeOrder.id ? activeOrder : d
       ));
       message.error('Ошибка обновления');
     }
