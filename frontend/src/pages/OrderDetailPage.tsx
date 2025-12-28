@@ -144,6 +144,30 @@ const OrderDetailPage: React.FC = () => {
     }
   };
 
+  const handleStatusChange = async (newStatus: any) => {
+    if (!order) return;
+    const oldStatus = order.status;
+    const updatedOrder = { ...order, status: newStatus };
+    setOrder(updatedOrder); // Optimistic update
+
+    try {
+      await ordersAPI.update(order.id, { status: newStatus });
+      message.success('Статус обновлен');
+    } catch (error: any) {
+      setOrder({ ...order, status: oldStatus }); // Rollback
+      message.error(error.response?.data?.error || 'Ошибка обновления статуса');
+    }
+  };
+
+  const sortedStatusOptions = Object.entries(ORDER_STATUSES)
+    .sort(([, a], [, b]) => (a.order || 0) - (b.order || 0))
+    .map(([key, value]) => ({
+      value: key,
+      label: value.label,
+      icon: value.icon,
+      color: value.color,
+    }));
+
   if (!order) {
     return (
       <div style={{
@@ -196,16 +220,22 @@ const OrderDetailPage: React.FC = () => {
                 {order.title}
               </Title>
               <Space style={{ marginTop: 4 }}>
-                <Tag
-                  color={statusInfo.color}
-                  style={{
-                    borderRadius: 12,
-                    padding: '2px 12px',
-                    fontSize: 13,
-                  }}
+                <Select
+                  value={order.status}
+                  onChange={handleStatusChange}
+                  style={{ width: 180 }}
+                  className="status-select-header"
+                  popupMatchSelectWidth={false}
                 >
-                  {statusInfo.icon} {statusInfo.label}
-                </Tag>
+                  {sortedStatusOptions.map((opt) => (
+                    <Option key={opt.value} value={opt.value}>
+                      <Space>
+                        <span>{opt.icon}</span>
+                        <span>{opt.label}</span>
+                      </Space>
+                    </Option>
+                  ))}
+                </Select>
                 {order.amount > 0 && (
                   <span style={{
                     background: 'rgba(255,255,255,0.2)',
@@ -286,7 +316,23 @@ const OrderDetailPage: React.FC = () => {
                       {/* Order Info */}
                       <Descriptions column={1} size="small" style={{ marginBottom: 16 }}>
                         <Descriptions.Item label="Статус">
-                          <Tag color={statusInfo.color}>{statusInfo.icon} {statusInfo.label}</Tag>
+                          <Select
+                            value={order.status}
+                            onChange={handleStatusChange}
+                            size="small"
+                            style={{ width: '100%' }}
+                            popupMatchSelectWidth={false}
+                            bordered={false}
+                          >
+                            {sortedStatusOptions.map((opt) => (
+                              <Option key={opt.value} value={opt.value}>
+                                <Space>
+                                  <span>{opt.icon}</span>
+                                  <span>{opt.label}</span>
+                                </Space>
+                              </Option>
+                            ))}
+                          </Select>
                         </Descriptions.Item>
                         <Descriptions.Item label="Сумма">
                           <Text strong>{order.amount.toLocaleString('ru-RU') || 0} {order.currency || 'RUB'}</Text>
