@@ -900,12 +900,21 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
     if (activeTab === 'client') {
       const replyId = replyTo && 'message_id_tg' in replyTo ? replyTo.message_id_tg as number : undefined;
       try {
+        console.log('Sending voice message...', { size: recordedAudio.size, type: recordedAudio.type });
         const newMsg = await orderMessagesAPI.sendClientVoice(orderId, recordedAudio, undefined, replyId);
+        console.log('Voice message sent successfully', newMsg);
         setClientMessages(prev => [...prev, newMsg]);
         setReplyTo(null);
         cancelRecording();
       } catch (error: any) {
-        antMessage.error(error.response?.data?.error || 'Ошибка отправки голосового');
+        console.error('Voice send error:', error);
+        const errMsg = error.response?.data?.error || 'Ошибка отправки голосового';
+        const errDetails = error.response?.data?.details;
+
+        const fullMsg = errDetails ? `${errMsg} (${JSON.stringify(errDetails)})` : errMsg;
+        antMessage.error(fullMsg);
+        // Temporary fallback to ensure user sees the error
+        alert('Ошибка отправки: ' + fullMsg);
       } finally {
         setSending(false);
       }
