@@ -389,44 +389,91 @@ router.post('/:orderId/client/voice', auth, upload.single('voice'), async (req, 
     let telegramMessageId = null;
 
     if (TELEGRAM_BOT_TOKEN) {
-      try {
-        const buffer = req.file.buffer;
-        // Check if file is OGG (Magic bytes: OggS -> 0x4F 0x67 0x67 0x53)
-        const isOgg = buffer.length >= 4 && buffer[0] === 0x4F && buffer[1] === 0x67 && buffer[2] === 0x67 && buffer[3] === 0x53;
+      const buffer = req.file.buffer;
+      // Check if file is OGG (Magic bytes: OggS -> 0x4F 0x67 0x67 0x53)
+      const isOgg = buffer.length >= 4 && buffer[0] === 0x4F && buffer[1] === 0x67 && buffer[2] === 0x67 && buffer[3] === 0x53;
+      // Check if file is WebM (Magic bytes: 0x1A 0x45 0xDF 0xA3)
+      const isWebM = buffer.length >= 4 && buffer[0] === 0x1A && buffer[1] === 0x45 && buffer[2] === 0xDF && buffer[3] === 0xA3;
 
-        // Check if file is WebM (Magic bytes: 0x1A 0x45 0xDF 0xA3)
-        const isWebM = buffer.length >= 4 && buffer[0] === 0x1A && buffer[1] === 0x45 && buffer[2] === 0xDF && buffer[3] === 0xA3;
+      const sendRequest = async (method, sendBuffer, filename, contentType, replyId = null) => {
+        const form = new FormData();
+        form.append('chat_id', telegramUserId);
 
-        const formData = new FormData();
-        formData.append('chat_id', telegramUserId);
-
-        let method = 'sendVoice';
-
-        if (isOgg) {
-          formData.append('voice', buffer, { filename: 'voice.ogg', contentType: 'audio/ogg' });
+        if (method === 'sendVoice') {
+          form.append('voice', sendBuffer, { filename, contentType });
         } else {
-          console.log(`[Voice] Detected non-OGG signature. WebM=${isWebM}. Sending as document.`);
-          method = 'sendDocument';
-          const ext = isWebM ? 'webm' : 'm4a'; // Fallback extension
-          const mime = isWebM ? 'audio/webm' : 'audio/mp4';
-          formData.append('document', buffer, { filename: `voice.${ext}`, contentType: mime });
+          form.append('document', sendBuffer, { filename, contentType });
         }
 
-        if (duration) {
-          formData.append('duration', duration);
-        }
-        if (reply_to_message_id) {
-          formData.append('reply_to_message_id', reply_to_message_id);
-        }
+        if (duration) form.append('duration', duration);
+        if (replyId) form.append('reply_to_message_id', replyId);
 
-        const response = await axios.post(
+        return axios.post(
           `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/${method}`,
-          formData,
-          { headers: formData.getHeaders() }
+          form,
+          { headers: form.getHeaders() }
         );
-        telegramMessageId = response.data?.result?.message_id;
+      };
+
+      try {
+        let method = 'sendVoice';
+        let filename = 'voice.ogg';
+        let contentType = 'audio/ogg';
+
+        if (!isOgg) {
+          console.log(`[Voice] Detected non-OGG signature. WebM=${isWebM}. Using sendDocument.`);
+          method = 'sendDocument';
+          const ext = isWebM ? 'webm' : 'm4a';
+          contentType = isWebM ? 'audio/webm' : 'audio/mp4';
+          filename = `voice.${ext}`;
+        }
+
+        try {
+          const response = await sendRequest(method, buffer, filename, contentType, reply_to_message_id);
+          telegramMessageId = response.data?.result?.message_id;
+        } catch (attemptError) {
+          console.warn(`[Voice] First attempt failed (${method}):`, attemptError.response?.data?.description || attemptError.message);
+
+          // Rewrite strategy:
+          // 1. If it was sendVoice, try sendDocument
+          // 2. If it was reply error, try without reply
+
+          let retryMethod = method;
+          let retryReplyId = reply_to_message_id;
+
+          const errDesc = attemptError.response?.data?.description || '';
+
+          // If voice format error, switch to document
+          if (method === 'sendVoice' && (errDesc.includes('wrong file') || errDesc.includes('audio'))) {
+            retryMethod = 'sendDocument';
+            const ext = isWebM ? 'webm' : 'm4a';
+            contentType = isWebM ? 'audio/webm' : 'audio/mp4';
+            filename = `voice.${ext}`;
+          }
+
+          // If reply error
+          if (errDesc.includes('reply') || errDesc.includes('found')) {
+            retryReplyId = null;
+          }
+
+          // If identical to first attempt, force switch to document if possible, otherwise throw
+          if (retryMethod === method && retryReplyId === reply_to_message_id) {
+            if (method === 'sendVoice') {
+              retryMethod = 'sendDocument';
+              filename = 'voice.m4a'; // Safe fallback
+              contentType = 'audio/mp4';
+            } else {
+              throw attemptError;
+            }
+          }
+
+          console.log(`[Voice] Retrying with ${retryMethod}, reply=${retryReplyId}...`);
+          const retryResponse = await sendRequest(retryMethod, buffer, filename, contentType, retryReplyId);
+          telegramMessageId = retryResponse.data?.result?.message_id;
+        }
+
       } catch (tgError) {
-        console.error('Telegram voice send error:', tgError.response?.data || tgError.message);
+        console.error('Telegram voice send error (Final):', tgError.response?.data || tgError.message);
         return res.status(400).json({ error: 'Ошибка отправки голосового в Telegram: ' + (tgError.response?.data?.description || tgError.message) });
       }
     }
