@@ -296,6 +296,7 @@ router.post('/webhook', async (req, res) => {
       // Handle Replies
       if (update.message.reply_to_message) {
         replyToMessageId = update.message.reply_to_message.message_id;
+        console.log(`[bot.js] Received reply to message ID: ${replyToMessageId}, Original Msg Type: ${update.message.reply_to_message.document ? 'document' : 'text'}`);
       }
 
       // Helper to process file from Telegram

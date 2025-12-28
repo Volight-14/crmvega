@@ -236,7 +236,9 @@ router.post('/:orderId/client/file', auth, upload.single('file'), async (req, re
     }
 
     // Загружаем файл в Supabase Storage
-    const fileName = `${Date.now()}_${req.file.originalname}`;
+    // Sanitize filename for storage to avoid encoding issues issues
+    const ext = req.file.originalname.split('.').pop();
+    const fileName = `${Date.now()}_file.${ext}`;
     const filePath = `order_files/${orderId}/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
@@ -263,10 +265,15 @@ router.post('/:orderId/client/file', auth, upload.single('file'), async (req, re
       try {
         const formData = new FormData();
         formData.append('chat_id', telegramUserId);
-        formData.append('document', req.file.buffer, {
+
+        // Ensure filename is handled correctly by formData
+        const fileOptions = {
           filename: req.file.originalname,
           contentType: req.file.mimetype,
-        });
+        };
+
+        formData.append('document', req.file.buffer, fileOptions);
+
         if (caption) {
           formData.append('caption', caption);
         }
