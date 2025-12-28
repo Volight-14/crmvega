@@ -288,6 +288,7 @@ router.post('/webhook', async (req, res) => {
       const messageId = update.message.message_id;
 
       let messageText = update.message.text || update.message.caption || '';
+      console.log(`[bot.js] Received message with text/caption: "${messageText}"`); // Debug log
       let messageType = 'text';
       let attachmentUrl = null;
       let replyToMessageId = null;
@@ -345,6 +346,7 @@ router.post('/webhook', async (req, res) => {
       // 1. Голосовое сообщение
       if (update.message.voice) {
         messageType = 'voice';
+        if (!messageText && update.message.caption) messageText = update.message.caption; // Fallback capture
         attachmentUrl = await processTelegramFile({
           fileId: update.message.voice.file_id,
           type: 'voice',
@@ -356,6 +358,7 @@ router.post('/webhook', async (req, res) => {
       // 2. Фото
       else if (update.message.photo) {
         messageType = 'image';
+        if (!messageText && update.message.caption) messageText = update.message.caption; // Fallback capture
         // Берем самое большое фото (последний элемент массива)
         const photo = update.message.photo[update.message.photo.length - 1];
         attachmentUrl = await processTelegramFile({
@@ -369,6 +372,7 @@ router.post('/webhook', async (req, res) => {
       // 3. Документ
       else if (update.message.document) {
         messageType = 'file';
+        if (!messageText && update.message.caption) messageText = update.message.caption; // Fallback capture
         const doc = update.message.document;
         attachmentUrl = await processTelegramFile({
           fileId: doc.file_id,
@@ -393,6 +397,7 @@ router.post('/webhook', async (req, res) => {
       // 5. Видео
       else if (update.message.video) {
         messageType = 'video';
+        if (!messageText && update.message.caption) messageText = update.message.caption; // Fallback capture
         attachmentUrl = await processTelegramFile({
           fileId: update.message.video.file_id,
           type: 'video',
