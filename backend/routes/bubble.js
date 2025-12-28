@@ -267,7 +267,8 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       existingMessage = msgByAmo;
     }
 
-    if (!existingMessage && message_id_tg) {
+    // Only check by TG ID if we haven't found it yet AND it's a valid ID (not 0)
+    if (!existingMessage && message_id_tg && String(message_id_tg) !== '0') {
       const { data: msgByTg } = await supabase
         .from('messages')
         .select('id')
