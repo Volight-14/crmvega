@@ -242,6 +242,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
           io.to(`lead_${lead_id}`).emit('new_message', result);
         }
         io.emit('new_message_bubble', result);
+        io.emit('new_message_global', result);
       }
 
       runAutomations('message_received', result, { io }).catch(err => {

@@ -122,13 +122,15 @@ router.get('/summary', auth, async (req, res) => {
       // We already have last_message_at on contact (if maintained).
       // Let's assume we need to fetch the actual content snippet.
 
-      // 1. Get all main_ids (lead_ids) for this contact
+      // 1. Get all orders for this contact (to find messages and latest order)
       const { data: orders } = await supabase
         .from('orders')
-        .select('main_id')
-        .eq('contact_id', contact.id);
+        .select('id, main_id, created_at')
+        .eq('contact_id', contact.id)
+        .order('created_at', { ascending: false });
 
       const leadIds = orders?.map(o => String(o.main_id)).filter(Boolean) || [];
+      const latestOrder = orders?.[0]; // The first one is the latest due to sorting
 
       let lastMessage = null;
       if (leadIds.length > 0) {
@@ -164,7 +166,8 @@ router.get('/summary', auth, async (req, res) => {
         name: displayName, // Override with better display name
         last_message: lastMessage,
         // Fallback if last_message_at was not populated yet
-        last_active: contact.last_message_at || lastMessage?.['Created Date']
+        last_active: contact.last_message_at || lastMessage?.['Created Date'],
+        latest_order_id: latestOrder?.id
       };
     }));
 

@@ -35,6 +35,8 @@ import {
 const { Content, Sider } = Layout;
 const { Text, Title } = Typography;
 const { TextArea } = Input;
+import io from 'socket.io-client';
+type Socket = ReturnType<typeof io>;
 
 interface ExtendedInboxContact extends InboxContact {
     telegram_user_id?: number | string;
@@ -190,16 +192,52 @@ const InboxPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [sending, setSending] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const socketRef = useRef<Socket | null>(null);
+    const selectedContactRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        selectedContactRef.current = selectedContact?.id || null;
+    }, [selectedContact]);
 
     // URL params handling
     const contactIdParam = searchParams.get('contactId');
 
     useEffect(() => {
         fetchContacts();
-        // Увеличен интервал с 10s до 30s для снижения нагрузки
+        setupSocket();
+
+        // Polling as fallback
         const interval = setInterval(fetchContacts, 30000);
-        return () => clearInterval(interval);
+
+        return () => {
+            clearInterval(interval);
+            socketRef.current?.disconnect();
+        };
+    }, []);
+
+    // Re-fetch contacts when search changes
+    useEffect(() => {
+        fetchContacts();
     }, [searchQuery]);
+
+    const setupSocket = () => {
+        const socketUrl = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
+        socketRef.current = io(socketUrl, {
+            transports: ['websocket', 'polling'],
+        });
+
+        socketRef.current.on('new_message_global', () => {
+            // Refresh contacts list to show new message/time
+            fetchContacts();
+
+            // If we have a contact selected, refresh messages to show new one
+            // Ideally we should check if the message belongs to this contact,
+            // but fetching is cheap enough for now
+            if (selectedContactRef.current) {
+                fetchMessages(selectedContactRef.current);
+            }
+        });
+    };
 
     useEffect(() => {
         if (contactIdParam && contacts.length > 0) {
@@ -357,9 +395,16 @@ const InboxPage: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
-                            <Link to={`/contacts/${selectedContact.id}`}>
-                                <Button type="link">Открыть профиль</Button>
-                            </Link>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                {selectedContact.latest_order_id && (
+                                    <Link to={`/order/${selectedContact.latest_order_id}`}>
+                                        <Button type="link">Открыть сделку</Button>
+                                    </Link>
+                                )}
+                                <Link to={`/contact/${selectedContact.id}`}>
+                                    <Button type="link">Открыть профиль</Button>
+                                </Link>
+                            </div>
                         </div>
 
                         {/* Messages Area */}

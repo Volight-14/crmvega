@@ -138,6 +138,7 @@ export interface InboxContact extends Contact {
   last_message?: Message;
   last_active?: string;
   unread_count?: number;
+  latest_order_id?: number;
 }
 
 export interface Order { // Renamed from Deal

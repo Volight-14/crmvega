@@ -265,6 +265,8 @@ async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null
         io.to(`order_${currentOrder.id}`).emit('new_client_message', savedMessage);
         // Legacy room support
         io.to(`lead_${linkId}`).emit('new_message', savedMessage);
+        // Global emit for Inbox
+        io.emit('new_message_global', savedMessage);
       }
     }
 
