@@ -339,13 +339,18 @@ router.post('/:orderId/client/file', auth, upload.single('file'), async (req, re
 
 // Отправить голосовое сообщение
 router.post('/:orderId/client/voice', auth, upload.single('voice'), async (req, res) => {
+  console.log('[Voice] Received upload request');
   try {
     const { orderId } = req.params;
     const { duration, reply_to_message_id } = req.body;
 
+    console.log(`[Voice] Processing for order ${orderId}, duration=${duration}, reply=${reply_to_message_id}`);
+
     if (!req.file) {
+      console.error('[Voice] No file uploaded');
       return res.status(400).json({ error: 'Голосовое сообщение не загружено' });
     }
+    console.log(`[Voice] File received: ${req.file.originalname}, size=${req.file.size}, mimetype=${req.file.mimetype}`);
 
     const { data: order, error: orderError } = await supabase
       .from('orders')
