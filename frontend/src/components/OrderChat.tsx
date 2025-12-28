@@ -839,16 +839,31 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+
+      let mimeType = 'audio/webm;codecs=opus';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'audio/mp4'; // Safari
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = ''; // Default
+        }
+      }
+
+      const options = mimeType ? { mimeType } : undefined;
+      const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
       mediaRecorder.ondataavailable = (e) => {
-        audioChunksRef.current.push(e.data);
+        if (e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/ogg' });
+        const type = mimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type });
+        console.log('Recording stopped. Type:', type, 'Size:', audioBlob.size);
+
         const url = URL.createObjectURL(audioBlob);
         setRecordedAudio(audioBlob);
         setAudioPreviewUrl(url);
@@ -858,6 +873,7 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
       mediaRecorder.start();
       setIsRecording(true);
     } catch (error) {
+      console.error('Recording error:', error);
       antMessage.error('Не удалось получить доступ к микрофону');
     }
   };
