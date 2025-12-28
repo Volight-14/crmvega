@@ -401,11 +401,11 @@ router.post('/:orderId/client/voice', auth, upload.single('voice'), async (req, 
 
         if (method === 'sendVoice') {
           form.append('voice', sendBuffer, { filename, contentType });
+          if (duration) form.append('duration', duration);
         } else {
           form.append('document', sendBuffer, { filename, contentType });
         }
 
-        if (duration) form.append('duration', duration);
         if (replyId) form.append('reply_to_message_id', replyId);
 
         return axios.post(
@@ -473,8 +473,12 @@ router.post('/:orderId/client/voice', auth, upload.single('voice'), async (req, 
         }
 
       } catch (tgError) {
-        console.error('Telegram voice send error (Final):', tgError.response?.data || tgError.message);
-        return res.status(400).json({ error: 'Ошибка отправки голосового в Telegram: ' + (tgError.response?.data?.description || tgError.message) });
+        const errorDetails = tgError.response?.data || tgError.message;
+        console.error('Telegram voice send error (Final):', errorDetails);
+        return res.status(400).json({
+          error: 'Ошибка отправки голосового в Telegram: ' + (tgError.response?.data?.description || tgError.message),
+          details: errorDetails
+        });
       }
     }
 
