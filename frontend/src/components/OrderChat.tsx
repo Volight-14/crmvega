@@ -149,6 +149,7 @@ const ClientMessageBubble = ({ msg, currentUserId, onReply, replyMessage }: { ms
   const isFromClient = isClientMessage(msg.author_type);
   const isOwn = msg.sender_id === currentUserId;
   const [isPlaying, setIsPlaying] = useState(false);
+  const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const scrollToMessage = (id: string) => {
@@ -652,6 +653,8 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
   const socketRef = useRef<ReturnType<typeof io> | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null);
+  const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -832,6 +835,7 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
   };
 
   // Запись голосового
+  // Запись голосового
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -843,21 +847,12 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
         audioChunksRef.current.push(e.data);
       };
 
-      mediaRecorder.onstop = async () => {
+      mediaRecorder.onstop = () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/ogg' });
+        const url = URL.createObjectURL(audioBlob);
+        setRecordedAudio(audioBlob);
+        setAudioPreviewUrl(url);
         stream.getTracks().forEach(track => track.stop());
-
-        // Отправляем голосовое
-        if (activeTab === 'client') {
-          const replyId = replyTo && 'message_id_tg' in replyTo ? replyTo.message_id_tg as number : undefined;
-          try {
-            const newMsg = await orderMessagesAPI.sendClientVoice(orderId, audioBlob, undefined, replyId);
-            setClientMessages(prev => [...prev, newMsg]);
-            setReplyTo(null);
-          } catch (error: any) {
-            antMessage.error(error.response?.data?.error || 'Ошибка отправки голосового');
-          }
-        }
       };
 
       mediaRecorder.start();
@@ -871,6 +866,33 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+    }
+  };
+
+  const cancelRecording = () => {
+    setRecordedAudio(null);
+    if (audioPreviewUrl) {
+      URL.revokeObjectURL(audioPreviewUrl);
+      setAudioPreviewUrl(null);
+    }
+  };
+
+  const sendVoiceMessage = async () => {
+    if (!recordedAudio) return;
+
+    setSending(true);
+    if (activeTab === 'client') {
+      const replyId = replyTo && 'message_id_tg' in replyTo ? replyTo.message_id_tg as number : undefined;
+      try {
+        const newMsg = await orderMessagesAPI.sendClientVoice(orderId, recordedAudio, undefined, replyId);
+        setClientMessages(prev => [...prev, newMsg]);
+        setReplyTo(null);
+        cancelRecording();
+      } catch (error: any) {
+        antMessage.error(error.response?.data?.error || 'Ошибка отправки голосового');
+      } finally {
+        setSending(false);
+      }
     }
   };
 
@@ -1066,31 +1088,37 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
         background: '#fff',
         borderTop: '1px solid #f0f0f0',
         display: 'flex',
-        alignItems: 'flex-end',
+        alignItems: 'center',
         gap: 12,
+        minHeight: 64,
       }}>
-        <Upload
-          showUploadList={false}
-          beforeUpload={(file) => handleFileUpload(file)}
-        >
-          <Button icon={<PaperClipOutlined />} shape="circle" disabled={sending} />
-        </Upload>
-
-        <TextArea
-          value={messageText}
-          onChange={(e) => setMessageText(e.target.value)}
-          placeholder={activeTab === 'client' ? "Сообщение клиенту" : "Внутренний комментарий"}
-          autoSize={{ minRows: 1, maxRows: 4 }}
-          onKeyDown={handleKeyPress}
-          disabled={sending}
-          style={{
-            borderRadius: 8,
-            resize: 'none',
-          }}
-        />
-
-        {activeTab === 'client' ? (
-          isRecording ? (
+        {recordedAudio && audioPreviewUrl ? (
+          <>
+            <Button
+              danger
+              icon={<DeleteOutlined />}
+              shape="circle"
+              onClick={cancelRecording}
+            />
+            <audio
+              controls
+              src={audioPreviewUrl}
+              style={{ flex: 1, height: 40 }}
+            />
+            <Button
+              type="primary"
+              icon={sending ? <ReloadOutlined spin /> : <SendOutlined />}
+              onClick={sendVoiceMessage}
+              disabled={sending}
+              shape="circle"
+            />
+          </>
+        ) : isRecording ? (
+          <>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', color: '#ff4d4f', fontWeight: 500 }}>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff4d4f', marginRight: 8, animation: 'pulse 1.5s infinite' }} />
+              Запись...
+            </div>
             <Button
               danger
               type="primary"
@@ -1098,23 +1126,48 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
               icon={<PauseCircleOutlined />}
               onClick={stopRecording}
             />
-          ) : (
-            <Button
-              icon={<AudioOutlined />}
-              shape="circle"
-              onClick={startRecording}
-              disabled={sending || !!messageText}
-            />
-          )
-        ) : null}
+          </>
+        ) : (
+          <>
+            <Upload
+              showUploadList={false}
+              beforeUpload={(file) => handleFileUpload(file)}
+            >
+              <Button icon={<PaperClipOutlined />} shape="circle" disabled={sending} />
+            </Upload>
 
-        <Button
-          type="primary"
-          icon={sending ? <ReloadOutlined spin /> : <SendOutlined />}
-          onClick={handleSend}
-          disabled={!messageText.trim() && !sending}
-          shape="circle"
-        />
+            <TextArea
+              value={messageText}
+              onChange={(e) => setMessageText(e.target.value)}
+              placeholder={activeTab === 'client' ? "Сообщение клиенту" : "Внутренний комментарий"}
+              autoSize={{ minRows: 1, maxRows: 4 }}
+              onKeyDown={handleKeyPress}
+              disabled={sending}
+              style={{
+                borderRadius: 8,
+                resize: 'none',
+                flex: 1,
+              }}
+            />
+
+            {activeTab === 'client' && !messageText ? (
+              <Button
+                icon={<AudioOutlined />}
+                shape="circle"
+                onClick={startRecording}
+                disabled={sending}
+              />
+            ) : (
+              <Button
+                type="primary"
+                icon={sending ? <ReloadOutlined spin /> : <SendOutlined />}
+                onClick={handleSend}
+                disabled={!messageText.trim() && !sending}
+                shape="circle"
+              />
+            )}
+          </>
+        )}
       </div>
     </div>
   );
