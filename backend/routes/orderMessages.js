@@ -382,7 +382,7 @@ router.post('/:orderId/client/voice', auth, (req, res, next) => {
 
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, contact_id, lead_id, main_id')
+      .select('id, contact_id, main_id')
       .eq('id', orderId)
       .single();
 
@@ -526,7 +526,7 @@ router.post('/:orderId/client/voice', auth, (req, res, next) => {
       }
     }
 
-    const storeLeadId = order.main_id || order.lead_id;
+    const storeLeadId = order.main_id;
 
     const { data: message, error: messageError } = await supabase
       .from('messages')
