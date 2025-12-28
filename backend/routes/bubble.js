@@ -239,26 +239,26 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
     const messageData = {
       lead_id: lead_id ? String(lead_id).trim() : (finalMainId ? String(finalMainId).trim() : null),
       main_id: finalMainId ? String(finalMainId).trim() : null,
-      content: finalContent,
+      content: (finalContent === 'null' || !finalContent) ? '' : finalContent,
       'Created Date': createdDate || new Date().toISOString(),
       author_type: normalizedAuthorType,
       message_type: finalMessageType,
-      message_id_tg: message_id_tg || null,
+      message_id_tg: (message_id_tg && String(message_id_tg) !== '0' && String(message_id_tg) !== 'null') ? message_id_tg : null,
       timestamp: timestamp || null,
       'Modified Date': modifiedDate || new Date().toISOString(),
       'Created By': createdBy || null,
-      author_amojo_id: author_amojo_id || null,
-      message_id_amo: message_id_amo || null,
+      author_amojo_id: (author_amojo_id && String(author_amojo_id) !== 'null') ? author_amojo_id : null,
+      message_id_amo: (message_id_amo && String(message_id_amo) !== 'null') ? message_id_amo : null,
       user: user || null,
       reply_to_mess_id_tg: reply_to_mess_id_tg || null,
-      caption: caption || null,
+      caption: (caption && String(caption) !== 'null') ? caption : null,
       order_status: order_status || null,
       file_url: finalFileUrl,
       file_name: finalFileName,
     };
 
     let existingMessage = null;
-    if (message_id_amo) {
+    if (message_id_amo && String(message_id_amo) !== 'null') {
       const { data: msgByAmo } = await supabase
         .from('messages')
         .select('id')
