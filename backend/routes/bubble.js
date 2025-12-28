@@ -177,13 +177,44 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
     }
 
     // Нормализация и подготовка данных для вставки
+
+    // Auto-detect file URL in content (Fix for Bubble sending files as text URLs)
+    let finalMessageType = (message_type || 'text').toLowerCase();
+    let finalFileUrl = req.body.file_url || null;
+    let finalFileName = req.body.file_name || null;
+    let finalContent = content.trim();
+
+    const fileUrlRegex = /^(https?:\/\/[^\s]+)\.(jpg|jpeg|png|gif|webp|pdf|doc|docx|xls|xlsx|txt|mp3|ogg|wav|mp4|mov|webm)$/i;
+    const match = finalContent.match(fileUrlRegex);
+
+    if (match && (finalMessageType === 'text' || !finalFileUrl)) {
+      finalFileUrl = match[0];
+      finalFileName = decodeURIComponent(finalFileUrl.split('/').pop().split('?')[0]);
+
+      const ext = finalFileName.split('.').pop().toLowerCase();
+      if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+        finalMessageType = 'image';
+      } else if (['mp3', 'ogg', 'wav'].includes(ext)) {
+        finalMessageType = 'voice';
+      } else if (['mp4', 'mov', 'webm'].includes(ext)) {
+        finalMessageType = 'video';
+      } else {
+        finalMessageType = 'file';
+      }
+
+      // If content was just the URL, move it to file_url and use caption for content
+      // Otherwise (if detected inside text?), we might want to keep the text.
+      // But the regex `^...$` above matches the WHOLE string.
+      finalContent = caption || '';
+    }
+
     const messageData = {
       lead_id: lead_id ? String(lead_id).trim() : (finalMainId ? String(finalMainId).trim() : null),
       main_id: finalMainId ? String(finalMainId).trim() : null,
-      content: content.trim(),
+      content: finalContent,
       'Created Date': createdDate || new Date().toISOString(),
       author_type: normalizedAuthorType,
-      message_type: (message_type || 'text').toLowerCase(),
+      message_type: finalMessageType,
       message_id_tg: message_id_tg || null,
       timestamp: timestamp || null,
       'Modified Date': modifiedDate || new Date().toISOString(),
@@ -194,6 +225,8 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       reply_to_mess_id_tg: reply_to_mess_id_tg || null,
       caption: caption || null,
       order_status: order_status || null,
+      file_url: finalFileUrl,
+      file_name: finalFileName,
     };
 
     let existingMessage = null;
