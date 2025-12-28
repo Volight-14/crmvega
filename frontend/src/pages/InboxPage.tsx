@@ -142,6 +142,23 @@ const MessageBubble = ({ msg, isOwn }: { msg: Message, isOwn: boolean }) => {
                 <img src={msg.file_url} alt="Attachment" style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 8, marginTop: 4, cursor: 'pointer' }} onClick={() => window.open(msg.file_url, '_blank')} />
             );
         }
+        if ((msg.message_type === 'video' || msg.message_type === 'video_note') && msg.file_url) {
+            return (
+                <div style={{ marginTop: 4 }}>
+                    <video
+                        src={msg.file_url}
+                        controls
+                        playsInline
+                        style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 8 }}
+                    />
+                    <div style={{ marginTop: 4 }}>
+                        <a href={msg.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: isOwn ? 'white' : '#1890ff', textDecoration: 'underline' }}>
+                            Скачать видео
+                        </a>
+                    </div>
+                </div>
+            );
+        }
         if (msg.file_url && !msg.file_url.endsWith('.ogg')) {
             return (
                 <a href={msg.file_url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, color: isOwn ? 'white' : '#1890ff' }}>

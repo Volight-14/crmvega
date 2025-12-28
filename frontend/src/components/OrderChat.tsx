@@ -215,6 +215,7 @@ const ClientMessageBubble = ({ msg, currentUserId, onReply, replyMessage }: { ms
         <div>
           <video
             controls
+            playsInline
             src={msg.file_url}
             style={{
               marginTop: 8,
@@ -227,6 +228,21 @@ const ClientMessageBubble = ({ msg, currentUserId, onReply, replyMessage }: { ms
               maxHeight: 300,
             }}
           />
+          <div style={{ marginTop: 4, textAlign: 'right' }}>
+            <a
+              href={msg.file_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                fontSize: 11,
+                color: isFromClient ? '#1890ff' : 'white',
+                textDecoration: 'underline',
+                opacity: 0.8
+              }}
+            >
+              Скачать видео
+            </a>
+          </div>
           {(msg.caption || msg.content) && !isRound && (
             <div style={{ marginTop: 8, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
               {msg.caption || msg.content}
