@@ -175,6 +175,21 @@ export const contactMessagesAPI = {
     const response = await api.post(`/messages/contact/${contactId}`, { content, sender_type: author_type });
     return response.data;
   },
+
+  sendVoice: async (contactId: number, voice: Blob, duration?: number): Promise<Message> => {
+    const formData = new FormData();
+    let fileName = 'voice.ogg';
+    if (voice.type.includes('webm')) fileName = 'voice.webm';
+    else if (voice.type.includes('mp4')) fileName = 'voice.mp4';
+
+    formData.append('voice', voice, fileName);
+    if (duration) formData.append('duration', duration.toString());
+
+    const response = await api.post(`/messages/contact/${contactId}/voice`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
 };
 
 // Order Messages API - для чата внутри заявки (Renamed from Deal Messages API)

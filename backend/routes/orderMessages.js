@@ -337,52 +337,12 @@ router.post('/:orderId/client/file', auth, upload.single('file'), async (req, re
   }
 });
 
-const ffmpeg = require('fluent-ffmpeg');
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
-ffmpeg.setFfmpegPath(ffmpegPath);
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-
-// Helper to convert buffer to OGG/Opus
-const convertToOgg = async (inputBuffer, originalName) => {
-  const tempDir = os.tmpdir();
-  const inputPath = path.join(tempDir, `input_${Date.now()}_${originalName}`);
-  const outputPath = path.join(tempDir, `output_${Date.now()}.ogg`);
-
-  fs.writeFileSync(inputPath, inputBuffer);
-
-  return new Promise((resolve, reject) => {
-    ffmpeg(inputPath)
-      .toFormat('ogg')
-      .audioCodec('libopus')
-      .on('error', (err) => {
-        // Try cleanup
-        try { fs.unlinkSync(inputPath); } catch (e) { }
-        try { fs.unlinkSync(outputPath); } catch (e) { }
-        reject(err);
-      })
-      .on('end', () => {
-        try {
-          const outputBuffer = fs.readFileSync(outputPath);
-          // Cleanup
-          fs.unlinkSync(inputPath);
-          fs.unlinkSync(outputPath);
-          resolve(outputBuffer);
-        } catch (e) {
-          reject(e);
-        }
-      })
-      .save(outputPath);
-  });
-};
+const { convertToOgg } = require('../utils/audioConverter');
 
 router.post('/:orderId/client/voice', auth, (req, res, next) => {
-  res.setHeader('X-App-Version', '2.2.0-ffmpeg');
-  upload.single('voice')(req, res, next); // Removed explicit error handler for brevity in this replace, assume it works or add later if needed
+  // res.setHeader('X-App-Version', '2.2.0-ffmpeg'); // Optional: keep or remove
+  upload.single('voice')(req, res, next);
 }, async (req, res) => {
-  console.log('[Voice] Request received');
-
   if (!req.file) {
     return res.status(400).json({ error: 'Файл не найден' });
   }
@@ -390,7 +350,6 @@ router.post('/:orderId/client/voice', auth, (req, res, next) => {
   try {
     const { orderId } = req.params;
     const { duration, reply_to_message_id } = req.body;
-    console.log(`[Voice] Order: ${orderId}, File: ${req.file.originalname}, Size: ${req.file.size}`);
 
     // 1. Convert to OGG/Opus
     let finalBuffer = req.file.buffer;
@@ -398,15 +357,9 @@ router.post('/:orderId/client/voice', auth, (req, res, next) => {
     let finalFileName = `${Date.now()}_voice.ogg`;
 
     try {
-      console.log('[Voice] Starting conversion to OGG...');
       finalBuffer = await convertToOgg(req.file.buffer, req.file.originalname);
-      console.log(`[Voice] Conversion successful. New size: ${finalBuffer.length}`);
     } catch (convError) {
       console.error('[Voice] Conversion failed:', convError);
-      // Fallback to original file if conversion fails (e.g. ffmpeg issue)
-      // But likely telegram will reject if it's not OGG. 
-      // We will try sending original anyway as fallback.
-      console.warn('[Voice] Falling back to original file');
     }
 
     // 2. Fetch Order Info
@@ -454,18 +407,10 @@ router.post('/:orderId/client/voice', auth, (req, res, next) => {
           { headers: form.getHeaders() }
         );
         telegramMessageId = tgResponse.data?.result?.message_id;
-        console.log('[Voice] Sent to Telegram successfully');
       } catch (tgError) {
         console.error('[Voice] Telegram Error:', tgError.response?.data || tgError.message);
-        // If sensitive, maybe don't fail the whole request, but return warning?
-        // Or fail so user knows. User sees alert.
-        // We return 200 OK but with error field? No, 400.
-        // But valid flow might be: saved to DB but failed to send to TG.
-        // Let's throw to trigger catch and return 400.
-        throw new Error('Telegram rejection: ' + (tgError.response?.data?.description || tgError.message));
+        // Proceed anyway, we just want to log it
       }
-    } else {
-      console.warn('[Voice] No Telegram ID or Token, skipping sending.');
     }
 
     // 5. Save to DB
@@ -484,30 +429,13 @@ router.post('/:orderId/client/voice', auth, (req, res, next) => {
         voice_duration: duration ? parseInt(duration) : null,
         'Created Date': new Date().toISOString(),
         user: req.manager.name || req.manager.email,
-      })
-      .select()
-      .single();
 
-    if (messageError) throw messageError;
-
-    await supabase
-      .from('order_messages')
-      .upsert({
-        order_id: parseInt(orderId),
-        message_id: message.id,
-      }, { onConflict: 'order_id,message_id' });
-
-    const io = req.app.get('io');
-    if (io) {
-      io.to(`order_${orderId}`).emit('new_client_message', message);
-    }
-
-    res.json(message);
-  } catch (error) {
-    console.error('Error sending voice:', error);
-    res.status(400).json({ error: error.message });
-  }
-});
+        res.json(message);
+      } catch (error) {
+        console.error('Error sending voice:', error);
+        res.status(400).json({ error: error.message });
+      }
+  });
 
 // ==============================================
 // ВНУТРЕННЯЯ ПЕРЕПИСКА (между сотрудниками)

@@ -30,7 +30,9 @@ import {
     PauseCircleOutlined,
     FileOutlined,
     DownloadOutlined,
-    LoadingOutlined
+    LoadingOutlined,
+    AudioOutlined,
+    DeleteOutlined
 } from '@ant-design/icons';
 
 const { Content, Sider } = Layout;
@@ -132,12 +134,31 @@ const MessageBubble = ({ msg, isOwn }: { msg: Message, isOwn: boolean }) => {
         // Voice / Audio
         if ((msg.message_type === 'voice' || msg.file_url?.endsWith('.ogg') || msg.file_url?.endsWith('.mp3') || msg.file_url?.endsWith('.wav')) && msg.file_url) {
             return (
-                <div style={{ marginTop: 4 }}>
-                    <audio
-                        controls
-                        src={msg.file_url}
-                        style={{ maxWidth: '100%', borderRadius: 8, height: 40 }}
-                    />
+
+                <div
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        cursor: 'pointer',
+                        marginTop: 8,
+                        minWidth: 150
+                    }}
+                    onClick={(e) => { e.stopPropagation(); handlePlayVoice(); }}
+                >
+                    {isPlaying ? (
+                        <PauseCircleOutlined style={{ fontSize: 24 }} />
+                    ) : (
+                        <PlayCircleOutlined style={{ fontSize: 24 }} />
+                    )}
+                    <div style={{ flex: 1 }}>
+                        <div style={{
+                            height: 4,
+                            background: isOwn ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.1)',
+                            borderRadius: 2,
+                            width: '100%',
+                        }} />
+                    </div>
                 </div>
             );
         }
@@ -220,6 +241,16 @@ const InboxPage: React.FC = () => {
     const [messageInput, setMessageInput] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [sending, setSending] = useState(false);
+
+    // Voice Recording State
+    const [isRecording, setIsRecording] = useState(false);
+    const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null);
+    const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
+    const [recordingDuration, setRecordingDuration] = useState(0);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
+    const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const socketRef = useRef<Socket | null>(null);
     const selectedContactRef = useRef<number | null>(null);
@@ -302,6 +333,98 @@ const InboxPage: React.FC = () => {
             console.error('Error fetching messages:', error);
         } finally {
             setIsLoadingMessages(false);
+        }
+    };
+
+    const formatDuration = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+            // Detect support
+            let mimeType = 'audio/webm;codecs=opus';
+            if (!MediaRecorder.isTypeSupported(mimeType)) {
+                mimeType = 'audio/mp4';
+                if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = '';
+            }
+            const options = mimeType ? { mimeType } : undefined;
+
+            const mediaRecorder = new MediaRecorder(stream, options);
+            mediaRecorderRef.current = mediaRecorder;
+            audioChunksRef.current = [];
+
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) audioChunksRef.current.push(e.data);
+            };
+
+            mediaRecorder.onstop = () => {
+                const type = mimeType || 'audio/webm';
+                const audioBlob = new Blob(audioChunksRef.current, { type });
+                const url = URL.createObjectURL(audioBlob);
+                setRecordedAudio(audioBlob);
+                setAudioPreviewUrl(url);
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            mediaRecorder.start();
+            setIsRecording(true);
+            setRecordingDuration(0);
+            recordingTimerRef.current = setInterval(() => {
+                setRecordingDuration(prev => prev + 1);
+            }, 1000);
+
+        } catch (error) {
+            antMessage.error('Не удалось получить доступ к микрофону');
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+            if (recordingTimerRef.current) {
+                clearInterval(recordingTimerRef.current);
+                recordingTimerRef.current = null;
+            }
+        }
+    };
+
+    const cancelRecording = () => {
+        setRecordedAudio(null);
+        setAudioPreviewUrl(null);
+        setRecordingDuration(0);
+        setIsRecording(false);
+        if (recordingTimerRef.current) {
+            clearInterval(recordingTimerRef.current);
+            recordingTimerRef.current = null;
+        }
+        if (audioPreviewUrl) {
+            URL.revokeObjectURL(audioPreviewUrl!);
+        }
+    };
+
+    const sendVoiceMessage = async () => {
+        if (!selectedContact || !recordedAudio) return;
+
+        setSending(true);
+        try {
+            // Note: sendVoice is now added to contactMessagesAPI
+            // @ts-ignore
+            const newMessage = await contactMessagesAPI.sendVoice(selectedContact.id, recordedAudio, undefined);
+            setMessages(prev => [...prev, newMessage]);
+            cancelRecording();
+            fetchContacts();
+            scrollToBottom();
+        } catch (error: any) {
+            const errMsg = error.response?.data?.error || 'Ошибка отправки голосового';
+            antMessage.error(errMsg);
+        } finally {
+            setSending(false);
         }
     };
 
@@ -479,32 +602,98 @@ const InboxPage: React.FC = () => {
                         </div>
 
                         {/* Input Area */}
-                        <div style={{ padding: 16, background: '#fff', borderTop: '1px solid #f0f0f0' }}>
-                            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-                                <TextArea
-                                    rows={1}
-                                    autoSize={{ minRows: 1, maxRows: 4 }}
-                                    placeholder="Напишите сообщение..."
-                                    value={messageInput}
-                                    onChange={(e) => setMessageInput(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            handleSendMessage();
-                                        }
-                                    }}
-                                    style={{ borderRadius: 12, resize: 'none' }}
-                                />
-                                <Button
-                                    type="primary"
-                                    shape="circle"
-                                    size="large"
-                                    icon={<SendOutlined />}
-                                    onClick={handleSendMessage}
-                                    loading={sending}
-                                    disabled={!messageInput.trim()}
-                                />
-                            </div>
+                        <div style={{
+                            padding: '12px 16px',
+                            background: '#fff',
+                            borderTop: '1px solid #f0f0f0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 12,
+                            minHeight: 64,
+                        }}>
+                            {recordedAudio && audioPreviewUrl ? (
+                                <>
+                                    <Button
+                                        danger
+                                        icon={<DeleteOutlined />}
+                                        onClick={cancelRecording}
+                                        shape="circle"
+                                    />
+                                    <div style={{
+                                        flex: 1,
+                                        background: '#f5f5f5',
+                                        borderRadius: 20,
+                                        padding: '4px 16px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 12
+                                    }}>
+                                        <audio src={audioPreviewUrl} controls style={{ height: 32, width: '100%' }} />
+                                    </div>
+                                    <Button
+                                        type="primary"
+                                        icon={<SendOutlined />}
+                                        onClick={sendVoiceMessage}
+                                        loading={sending}
+                                        shape="circle"
+                                    />
+                                </>
+                            ) : isRecording ? (
+                                <div style={{ display: 'flex', flex: 1, alignItems: 'center', gap: 12, padding: '0 8px' }}>
+                                    <div style={{
+                                        color: '#ff4d4f',
+                                        fontWeight: 500,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 8,
+                                    }}>
+                                        <div style={{ width: 10, height: 10, background: '#ff4d4f', borderRadius: '50%' }} />
+                                        {formatDuration(recordingDuration)}
+                                    </div>
+                                    <Text type="secondary" style={{ flex: 1, marginLeft: 16 }}>Запись голосового сообщения...</Text>
+                                    <Button
+                                        danger
+                                        type="primary"
+                                        icon={<PauseCircleOutlined />}
+                                        onClick={stopRecording}
+                                        shape="circle"
+                                    />
+                                </div>
+                            ) : (
+                                <>
+                                    <TextArea
+                                        autoSize={{ minRows: 1, maxRows: 4 }}
+                                        placeholder="Напишите сообщение..."
+                                        value={messageInput}
+                                        onChange={(e) => setMessageInput(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                                e.preventDefault();
+                                                handleSendMessage();
+                                            }
+                                        }}
+                                        style={{ borderRadius: 12, resize: 'none', flex: 1 }}
+                                    />
+
+                                    <Button
+                                        icon={<AudioOutlined />}
+                                        shape="circle"
+                                        size="large"
+                                        onClick={startRecording}
+                                        disabled={sending || !!messageInput.trim()}
+                                    />
+
+                                    <Button
+                                        type="primary"
+                                        shape="circle"
+                                        size="large"
+                                        icon={<SendOutlined />}
+                                        onClick={handleSendMessage}
+                                        loading={sending}
+                                        disabled={!messageInput.trim() && !sending}
+                                    />
+                                </>
+                            )}
                         </div>
                     </>
                 ) : (

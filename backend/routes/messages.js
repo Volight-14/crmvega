@@ -5,11 +5,23 @@ const axios = require('axios');
 const crypto = require('crypto');
 const { runAutomations } = require('../services/automationRunner');
 
+const multer = require('multer');
+const FormData = require('form-data');
+const { convertToOgg } = require('../utils/audioConverter');
+
 const router = express.Router();
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
 );
+
+// Настройка multer для загрузки файлов в память
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB
+  },
+});
 
 // Функция для отправки сообщения через Telegram бота
 async function sendMessageToTelegram(telegramUserId, message) {
@@ -269,6 +281,144 @@ router.post('/contact/:contactId', auth, async (req, res) => {
     res.json(message);
   } catch (error) {
     console.error('Error sending message to contact:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Отправить голосовое сообщение контакту
+router.post('/contact/:contactId/voice', auth, upload.single('voice'), async (req, res) => {
+  try {
+    const { contactId } = req.params;
+    const { duration } = req.body;
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'Файл не найден' });
+    }
+
+    console.log(`[VoiceContact] Processing for contact ${contactId}, duration=${duration}`);
+
+    // 1. Находим активную заявку контакта или создаем новую (Logic duplicated from text message route)
+    const { data: activeOrder } = await supabase
+      .from('orders')
+      .select('id, main_id')
+      .eq('contact_id', contactId)
+      .in('status', ['unsorted', 'new', 'negotiation', 'waiting', 'ready_to_close'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    let orderId = activeOrder?.id;
+    let leadId = activeOrder?.main_id;
+
+    if (!orderId) {
+      const { data: newOrder, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          contact_id: parseInt(contactId),
+          title: `Сообщение от ${new Date().toLocaleDateString('ru-RU')}`,
+          status: 'new',
+          type: 'inquiry',
+          manager_id: req.manager.id,
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+      orderId = newOrder.id;
+    }
+
+    if (!leadId) {
+      leadId = parseInt(`${Date.now()}${Math.floor(Math.random() * 1000)}`);
+      await supabase.from('orders').update({ main_id: leadId }).eq('id', orderId);
+    }
+
+    // 2. Convert to OGG/Opus
+    let finalBuffer = req.file.buffer;
+    let finalContentType = 'audio/ogg';
+    let finalFileName = `${Date.now()}_voice.ogg`;
+
+    try {
+      finalBuffer = await convertToOgg(req.file.buffer, req.file.originalname);
+    } catch (convError) {
+      console.error('[VoiceContact] Conversion failed:', convError);
+    }
+
+    // 3. Upload to Supabase
+    const filePath = `order_files/${orderId}/${finalFileName}`;
+    await supabase.storage
+      .from('attachments')
+      .upload(filePath, finalBuffer, { contentType: finalContentType });
+
+    const { data: urlData } = supabase.storage
+      .from('attachments')
+      .getPublicUrl(filePath);
+
+    const fileUrl = urlData?.publicUrl;
+
+    // 4. Send to Telegram
+    let telegramMessageId = null;
+    const { data: contact } = await supabase.from('contacts').select('telegram_user_id').eq('id', contactId).single();
+
+    if (contact && contact.telegram_user_id && process.env.TELEGRAM_BOT_TOKEN) {
+      const form = new FormData();
+      form.append('chat_id', contact.telegram_user_id);
+      form.append('voice', finalBuffer, { filename: 'voice.ogg', contentType: 'audio/ogg' });
+      if (duration) form.append('duration', duration);
+
+      try {
+        const tgResponse = await axios.post(
+          `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendVoice`,
+          form,
+          { headers: form.getHeaders() }
+        );
+        telegramMessageId = tgResponse.data?.result?.message_id;
+      } catch (tgError) {
+        console.error('[VoiceContact] Telegram Error:', tgError.response?.data || tgError.message);
+      }
+    }
+
+    // 5. Save to DB
+    const { data: message, error: messageError } = await supabase
+      .from('messages')
+      .insert({
+        main_id: leadId,
+        content: '🎤 Голосовое сообщение',
+        author_type: 'Оператор', // Or 'Менеджер'? Text route uses checks. Let's strictly say 'Оператор' for consistency with voice
+        message_type: 'voice',
+        message_id_tg: telegramMessageId,
+        file_url: fileUrl,
+        voice_duration: duration ? parseInt(duration) : null,
+        'Created Date': new Date().toISOString(),
+        is_outgoing: true
+      })
+      .select()
+      .single();
+
+    if (messageError) throw messageError;
+
+    // Связываем с заявкой
+    await supabase
+      .from('order_messages')
+      .upsert({
+        order_id: orderId,
+        message_id: message.id,
+      }, { onConflict: 'order_id,message_id' });
+
+    // Update contact last message
+    await supabase.from('contacts').update({ last_message_at: new Date().toISOString() }).eq('id', contactId);
+
+    // Socket Emit
+    const io = req.app.get('io');
+    if (io) {
+      if (leadId) io.to(`lead_${leadId}`).emit('new_message', message);
+      io.to(`order_${orderId}`).emit('new_message', message);
+      io.emit('contact_message', { contact_id: contactId, message });
+    }
+
+    res.json(message);
+
+  } catch (error) {
+    console.error('[VoiceContact] Error:', error);
     res.status(400).json({ error: error.message });
   }
 });
