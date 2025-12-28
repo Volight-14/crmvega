@@ -204,7 +204,9 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
 
     // Check if content CONTAINS a file URL (not only exact match)
     // Regex allows finding URL within text
-    const fileUrlRegex = /(https?:\/\/[^\s]+)\.(jpg|jpeg|png|gif|webp|pdf|doc|docx|xls|xlsx|txt|mp3|ogg|wav|mp4|mov|webm)(?:\?[^\s]*)?/i;
+    // Check if content CONTAINS a file URL (not only exact match)
+    // Regex allows finding URL within text
+    const fileUrlRegex = /(https?:\/\/[^\s]+)\.(jpg|jpeg|png|gif|webp|heic|pdf|doc|docx|xls|xlsx|txt|csv|zip|mp3|ogg|wav|m4a|opus|oga|aac|amr|mp4|mov|webm|avi)(?:\?[^\s]*)?/i;
     const match = finalContent.match(fileUrlRegex);
 
     if (match) {
@@ -225,11 +227,11 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
 
         const ext = finalFileName.split('.').pop().toLowerCase();
 
-        if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+        if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'].includes(ext)) {
           finalMessageType = 'image';
-        } else if (['mp3', 'ogg', 'wav'].includes(ext)) {
+        } else if (['mp3', 'ogg', 'wav', 'm4a', 'opus', 'oga', 'aac', 'amr'].includes(ext)) {
           finalMessageType = 'voice';
-        } else if (['mp4', 'mov', 'webm'].includes(ext)) {
+        } else if (['mp4', 'mov', 'webm', 'avi'].includes(ext)) {
           finalMessageType = 'video';
         } else {
           finalMessageType = 'file';
