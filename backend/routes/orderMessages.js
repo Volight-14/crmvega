@@ -475,6 +475,17 @@ router.post('/:orderId/client/voice', auth, upload.single('voice'), async (req, 
       } catch (tgError) {
         const errorDetails = tgError.response?.data || tgError.message;
         console.error('Telegram voice send error (Final):', errorDetails);
+
+        const fs = require('fs');
+        try {
+          fs.writeFileSync('latest_voice_error.json', JSON.stringify({
+            error: errorDetails,
+            chat_id: telegramUserId,
+            method: 'final_catch',
+            timestamp: new Date().toISOString()
+          }, null, 2));
+        } catch (e) { }
+
         return res.status(400).json({
           error: 'Ошибка отправки голосового в Telegram: ' + (tgError.response?.data?.description || tgError.message),
           details: errorDetails
