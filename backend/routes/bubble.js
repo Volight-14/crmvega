@@ -79,6 +79,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       order_status,
       main_ID, // Main linking key
       telegram_user_id, // Added for fallback resolution
+      reactions,
     } = req.body;
 
     // --- Fallback Logic for missing main_ID ---
@@ -236,6 +237,15 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       }
     }
 
+    // Process reactions
+    let finalReactions = reactions || [];
+    if (Array.isArray(finalReactions)) {
+      finalReactions = finalReactions.map(r => {
+        if (typeof r === 'string') return { emoji: r };
+        return r;
+      });
+    }
+
     const messageData = {
       lead_id: lead_id ? String(lead_id).trim() : (finalMainId ? String(finalMainId).trim() : null),
       main_id: finalMainId ? String(finalMainId).trim() : null,
@@ -255,6 +265,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       order_status: order_status || null,
       file_url: finalFileUrl,
       file_name: finalFileName,
+      reactions: finalReactions,
     };
 
     let existingMessage = null;
