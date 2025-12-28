@@ -339,6 +339,7 @@ router.post('/:orderId/client/file', auth, upload.single('file'), async (req, re
 
 // Отправить голосовое сообщение
 router.post('/:orderId/client/voice', auth, (req, res, next) => {
+  res.setHeader('X-App-Version', '2.1.0-fix-voice');
   upload.single('voice')(req, res, (err) => {
     if (err) {
       console.error('[Voice] Multer error:', err);

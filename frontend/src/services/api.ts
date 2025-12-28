@@ -8,10 +8,12 @@ import {
 
 // Backend is deployed on Render (not Vercel!)
 // Production URL is set via REACT_APP_API_URL in Vercel environment variables
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+
+console.log('API Service Loaded: v2.1.0 (Voice Fixes)');
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: API_URL,
 });
 
 api.interceptors.request.use((config) => {
