@@ -129,17 +129,29 @@ const MessageBubble = ({ msg, isOwn }: { msg: Message, isOwn: boolean }) => {
     };
 
     const renderAttachment = () => {
-        if ((msg.message_type === 'voice' || msg.content?.includes('.ogg')) && msg.file_url) {
+        // Voice / Audio
+        if ((msg.message_type === 'voice' || msg.file_url?.endsWith('.ogg') || msg.file_url?.endsWith('.mp3') || msg.file_url?.endsWith('.wav')) && msg.file_url) {
             return (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginTop: 4 }} onClick={handlePlayVoice}>
-                    {isPlaying ? <PauseCircleOutlined style={{ fontSize: 24 }} /> : <PlayCircleOutlined style={{ fontSize: 24 }} />}
-                    <span style={{ fontSize: 12 }}>Голосовое сообщение</span>
+                <div style={{ marginTop: 4 }}>
+                    <audio
+                        controls
+                        src={msg.file_url}
+                        style={{ maxWidth: '100%', borderRadius: 8, height: 40 }}
+                    />
                 </div>
             );
         }
-        if ((msg.message_type === 'image' || (msg.message_type as any) === 'photo') && msg.file_url) {
+        // Image
+        if ((msg.message_type === 'image' || (msg.message_type as any) === 'photo' || msg.file_url?.match(/\.(jpeg|jpg|gif|png|webp)$/i)) && msg.file_url) {
             return (
-                <img src={msg.file_url} alt="Attachment" style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 8, marginTop: 4, cursor: 'pointer' }} onClick={() => window.open(msg.file_url, '_blank')} />
+                <div style={{ marginTop: 4 }}>
+                    <img
+                        src={msg.file_url}
+                        alt="Attachment"
+                        style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 8, cursor: 'pointer' }}
+                        onClick={() => window.open(msg.file_url, '_blank')}
+                    />
+                </div>
             );
         }
         if ((msg.message_type === 'video' || msg.message_type === 'video_note') && msg.file_url) {
