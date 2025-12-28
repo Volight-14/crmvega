@@ -389,12 +389,28 @@ router.post('/:orderId/client/voice', auth, upload.single('voice'), async (req, 
 
     if (TELEGRAM_BOT_TOKEN) {
       try {
+        const buffer = req.file.buffer;
+        // Check if file is OGG (Magic bytes: OggS -> 0x4F 0x67 0x67 0x53)
+        const isOgg = buffer.length >= 4 && buffer[0] === 0x4F && buffer[1] === 0x67 && buffer[2] === 0x67 && buffer[3] === 0x53;
+
+        // Check if file is WebM (Magic bytes: 0x1A 0x45 0xDF 0xA3)
+        const isWebM = buffer.length >= 4 && buffer[0] === 0x1A && buffer[1] === 0x45 && buffer[2] === 0xDF && buffer[3] === 0xA3;
+
         const formData = new FormData();
         formData.append('chat_id', telegramUserId);
-        formData.append('voice', req.file.buffer, {
-          filename: 'voice.ogg',
-          contentType: 'audio/ogg',
-        });
+
+        let method = 'sendVoice';
+
+        if (isOgg) {
+          formData.append('voice', buffer, { filename: 'voice.ogg', contentType: 'audio/ogg' });
+        } else {
+          console.log(`[Voice] Detected non-OGG signature. WebM=${isWebM}. Sending as document.`);
+          method = 'sendDocument';
+          const ext = isWebM ? 'webm' : 'm4a'; // Fallback extension
+          const mime = isWebM ? 'audio/webm' : 'audio/mp4';
+          formData.append('document', buffer, { filename: `voice.${ext}`, contentType: mime });
+        }
+
         if (duration) {
           formData.append('duration', duration);
         }
@@ -403,14 +419,14 @@ router.post('/:orderId/client/voice', auth, upload.single('voice'), async (req, 
         }
 
         const response = await axios.post(
-          `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendVoice`,
+          `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/${method}`,
           formData,
           { headers: formData.getHeaders() }
         );
         telegramMessageId = response.data?.result?.message_id;
       } catch (tgError) {
         console.error('Telegram voice send error:', tgError.response?.data || tgError.message);
-        return res.status(400).json({ error: 'Ошибка отправки голосового в Telegram' });
+        return res.status(400).json({ error: 'Ошибка отправки голосового в Telegram: ' + (tgError.response?.data?.description || tgError.message) });
       }
     }
 
