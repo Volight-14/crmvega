@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import io from 'socket.io-client';
 import { useAuth } from '../contexts/AuthContext';
 import { contactsAPI, contactMessagesAPI } from '../services/api';
 import { InboxContact, Message } from '../types';
@@ -35,7 +36,6 @@ import {
 const { Content, Sider } = Layout;
 const { Text, Title } = Typography;
 const { TextArea } = Input;
-import io from 'socket.io-client';
 type Socket = ReturnType<typeof io>;
 
 interface ExtendedInboxContact extends InboxContact {
