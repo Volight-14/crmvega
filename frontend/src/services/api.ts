@@ -214,7 +214,12 @@ export const orderMessagesAPI = {
   // Отправить голосовое сообщение клиенту
   sendClientVoice: async (orderId: number, voice: Blob, duration?: number, replyToMessageId?: number): Promise<Message> => {
     const formData = new FormData();
-    formData.append('voice', voice, 'voice.ogg');
+    // Determine extension from blob type
+    let fileName = 'voice.ogg';
+    if (voice.type.includes('webm')) fileName = 'voice.webm';
+    else if (voice.type.includes('mp4')) fileName = 'voice.mp4';
+
+    formData.append('voice', voice, fileName);
     if (duration) formData.append('duration', duration.toString());
     if (replyToMessageId) formData.append('reply_to_message_id', replyToMessageId.toString());
 
