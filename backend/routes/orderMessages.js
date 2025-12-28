@@ -236,8 +236,9 @@ router.post('/:orderId/client/file', auth, upload.single('file'), async (req, re
     }
 
     // Загружаем файл в Supabase Storage
-    // Sanitize filename for storage to avoid encoding issues issues
-    const ext = req.file.originalname.split('.').pop();
+    // Sanitize filename for storage and DB to avoid encoding issues
+    const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+    const ext = originalName.split('.').pop();
     const fileName = `${Date.now()}_file.${ext}`;
     const filePath = `order_files/${orderId}/${fileName}`;
 
@@ -268,7 +269,7 @@ router.post('/:orderId/client/file', auth, upload.single('file'), async (req, re
 
         // Ensure filename is handled correctly by formData
         const fileOptions = {
-          filename: req.file.originalname,
+          filename: originalName,
           contentType: req.file.mimetype,
         };
 
@@ -302,13 +303,13 @@ router.post('/:orderId/client/file', auth, upload.single('file'), async (req, re
       .insert({
         lead_id: storeLeadId,
         main_id: order.main_id,
-        content: caption || `📎 ${req.file.originalname}`,
+        content: caption ? caption.trim() : '', // Avoid duplicate filename in content
         author_type: 'Оператор',
         message_type: 'file',
         message_id_tg: telegramMessageId,
         reply_to_mess_id_tg: reply_to_message_id || null,
         file_url: fileUrl,
-        file_name: req.file.originalname,
+        file_name: originalName,
         'Created Date': new Date().toISOString(),
         user: req.manager.name || req.manager.email,
       })

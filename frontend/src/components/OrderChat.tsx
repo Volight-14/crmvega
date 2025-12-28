@@ -386,7 +386,7 @@ const ClientMessageBubble = ({ msg, currentUserId, onReply, replyMessage }: { ms
             </div>
           )}
 
-          {msg.content && <div className="message-content" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{linkifyText(msg.content)}</div>}
+          {msg.content && !['image', 'video', 'video_note', 'voice'].includes(msg.message_type || '') && <div className="message-content" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{linkifyText(msg.content)}</div>}
           {renderAttachment()}
 
           <div style={{
