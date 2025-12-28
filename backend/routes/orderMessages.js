@@ -338,13 +338,40 @@ router.post('/:orderId/client/file', auth, upload.single('file'), async (req, re
 });
 
 // Отправить голосовое сообщение
-router.post('/:orderId/client/voice', auth, upload.single('voice'), async (req, res) => {
+router.post('/:orderId/client/voice', auth, (req, res, next) => {
+  upload.single('voice')(req, res, (err) => {
+    if (err) {
+      console.error('[Voice] Multer error:', err);
+      const fs = require('fs');
+      try { fs.appendFileSync('debug_voice.log', `[${new Date().toISOString()}] MULTER ERROR: ${err.message}\n`); } catch (e) { }
+      return res.status(400).json({ error: 'Ошибка загрузки файла: ' + err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
+  const fs = require('fs');
+  // Log request entry
+  try {
+    fs.appendFileSync('debug_voice.log', `[${new Date().toISOString()}] Request received for Order ${req.params.orderId}\n`);
+  } catch (e) { console.error('FS Error', e); }
+
   console.log('[Voice] Received upload request');
   try {
     const { orderId } = req.params;
     const { duration, reply_to_message_id } = req.body;
 
     console.log(`[Voice] Processing for order ${orderId}, duration=${duration}, reply=${reply_to_message_id}`);
+
+    // Log file details
+    if (req.file) {
+      try {
+        fs.appendFileSync('debug_voice.log', `[${new Date().toISOString()}] File: ${req.file.originalname}, Size: ${req.file.size}, Mime: ${req.file.mimetype}\n`);
+      } catch (e) { }
+    } else {
+      try {
+        fs.appendFileSync('debug_voice.log', `[${new Date().toISOString()}] NO FILE IN REQUEST\n`);
+      } catch (e) { }
+    }
 
     if (!req.file) {
       console.error('[Voice] No file uploaded');
