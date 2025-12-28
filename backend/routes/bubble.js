@@ -149,14 +149,20 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
         console.warn(`[Bubble Webhook] Contact not found for TG ID: ${telegram_user_id}, cannot resolve main_ID`);
       }
     } else if (finalMainId) {
-      // If we HAD a main_id passed (e.g. from existing bubble logic), try to find the order ID associated with it
-      // so we can link it in order_messages
-      const { data: existingOrd } = await supabase
+      // If we HAD a main_id passed, find the order ID associated with it
+      const { data: existingOrds } = await supabase
         .from('orders')
         .select('id')
         .eq('main_id', finalMainId)
-        .maybeSingle();
-      if (existingOrd) finalOrderId = existingOrd.id;
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (existingOrds && existingOrds.length > 0) {
+        finalOrderId = existingOrds[0].id;
+        console.log(`[Bubble Webhook] Resolved Order ID ${finalOrderId} from main_id ${finalMainId}`);
+      } else {
+        console.warn(`[Bubble Webhook] No order found for main_id ${finalMainId}`);
+      }
     }
     // ------------------------------------------
 
@@ -195,28 +201,39 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
     let finalFileName = req.body.file_name || null;
     let finalContent = content.trim();
 
-    const fileUrlRegex = /^(https?:\/\/[^\s]+)\.(jpg|jpeg|png|gif|webp|pdf|doc|docx|xls|xlsx|txt|mp3|ogg|wav|mp4|mov|webm)$/i;
+    // Check if content CONTAINS a file URL (not only exact match)
+    // Regex allows finding URL within text
+    const fileUrlRegex = /(https?:\/\/[^\s]+)\.(jpg|jpeg|png|gif|webp|pdf|doc|docx|xls|xlsx|txt|mp3|ogg|wav|mp4|mov|webm)(?:\?[^\s]*)?/i;
     const match = finalContent.match(fileUrlRegex);
 
-    if (match && (finalMessageType === 'text' || !finalFileUrl)) {
-      finalFileUrl = match[0];
-      finalFileName = decodeURIComponent(finalFileUrl.split('/').pop().split('?')[0]);
+    if (match) {
+      if (finalMessageType === 'text' || !finalFileUrl) {
+        finalFileUrl = match[0];
 
-      const ext = finalFileName.split('.').pop().toLowerCase();
-      if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
-        finalMessageType = 'image';
-      } else if (['mp3', 'ogg', 'wav'].includes(ext)) {
-        finalMessageType = 'voice';
-      } else if (['mp4', 'mov', 'webm'].includes(ext)) {
-        finalMessageType = 'video';
-      } else {
-        finalMessageType = 'file';
+        // Remove URL from content to get caption
+        // If regex matched, replace the first occurrence
+        finalContent = finalContent.replace(finalFileUrl, '').trim();
+
+        // Extract filename and fix encoding
+        const rawFileName = decodeURIComponent(finalFileUrl.split('/').pop().split('?')[0]);
+        try {
+          finalFileName = Buffer.from(rawFileName, 'latin1').toString('utf8');
+        } catch (e) {
+          finalFileName = rawFileName;
+        }
+
+        const ext = finalFileName.split('.').pop().toLowerCase();
+
+        if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+          finalMessageType = 'image';
+        } else if (['mp3', 'ogg', 'wav'].includes(ext)) {
+          finalMessageType = 'voice';
+        } else if (['mp4', 'mov', 'webm'].includes(ext)) {
+          finalMessageType = 'video';
+        } else {
+          finalMessageType = 'file';
+        }
       }
-
-      // If content was just the URL, move it to file_url and use caption for content
-      // Otherwise (if detected inside text?), we might want to keep the text.
-      // But the regex `^...$` above matches the WHOLE string.
-      finalContent = caption || '';
     }
 
     const messageData = {
