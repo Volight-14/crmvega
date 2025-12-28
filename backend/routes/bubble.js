@@ -84,6 +84,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
     // --- Fallback Logic for missing main_ID ---
     let finalMainId = main_ID;
     let finalContactId = null;
+    let finalOrderId = null; // Store Order ID for linking
 
     if (!finalMainId && telegram_user_id) {
       console.log(`[Bubble Webhook] main_ID missing, attempting resolution for TG ID: ${telegram_user_id}`);
@@ -111,6 +112,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
 
         if (activeOrder && activeOrder.main_id) {
           finalMainId = activeOrder.main_id;
+          finalOrderId = activeOrder.id; // Save ID
           console.log(`[Bubble Webhook] Found active order ${activeOrder.id} with main_id ${finalMainId}`);
         } else {
           // 3. Create New Order (Fallback)
@@ -123,7 +125,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
               amount: 0,
               currency: 'RUB',
               status: 'unsorted',
-              type: 'inquiry', // New field: message-only order
+              type: 'inquiry',
               source: 'bubble_webhook_msg',
               description: 'Автоматически созданная заявка из сообщения Bubble (нет активной)',
               created_at: new Date().toISOString(),
@@ -134,9 +136,9 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
 
           if (!createOrderError && newOrder) {
             finalMainId = newMainId;
+            finalOrderId = newOrder.id; // Save ID
             console.log(`[Bubble Webhook] Created new fallback order ${newOrder.id} with main_id ${finalMainId}`);
 
-            // Optional: Emit event for new order if needed, similar to bot.js
             const io = req.app.get('io');
             if (io) io.emit('new_order', newOrder);
           } else {
@@ -146,6 +148,15 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       } else {
         console.warn(`[Bubble Webhook] Contact not found for TG ID: ${telegram_user_id}, cannot resolve main_ID`);
       }
+    } else if (finalMainId) {
+      // If we HAD a main_id passed (e.g. from existing bubble logic), try to find the order ID associated with it
+      // so we can link it in order_messages
+      const { data: existingOrd } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('main_id', finalMainId)
+        .maybeSingle();
+      if (existingOrd) finalOrderId = existingOrd.id;
     }
     // ------------------------------------------
 
@@ -269,10 +280,23 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       if (error) throw error;
       result = data;
 
+      // Link to Order (Fix for message not appearing in Deal)
+      if (finalOrderId && result && result.id) {
+        await supabase.from('order_messages').insert({
+          order_id: finalOrderId,
+          message_id: result.id
+        }).then(({ error: linkError }) => {
+          if (linkError) console.error('[Bubble Webhook] Failed to link message to order:', linkError);
+          else console.log(`[Bubble Webhook] Linked message ${result.id} to order ${finalOrderId}`);
+        });
+      }
+
       const io = req.app.get('io');
       if (io) {
         if (lead_id) {
           io.to(`lead_${lead_id}`).emit('new_message', result);
+          // Also emit to order room if linked
+          if (finalOrderId) io.to(`order_${finalOrderId}`).emit('new_client_message', result);
         }
         io.emit('new_message_bubble', result);
         io.emit('new_message_global', result);
