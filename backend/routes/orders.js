@@ -35,7 +35,7 @@ router.get('/', auth, async (req, res) => {
       query = supabase
         .from('orders')
         // Renamed title -> OrderName
-        .select('id, contact_id, OrderName, SumInput, CurrPair1, status, created_at, main_id, contact:contacts(name)')
+        .select('id, contact_id, "OrderName", "SumInput", "CurrPair1", status, created_at, main_id, contact:contacts(name)')
         .order('created_at', { ascending: false })
         .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
     } else {
