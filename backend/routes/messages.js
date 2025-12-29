@@ -276,9 +276,10 @@ router.post('/contact/:contactId', auth, async (req, res) => {
         main_id: leadId,
         content,
         author_type: sender_type === 'user' ? 'user' : 'Менеджер',
-        status: messageStatus, // Add status column to DB schema if not exists, or handle in frontend via metadata? Assuming DB supports it or we use metadata
+        status: messageStatus,
         error_message: errorMessage,
-        message_id_tg: telegramMessageId
+        message_id_tg: telegramMessageId,
+        'Created Date': new Date().toISOString(),
       })
       .select(`*`)
       .single();
