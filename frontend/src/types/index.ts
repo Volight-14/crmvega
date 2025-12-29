@@ -150,12 +150,14 @@ export interface Order { // Renamed from Deal
   lead_id?: number; // Legacy
   main_id?: string; // Main ID
   external_id?: string; // Legacy Bubble ID
-  title: string;
+  title: string; // Alias for OrderName (legacy frontend support)
+  OrderName?: string; // New field
   amount: number;
   currency: string;
   status: OrderStatus;
   source?: string;
-  description?: string;
+  description?: string; // Alias for Comment (legacy)
+  Comment?: string; // New field
   due_date?: string;
   closed_date?: string;
   close_reason?: string;
@@ -165,6 +167,63 @@ export interface Order { // Renamed from Deal
   contact?: Contact | { name?: string; email?: string; phone?: string } | null;
   manager?: Manager;
   tags?: Tag[];
+
+  // Bubble Synced Fields
+  OrderDate?: string;
+  CurrPair1?: string;
+  CurrPair2?: string;
+  SumInput?: number;
+  SumOutput?: number;
+  BankRus01?: string;
+  BankRus02?: string;
+  BankEsp?: string;
+  CityRus01?: string;
+  CityRus02?: string;
+  CityEsp01?: string;
+  CityEsp02?: string;
+  DeliveryTime?: string;
+  OrderPaid?: boolean;
+  PayNow?: string;
+  Remote?: boolean;
+  NextDay?: string;
+  ATM?: string;
+  ATM_Esp?: string;
+  AttachedCheck?: string;
+  Card_NumberOrSBP?: string;
+  ClientCryptoWallet?: string;
+  ClientIBAN?: string;
+  End_address?: string;
+  Location1?: string;
+  Location2?: string;
+  MessageIBAN?: string;
+  NetworkUSDT01?: string;
+  NetworkUSDT02?: string;
+  New_address?: string;
+  OrderStatus?: string;
+  Ordertime?: string;
+  PayeeName?: string;
+  tg_amo?: string;
+
+  CashbackEUR?: number;
+  CashbackUSDT?: number;
+  LoyPoints?: number;
+  SumEquivalentEUR?: number;
+  SumPartly?: number;
+
+  WhenDone?: string;
+  first_order?: boolean;
+  Is_application_accepted?: boolean;
+  On_site?: boolean;
+  Request_address?: boolean;
+
+  Manager_Bubble?: string;
+  Operators_Bubble?: string;
+  BubbleUser?: string;
+
+  plused_temp?: string;
+  plused_temp2?: string;
+  UndoStep?: string;
+  OnlineExchInfo?: string;
 }
 
 export interface Note {

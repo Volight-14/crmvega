@@ -31,14 +31,15 @@ router.get('/', auth, async (req, res) => {
     let query;
 
     if (isMinimal) {
-      // Минимальный режим для канбан-доски - только необходимые поля
+      // Минимальный режим для канбан-доски
       query = supabase
         .from('orders')
-        .select('id, contact_id, title, amount, currency, status, created_at, main_id, contact:contacts(name)')
+        // Renamed title -> OrderName
+        .select('id, contact_id, OrderName, amount, currency, status, created_at, main_id, contact:contacts(name)')
         .order('created_at', { ascending: false })
         .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
     } else {
-      // Полный режим - загружаем связанные данные, но БЕЗ тегов (они отдельно)
+      // Полный режим
       query = supabase
         .from('orders')
         .select(`
@@ -63,10 +64,23 @@ router.get('/', auth, async (req, res) => {
     if (error) throw error;
 
     // Преобразуем amount (из строки в число)
+    // Map OrderName to title for frontend compatibility if needed, OR just send OrderName
+    // Let's send OrderName and let frontend adapt.
     let orders = data.map(order => ({
       ...order,
+      title: order.OrderName, // Alias for backward compatibility if useful
       amount: parseFloat(order.amount) || 0,
+      description: order.Comment // Alias for backward compatibility
     }));
+
+    // ... (rest of logic) ...
+    // Note: I only need to replace up to line 168 (Create Order)
+    // But this tool call covers the GET logic.
+    // I need to split or cover specific block.
+    // The insert logic is further down.
+
+    // Let's target the GET logic first.
+
 
     // Загружаем теги отдельным запросом (эффективнее чем N+1)
     if (!isMinimal && orders.length > 0) {
@@ -155,16 +169,16 @@ router.post('/', auth, async (req, res) => {
       .from('orders')
       .insert({
         contact_id,
-        title,
+        OrderName: title, // Map title to OrderName
         amount,
         currency: currency || 'RUB',
         status: status || 'new',
-        type: type || 'exchange', // Manual creation defaults to exchange
+        type: type || 'exchange',
         source,
-        description,
+        Comment: description, // Map description to Comment
         due_date,
         manager_id: req.manager.id,
-        main_id: req.body.main_id || parseInt(`${Date.now()}${Math.floor(Math.random() * 1000)}`) // Ensure main_id exists
+        main_id: req.body.main_id || parseInt(`${Date.now()}${Math.floor(Math.random() * 1000)}`)
       })
       .select('*, contact:contacts(name, phone, email)')
       .single();
@@ -205,7 +219,14 @@ router.post('/', auth, async (req, res) => {
 router.patch('/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const { title, description, ...otherData } = req.body;
+
+    // Map fields
+    const updateData = {
+      ...otherData,
+      ...(title ? { OrderName: title } : {}),
+      ...(description ? { Comment: description } : {})
+    };
 
     // Если меняется статус, получаем старый статус для вебхука
     let oldOrder = null;

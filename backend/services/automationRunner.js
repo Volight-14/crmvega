@@ -116,13 +116,13 @@ async function executeAction(actionType, actionConfig, entity, options = {}) {
           .eq('id', entity.contact_id);
       } else if (entity.id && actionConfig.manager_id) {
         // Пытаемся определить таблицу из entity
-        if (entity.title || entity.amount !== undefined) {
-          // Это сделка
+        if (entity.OrderName || entity.title || entity.amount !== undefined) {
+          // Это сделка (order)
           await supabase
-            .from('deals')
+            .from('orders') // Renamed from deals
             .update({ manager_id: actionConfig.manager_id })
             .eq('id', entity.id);
-        } else if (entity.name && !entity.title) {
+        } else if (entity.name && !entity.OrderName && !entity.title) {
           // Это контакт
           await supabase
             .from('contacts')
@@ -143,15 +143,18 @@ async function executeAction(actionType, actionConfig, entity, options = {}) {
           }, { onConflict: 'contact_id,tag_id' });
       } else if (entity.id && actionConfig.tag_id) {
         // Определяем тип сущности
-        if (entity.title || entity.amount !== undefined) {
+        if (entity.OrderName || entity.title || entity.amount !== undefined) {
           // Это сделка
           await supabase
-            .from('deal_tags')
+            .from('order_tags') // Assumed renamed from deal_tags? Check DB schema for order_tags?
+            // Safer to check if order_tags exists? Or just assume consistency.
+            // frontend types has Tag, but no OrderTag interface shown.
+            // But let's assume order_tags.
             .upsert({
-              deal_id: entity.id,
+              order_id: entity.id, // Renamed from deal_id
               tag_id: actionConfig.tag_id,
-            }, { onConflict: 'deal_id,tag_id' });
-        } else if (entity.name && !entity.title && entity.contact_id === undefined) {
+            }, { onConflict: 'order_id,tag_id' });
+        } else if (entity.name && !entity.OrderName && !entity.title && entity.contact_id === undefined) {
           // Это контакт (без contact_id, но есть id)
           await supabase
             .from('contact_tags')
@@ -173,15 +176,15 @@ async function executeAction(actionType, actionConfig, entity, options = {}) {
 
       if (entity.contact_id) {
         noteData.contact_id = entity.contact_id;
-      } else if (entity.id && entity.name && !entity.title) {
+      } else if (entity.id && entity.name && !entity.OrderName && !entity.title) {
         // Это контакт
         noteData.contact_id = entity.id;
-      } else if (entity.id && (entity.title || entity.amount !== undefined)) {
+      } else if (entity.id && (entity.OrderName || entity.title || entity.amount !== undefined)) {
         // Это сделка
-        noteData.deal_id = entity.id;
+        noteData.order_id = entity.id; // Renamed from deal_id
       }
 
-      if (noteData.contact_id || noteData.deal_id) {
+      if (noteData.contact_id || noteData.order_id) {
         await supabase.from('notes').insert(noteData);
       }
       break;
@@ -190,13 +193,13 @@ async function executeAction(actionType, actionConfig, entity, options = {}) {
       // Изменить статус
       if (entity.id && actionConfig.status) {
         // Определяем таблицу
-        if (entity.title || entity.amount !== undefined) {
+        if (entity.OrderName || entity.title || entity.amount !== undefined) {
           // Это сделка
           await supabase
-            .from('deals')
+            .from('orders') // Renamed from deals
             .update({ status: actionConfig.status })
             .eq('id', entity.id);
-        } else if (entity.name && !entity.title) {
+        } else if (entity.name && !entity.OrderName && !entity.title) {
           // Это контакт
           await supabase
             .from('contacts')

@@ -449,52 +449,97 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
     // 2. Prepare Order Data
     const orderData = {
       contact_id: contactId,
-      external_id: data.external_id || data.order_id || data._id || data.ID || null, // Bubble ID with fallbacks
+      external_id: data.external_id || data.order_id || data._id || data.ID || null,
       main_id: data.main_ID || null,
-      title: data.title || `Order from Bubble ${data.order_id || data.ID || ''}`,
-      type: 'exchange', // Full order with details
-      status: mapStatus(data.status || data.OrderStatus),
+      OrderName: data.title || `Order from Bubble ${data.order_id || data.ID || ''}`, // Renamed from title
+      type: 'exchange',
+      OrderStatus: data.OrderStatus || data.status, // Text status from Bubble
+      status: mapStatus(data.status || data.OrderStatus), // Internal status mapped
       created_at: data.created_at || new Date().toISOString(),
-      description: data.description || data.comment || null,
+      OrderDate: data.date || data.order_date, // Renamed from date
+      Comment: data.Comment || data.description || data.comment || null, // Renamed from description
 
-      // New Fields
-      city_1: data.city_1 || data.CityRus01,
-      city_2: data.city_2 || data.CityEsp02 || data.city,
-      currency_give: data.currency_give || data.CurrPair1,
-      currency_get: data.currency_get || data.CurrPair2,
-      amount_give: parseNumeric(data.amount_give || data.SumInput),
-      amount_get: parseNumeric(data.amount_get || data.SumOutput),
-      bank_1: data.bank_1 || data.BankRus01,
-      bank_2: data.bank_2 || data.BankRus02,
-      atm: data.atm || data.ATM,
-      attached_check: data.attached_check || data.AttachedCheck,
-      delivery_time: data.delivery_time || data.DeliveryTime,
-      is_paid: data.is_paid || data['OrderPaid?'],
-      client_phone: data.client_phone || data.MobilePhone,
-      telegram_amo_id: data.tg_amo || data.telegram_amo_id,
-      amount_partly_paid: parseNumeric(data.amount_partly_paid || data.SumPartly),
-      order_date: data.order_date || data.date,
-      external_creator_id: data.external_creator_id || data['Created By'],
-      external_user_id: data.external_user_id || data.User,
+      // --- Renamed Fields ---
+      CurrPair1: data.CurrPair1 || data.currency_give,
+      CurrPair2: data.CurrPair2 || data.currency_get,
+      SumInput: parseNumeric(data.SumInput || data.amount_give),
+      SumOutput: parseNumeric(data.SumOutput || data.amount_get),
+      BankRus01: data.BankRus01 || data.bank_1,
+      BankRus02: data.BankRus02 || data.bank_2,
+      CityRus01: data.CityRus01 || data.city_1,
+      CityEsp02: data.CityEsp02 || data.city_2,
+      DeliveryTime: data.DeliveryTime || data.delivery_time,
+      OrderPaid: data.OrderPaid || data['OrderPaid?'] || data.is_paid,
+      PayNow: data.PayNow || data['PayNow?'] || data.payment_timing,
+      Remote: data.Remote || data['Remote?'] || data.is_remote,
+      NextDay: data.NextDay || data.delivery_day_type,
+
+      // --- New Fields (Strings) ---
+      ATM_Esp: data.ATM_Esp,
+      BankEsp: data.BankEsp,
+      Card_NumberOrSBP: data.Card_NumberOrSBP,
+      CityEsp01: data.CityEsp01,
+      CityRus02: data.CityRus02,
+      ClientCryptoWallet: data.ClientCryptoWallet,
+      ClientIBAN: data.ClientIBAN,
+      End_address: data.End_address,
+      Location2: data.Location2 || data.location_url,
+      MessageIBAN: data.MessageIBAN,
+      NetworkUSDT01: data.NetworkUSDT01,
+      NetworkUSDT02: data.NetworkUSDT02,
+      New_address: data.New_address,
+      Ordertime: data.Ordertime,
+      PayeeName: data.PayeeName,
+      tg_amo: data.tg_amo,
+
+      // --- New Fields (Numeric) ---
+      CashbackEUR: parseNumeric(data.CashbackEUR),
+      CashbackUSDT: parseNumeric(data.CashbackUSDT),
+      LoyPoints: parseNumeric(data.LoyPoints),
+      SumEquivalentEUR: parseNumeric(data.SumEquivalentEUR),
+      SumPartly: parseNumeric(data.SumPartly || data.amount_partly_paid),
+
+      // --- New Fields (Boolean) ---
+      first_order: data.first_order || data['first_order?'],
+      Is_application_accepted: data.Is_application_accepted || data['Is the application accept...'] || data['Is the application accepted?'], // Handle variations
+      On_site: data.On_site || data['On site?'],
+      Request_address: data.Request_address || data['Request address?'],
+
+      // --- New Fields (Users/IDs) ---
+      Manager_Bubble: data.Manager_Bubble || data.Manager,
+      Operators_Bubble: data.Operators_Bubble || data.Operators,
+      BubbleUser: data.BubbleUser || data.User || data.external_user_id,
+      lead_id: data.lead_id,
+
+      // --- New Fields (Files/Other) ---
+      AttachedCheck: data.AttachedCheck || data.attached_check,
+      plused_temp: data.plused_temp,
+      plused_temp2: data.plused_temp2,
+      ATM: data.ATM,
+      Location1: data.Location1 || data.location_url_alt,
+      UndoStep: data.UndoStep,
+      OnlineExchInfo: data.OnlineExchInfo ? JSON.stringify(data.OnlineExchInfo) : null,
+
+      // Legacy / Mapped mappings kept for safety if column exists, else ignored by insert if not in schema?
+      // Supabase insert ignores extra keys? No, it errors if column missing.
+      // So I must ensure these keys match EXACTLY what's in DB.
+      // 'title' is renamed to 'OrderName', 'description' to 'Comment'.
+      // I should NOT pass 'title' or 'description' if they don't exist.
+      // My migration removed them (renamed them). So I must NOT include them here.
+
+      // Removed old aliases:
+      // city_1, currency_give, etc. replaced by above.
+
+      // Extra explicit mappings for fallback internal logic
+      client_phone: data.client_phone || data.MobilePhone, // Keep for contact logic, but maybe store in MobilePhone col?
+      MobilePhone: data.MobilePhone || data.client_phone, // Store in MobilePhone
+
+      // Additional internal fields
+      source: 'bubble',
       label_color: data.label_color || data.color,
-      location_url: data.location_url || data.Location2,
-      location_url_alt: data.location_url_alt || data.Location1,
-      is_remote: data.is_remote ?? data['Remote?'],
-      delivery_day_type: data.delivery_day_type || data.NextDay,
       mongo_id: data.mongo_id || data._id || data.ID,
       external_updated_at: data.external_updated_at || data['Modified Date'],
-      cashback_usdt: parseNumeric(data.cashback_usdt),
-      cashback_eur: parseNumeric(data.cashback_eur),
-      order_time_type: data.order_time_type,
-      is_first_order: data.is_first_order,
-      sum_equivalent_eur: parseNumeric(data.sum_equivalent_eur),
-      loyalty_points: parseNumeric(data.loyalty_points),
-      crypto_wallet: data.crypto_wallet,
-      message_iban: data.message_iban || data.СlientIBAN,
-      payee_name: data.payee_name || data.PayeeName,
-      payment_timing: data.payment_timing || data['PayNow?'],
-      network_usdt_1: data.network_usdt_1 || data.NetworkUSDT01,
-      network_usdt_2: data.network_usdt_2
+      external_creator_id: data.external_creator_id || data['Created By']
     };
 
     // 3. Insert Order
