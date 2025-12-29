@@ -35,7 +35,7 @@ router.get('/', auth, async (req, res) => {
       query = supabase
         .from('orders')
         // Renamed title -> OrderName
-        .select('id, contact_id, OrderName, amount, currency, status, created_at, main_id, contact:contacts(name)')
+        .select('id, contact_id, OrderName, SumInput, currency, status, created_at, main_id, contact:contacts(name)')
         .order('created_at', { ascending: false })
         .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
     } else {
@@ -69,7 +69,7 @@ router.get('/', auth, async (req, res) => {
     let orders = data.map(order => ({
       ...order,
       title: order.OrderName, // Alias for backward compatibility if useful
-      amount: parseFloat(order.amount) || 0,
+      amount: parseFloat(order.SumInput) || 0,
       description: order.Comment // Alias for backward compatibility
     }));
 
@@ -141,7 +141,7 @@ router.get('/:id', auth, async (req, res) => {
     if (error) throw error;
 
     data.tags = data.tags?.map(t => t.tag).filter(Boolean) || [];
-    data.amount = parseFloat(data.amount) || 0;
+    data.amount = parseFloat(data.SumInput) || 0;
 
     res.json(data);
   } catch (error) {
@@ -170,7 +170,7 @@ router.post('/', auth, async (req, res) => {
       .insert({
         contact_id,
         OrderName: title, // Map title to OrderName
-        amount,
+        SumInput: amount,
         currency: currency || 'RUB',
         status: status || 'new',
         type: type || 'exchange',
@@ -197,7 +197,7 @@ router.post('/', auth, async (req, res) => {
     });
 
     // Проверяем порог суммы для автоматизации
-    if (data.amount && parseFloat(data.amount) > 0) {
+    if (data.SumInput && parseFloat(data.SumInput) > 0) {
       runAutomations('order_amount_threshold', data, { io }).catch(err => {
         console.error('Error running automations for order_amount_threshold:', err);
       });
@@ -219,13 +219,14 @@ router.post('/', auth, async (req, res) => {
 router.patch('/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, ...otherData } = req.body;
+    const { title, description, amount, ...otherData } = req.body;
 
     // Map fields
     const updateData = {
       ...otherData,
       ...(title ? { OrderName: title } : {}),
-      ...(description ? { Comment: description } : {})
+      ...(description ? { Comment: description } : {}),
+      ...(amount !== undefined ? { SumInput: amount } : {})
     };
 
     // Если меняется статус, получаем старый статус для вебхука
