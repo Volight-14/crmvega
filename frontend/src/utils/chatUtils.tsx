@@ -28,23 +28,53 @@ export const getAvatarColor = (authorType?: string): string => {
 export const formatTime = (date?: string | number): string => {
     if (!date) return '';
     const d = new Date(date);
-    return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleTimeString('ru-RU', {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Europe/Madrid'
+    });
 };
 
 // Format date
 export const formatDate = (date?: string | number): string => {
     if (!date) return '';
     const d = new Date(date);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
+    const now = new Date();
 
-    if (d.toDateString() === today.toDateString()) {
+    // Convert both to Madrid date strings to compare "Today" / "Yesterday" accurately
+    const madridOptions: Intl.DateTimeFormatOptions = {
+        timeZone: 'Europe/Madrid',
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric'
+    };
+
+    const dString = d.toLocaleDateString('ru-RU', madridOptions);
+    const nowString = now.toLocaleDateString('ru-RU', madridOptions);
+
+    // Check Yesterday (approximate logic is usually fine for chat, but strict timezone is better)
+    // To check yesterday strictly in a timezone is tricky without libraries like date-fns-tz.
+    // Let's use a simpler heuristic: if the date string matches today -> Today.
+    // If not, just return the date. "Yesterday" is nice but strict timezone math without lib is verbose.
+    // I will try to implement a basic yesterday check by subtracting 24h from 'now' and checking string.
+
+    if (dString === nowString) {
         return 'Сегодня';
-    } else if (d.toDateString() === yesterday.toDateString()) {
+    }
+
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayString = yesterday.toLocaleDateString('ru-RU', madridOptions);
+
+    if (dString === yesterdayString) {
         return 'Вчера';
     }
-    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+
+    return d.toLocaleDateString('ru-RU', {
+        day: 'numeric',
+        month: 'long',
+        timeZone: 'Europe/Madrid'
+    });
 };
 
 // Linkify text
