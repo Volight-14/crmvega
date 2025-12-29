@@ -429,13 +429,34 @@ router.post('/:orderId/client/voice', auth, (req, res, next) => {
         voice_duration: duration ? parseInt(duration) : null,
         'Created Date': new Date().toISOString(),
         user: req.manager.name || req.manager.email,
+      })
+      .select()
+      .single();
 
-        res.json(message);
-      } catch (error) {
-        console.error('Error sending voice:', error);
-        res.status(400).json({ error: error.message });
+    if (messageError) throw messageError;
+
+    // Связываем сообщение с заявкой
+    await supabase
+      .from('order_messages')
+      .upsert({
+        order_id: parseInt(orderId),
+        message_id: message.id,
+      }, { onConflict: 'order_id,message_id' });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`order_${orderId}`).emit('new_client_message', message);
+      if (order.main_id) {
+        io.to(`lead_${order.main_id}`).emit('new_message', message);
       }
-  });
+    }
+
+    res.json(message);
+  } catch (error) {
+    console.error('Error sending voice:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
 
 // ==============================================
 // ВНУТРЕННЯЯ ПЕРЕПИСКА (между сотрудниками)
@@ -579,6 +600,73 @@ router.post('/:orderId/internal/file', auth, upload.single('file'), async (req, 
     res.json(data);
   } catch (error) {
     console.error('Error sending internal file:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Отправить внутреннее голосовое сообщение
+router.post('/:orderId/internal/voice', auth, (req, res, next) => {
+  upload.single('voice')(req, res, next);
+}, async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'Файл не найден' });
+  }
+
+  try {
+    const { orderId } = req.params;
+    const { duration } = req.body;
+
+    // 1. Convert to OGG/Opus
+    let finalBuffer = req.file.buffer;
+    let finalContentType = 'audio/ogg';
+    let finalFileName = `${Date.now()}_voice_internal.ogg`;
+
+    try {
+      finalBuffer = await convertToOgg(req.file.buffer, req.file.originalname);
+    } catch (convError) {
+      console.error('[InternalVoice] Conversion failed:', convError);
+    }
+
+    // 2. Upload to Supabase
+    const filePath = `internal_files/${orderId}/${finalFileName}`;
+    await supabase.storage
+      .from('attachments')
+      .upload(filePath, finalBuffer, { contentType: finalContentType });
+
+    const { data: urlData } = supabase.storage
+      .from('attachments')
+      .getPublicUrl(filePath);
+
+    const fileUrl = urlData?.publicUrl;
+
+    // 3. Save to DB
+    const { data, error } = await supabase
+      .from('internal_messages')
+      .insert({
+        order_id: parseInt(orderId),
+        sender_id: req.manager.id,
+        content: '🎤 Голосовое сообщение',
+        attachment_url: fileUrl,
+        attachment_type: 'voice',
+        // attachment_name: 'voice.ogg', // Optional
+        // voice_duration: duration ? parseInt(duration) : null // internal_messages table might need this column if we want to store duration
+      })
+      .select(`
+        *,
+        sender:managers(id, name, email)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`order_${orderId}`).emit('new_internal_message', data);
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error('Error sending internal voice:', error);
     res.status(400).json({ error: error.message });
   }
 });

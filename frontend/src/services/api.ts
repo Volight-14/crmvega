@@ -276,6 +276,22 @@ export const orderMessagesAPI = {
     return response.data;
   },
 
+  // Отправить внутреннее голосовое сообщение
+  sendInternalVoice: async (orderId: number, voice: Blob, duration?: number): Promise<InternalMessage> => {
+    const formData = new FormData();
+    let fileName = 'voice.ogg';
+    if (voice.type.includes('webm')) fileName = 'voice.webm';
+    else if (voice.type.includes('mp4')) fileName = 'voice.mp4';
+
+    formData.append('voice', voice, fileName);
+    if (duration) formData.append('duration', duration.toString());
+
+    const response = await api.post(`/order-messages/${orderId}/internal/voice`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
   // Отметить как прочитанные
   markAsRead: async (orderId: number, messageIds?: number[]): Promise<void> => {
     await api.post(`/order-messages/${orderId}/internal/read`, { message_ids: messageIds });
