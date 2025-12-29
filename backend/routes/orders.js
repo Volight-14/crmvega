@@ -35,7 +35,7 @@ router.get('/', auth, async (req, res) => {
       query = supabase
         .from('orders')
         // Renamed title -> OrderName
-        .select('id, contact_id, OrderName, SumInput, currency, status, created_at, main_id, contact:contacts(name)')
+        .select('id, contact_id, OrderName, SumInput, CurrPair1, status, created_at, main_id, contact:contacts(name)')
         .order('created_at', { ascending: false })
         .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
     } else {
@@ -70,6 +70,7 @@ router.get('/', auth, async (req, res) => {
       ...order,
       title: order.OrderName, // Alias for backward compatibility if useful
       amount: parseFloat(order.SumInput) || 0,
+      currency: order.CurrPair1 || 'RUB',
       description: order.Comment // Alias for backward compatibility
     }));
 
@@ -171,12 +172,11 @@ router.post('/', auth, async (req, res) => {
         contact_id,
         OrderName: title, // Map title to OrderName
         SumInput: amount,
-        currency: currency || 'RUB',
+        CurrPair1: currency || 'RUB',
         status: status || 'new',
         type: type || 'exchange',
         source,
         Comment: description, // Map description to Comment
-        due_date,
         manager_id: req.manager.id,
         main_id: req.body.main_id || parseInt(`${Date.now()}${Math.floor(Math.random() * 1000)}`)
       })
@@ -219,14 +219,15 @@ router.post('/', auth, async (req, res) => {
 router.patch('/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, amount, ...otherData } = req.body;
+    const { title, description, amount, currency, ...otherData } = req.body;
 
     // Map fields
     const updateData = {
       ...otherData,
       ...(title ? { OrderName: title } : {}),
       ...(description ? { Comment: description } : {}),
-      ...(amount !== undefined ? { SumInput: amount } : {})
+      ...(amount !== undefined ? { SumInput: amount } : {}),
+      ...(currency ? { CurrPair1: currency } : {})
     };
 
     // Если меняется статус, получаем старый статус для вебхука
