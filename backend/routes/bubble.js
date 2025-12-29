@@ -482,43 +482,21 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
       CityRus02: data.cityRus02 || data.CityRus02,
       ClientCryptoWallet: data.clientCryptoWallet || data.ClientCryptoWallet,
       ClientIBAN: data.clientIBAN || data.ClientIBAN,
-      End_address: data.endAddress || data.End_address,
       Location2: data.location2 || data.Location2 || data.location_url,
       MessageIBAN: data.messageIBAN || data.MessageIBAN,
       NetworkUSDT01: data.networkUSDT01 || data.NetworkUSDT01,
       NetworkUSDT02: data.networkUSDT02 || data.NetworkUSDT02,
-      New_address: data.newAddress || data.New_address,
       Ordertime: data.ordertime || data.Ordertime,
       PayeeName: data.payeeName || data.PayeeName,
-      tg_amo: data.tgAmo || data.tg_amo,
 
       // --- New Fields (Numeric) ---
       CashbackEUR: parseNumeric(data.cashbackEUR || data.CashbackEUR),
       CashbackUSDT: parseNumeric(data.cashbackUSDT || data.CashbackUSDT),
-      LoyPoints: parseNumeric(data.loyPoints || data.LoyPoints),
-      SumEquivalentEUR: parseNumeric(data.sumEquivalentEUR || data.SumEquivalentEUR),
       SumPartly: parseNumeric(data.sumPartly || data.SumPartly || data.amount_partly_paid),
 
-      // --- New Fields (Boolean) ---
-      first_order: data.firstOrder || data.first_order || data['first_order?'],
-      Is_application_accepted: data.isApplicationAccepted || data.Is_application_accepted || data['Is the application accept...'] || data['Is the application accepted?'],
-      On_site: data.onSite || data.On_site || data['On site?'],
-      Request_address: data.requestAddress || data.Request_address || data['Request address?'],
-
       // --- New Fields (Users/IDs) ---
-      Manager_Bubble: data.managerBubble || data.Manager_Bubble || data.Manager,
-      Operators_Bubble: data.operatorsBubble || data.Operators_Bubble || data.Operators,
       BubbleUser: data.bubbleUser || data.BubbleUser || data.User || data.external_user_id,
       lead_id: data.lead_id,
-
-      // --- New Fields (Files/Other) ---
-      AttachedCheck: data.attachedCheck || data.AttachedCheck || data.attached_check,
-      plused_temp: data.plusedTemp || data.plused_temp,
-      plused_temp2: data.plusedTemp2 || data.plused_temp2,
-      ATM: data.atm || data.ATM,
-      Location1: data.location1 || data.Location1 || data.location_url_alt,
-      UndoStep: data.undoStep || data.UndoStep,
-      OnlineExchInfo: data.onlineExchInfo ? (typeof data.onlineExchInfo === 'string' ? data.onlineExchInfo : JSON.stringify(data.onlineExchInfo)) : null,
 
       // Explicit mappings (Legacy/Fallback)
       client_phone: data.mobilePhone || data.client_phone || data.MobilePhone,
