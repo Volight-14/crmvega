@@ -451,90 +451,80 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
       contact_id: contactId,
       external_id: data.external_id || data.order_id || data._id || data.ID || null,
       main_id: data.main_ID || null,
-      OrderName: data.title || `Order from Bubble ${data.order_id || data.ID || ''}`, // Renamed from title
+      OrderName: data.OrderName || data.title || `Order from Bubble ${data.order_id || data.ID || ''}`,
       type: 'exchange',
-      OrderStatus: data.OrderStatus || data.status, // Text status from Bubble
-      status: mapStatus(data.status || data.OrderStatus), // Internal status mapped
+      OrderStatus: data.OrderStatus || data.status,
+      status: mapStatus(data.status || data.OrderStatus),
       created_at: data.created_at || new Date().toISOString(),
-      OrderDate: data.date || data.order_date, // Renamed from date
-      Comment: data.Comment || data.description || data.comment || null, // Renamed from description
+      OrderDate: data.OrderDate || data.date || data.order_date,
+      Comment: data.Comment || data.description || data.comment || null,
 
       // --- Renamed Fields ---
-      CurrPair1: data.CurrPair1 || data.currency_give,
-      CurrPair2: data.CurrPair2 || data.currency_get,
-      SumInput: parseNumeric(data.SumInput || data.amount_give),
-      SumOutput: parseNumeric(data.SumOutput || data.amount_get),
-      BankRus01: data.BankRus01 || data.bank_1,
-      BankRus02: data.BankRus02 || data.bank_2,
-      CityRus01: data.CityRus01 || data.city_1,
-      CityEsp02: data.CityEsp02 || data.city_2,
-      DeliveryTime: data.DeliveryTime || data.delivery_time,
-      OrderPaid: data.OrderPaid || data['OrderPaid?'] || data.is_paid,
-      PayNow: data.PayNow || data['PayNow?'] || data.payment_timing,
-      Remote: data.Remote || data['Remote?'] || data.is_remote,
-      NextDay: data.NextDay || data.delivery_day_type,
+      CurrPair1: data.currPair1 || data.CurrPair1 || data.currency_give,
+      CurrPair2: data.currPair2 || data.CurrPair2 || data.currency_get,
+      SumInput: parseNumeric(data.sumInput || data.SumInput || data.amount_give),
+      SumOutput: parseNumeric(data.sumOutput || data.SumOutput || data.amount_get),
+      BankRus01: data.bankRus01 || data.BankRus01 || data.bank_1,
+      BankRus02: data.bankRus02 || data.BankRus02 || data.bank_2,
+      CityRus01: data.cityRus01 || data.CityRus01 || data.city_1,
+      CityEsp02: data.cityEsp02 || data.CityEsp02 || data.city_2,
+      DeliveryTime: data.deliveryTime || data.DeliveryTime || data.delivery_time,
+      OrderPaid: data.orderPaid || data.OrderPaid || data['OrderPaid?'] || data.is_paid,
+      PayNow: data.payNow || data.PayNow || data['PayNow?'] || data.payment_timing,
+      Remote: data.remote || data.Remote || data['Remote?'] || data.is_remote,
+      NextDay: data.nextDay || data.NextDay || data.delivery_day_type,
 
       // --- New Fields (Strings) ---
-      ATM_Esp: data.ATM_Esp,
-      BankEsp: data.BankEsp,
-      Card_NumberOrSBP: data.Card_NumberOrSBP,
-      CityEsp01: data.CityEsp01,
-      CityRus02: data.CityRus02,
-      ClientCryptoWallet: data.ClientCryptoWallet,
-      ClientIBAN: data.ClientIBAN,
-      End_address: data.End_address,
-      Location2: data.Location2 || data.location_url,
-      MessageIBAN: data.MessageIBAN,
-      NetworkUSDT01: data.NetworkUSDT01,
-      NetworkUSDT02: data.NetworkUSDT02,
-      New_address: data.New_address,
-      Ordertime: data.Ordertime,
-      PayeeName: data.PayeeName,
-      tg_amo: data.tg_amo,
+      ATM_Esp: data.atmEsp || data.ATM_Esp,
+      BankEsp: data.bankEsp || data.BankEsp,
+      Card_NumberOrSBP: data.cardNumberOrSBP || data.Card_NumberOrSBP,
+      CityEsp01: data.cityEsp01 || data.CityEsp01,
+      CityRus02: data.cityRus02 || data.CityRus02,
+      ClientCryptoWallet: data.clientCryptoWallet || data.ClientCryptoWallet,
+      ClientIBAN: data.clientIBAN || data.ClientIBAN,
+      End_address: data.endAddress || data.End_address,
+      Location2: data.location2 || data.Location2 || data.location_url,
+      MessageIBAN: data.messageIBAN || data.MessageIBAN,
+      NetworkUSDT01: data.networkUSDT01 || data.NetworkUSDT01,
+      NetworkUSDT02: data.networkUSDT02 || data.NetworkUSDT02,
+      New_address: data.newAddress || data.New_address,
+      Ordertime: data.ordertime || data.Ordertime,
+      PayeeName: data.payeeName || data.PayeeName,
+      tg_amo: data.tgAmo || data.tg_amo,
 
       // --- New Fields (Numeric) ---
-      CashbackEUR: parseNumeric(data.CashbackEUR),
-      CashbackUSDT: parseNumeric(data.CashbackUSDT),
-      LoyPoints: parseNumeric(data.LoyPoints),
-      SumEquivalentEUR: parseNumeric(data.SumEquivalentEUR),
-      SumPartly: parseNumeric(data.SumPartly || data.amount_partly_paid),
+      CashbackEUR: parseNumeric(data.cashbackEUR || data.CashbackEUR),
+      CashbackUSDT: parseNumeric(data.cashbackUSDT || data.CashbackUSDT),
+      LoyPoints: parseNumeric(data.loyPoints || data.LoyPoints),
+      SumEquivalentEUR: parseNumeric(data.sumEquivalentEUR || data.SumEquivalentEUR),
+      SumPartly: parseNumeric(data.sumPartly || data.SumPartly || data.amount_partly_paid),
 
       // --- New Fields (Boolean) ---
-      first_order: data.first_order || data['first_order?'],
-      Is_application_accepted: data.Is_application_accepted || data['Is the application accept...'] || data['Is the application accepted?'], // Handle variations
-      On_site: data.On_site || data['On site?'],
-      Request_address: data.Request_address || data['Request address?'],
+      first_order: data.firstOrder || data.first_order || data['first_order?'],
+      Is_application_accepted: data.isApplicationAccepted || data.Is_application_accepted || data['Is the application accept...'] || data['Is the application accepted?'],
+      On_site: data.onSite || data.On_site || data['On site?'],
+      Request_address: data.requestAddress || data.Request_address || data['Request address?'],
 
       // --- New Fields (Users/IDs) ---
-      Manager_Bubble: data.Manager_Bubble || data.Manager,
-      Operators_Bubble: data.Operators_Bubble || data.Operators,
-      BubbleUser: data.BubbleUser || data.User || data.external_user_id,
+      Manager_Bubble: data.managerBubble || data.Manager_Bubble || data.Manager,
+      Operators_Bubble: data.operatorsBubble || data.Operators_Bubble || data.Operators,
+      BubbleUser: data.bubbleUser || data.BubbleUser || data.User || data.external_user_id,
       lead_id: data.lead_id,
 
       // --- New Fields (Files/Other) ---
-      AttachedCheck: data.AttachedCheck || data.attached_check,
-      plused_temp: data.plused_temp,
-      plused_temp2: data.plused_temp2,
-      ATM: data.ATM,
-      Location1: data.Location1 || data.location_url_alt,
-      UndoStep: data.UndoStep,
-      OnlineExchInfo: data.OnlineExchInfo ? JSON.stringify(data.OnlineExchInfo) : null,
+      AttachedCheck: data.attachedCheck || data.AttachedCheck || data.attached_check,
+      plused_temp: data.plusedTemp || data.plused_temp,
+      plused_temp2: data.plusedTemp2 || data.plused_temp2,
+      ATM: data.atm || data.ATM,
+      Location1: data.location1 || data.Location1 || data.location_url_alt,
+      UndoStep: data.undoStep || data.UndoStep,
+      OnlineExchInfo: data.onlineExchInfo ? (typeof data.onlineExchInfo === 'string' ? data.onlineExchInfo : JSON.stringify(data.onlineExchInfo)) : null,
 
-      // Legacy / Mapped mappings kept for safety if column exists, else ignored by insert if not in schema?
-      // Supabase insert ignores extra keys? No, it errors if column missing.
-      // So I must ensure these keys match EXACTLY what's in DB.
-      // 'title' is renamed to 'OrderName', 'description' to 'Comment'.
-      // I should NOT pass 'title' or 'description' if they don't exist.
-      // My migration removed them (renamed them). So I must NOT include them here.
+      // Explicit mappings (Legacy/Fallback)
+      client_phone: data.mobilePhone || data.client_phone || data.MobilePhone,
+      MobilePhone: data.mobilePhone || data.MobilePhone || data.client_phone,
 
-      // Removed old aliases:
-      // city_1, currency_give, etc. replaced by above.
-
-      // Extra explicit mappings for fallback internal logic
-      client_phone: data.client_phone || data.MobilePhone, // Keep for contact logic, but maybe store in MobilePhone col?
-      MobilePhone: data.MobilePhone || data.client_phone, // Store in MobilePhone
-
-      // Additional internal fields
+      // Internal fields
       source: 'bubble',
       label_color: data.label_color || data.color,
       mongo_id: data.mongo_id || data._id || data.ID,
