@@ -11,8 +11,8 @@ import { formatDuration } from '../utils/chatUtils';
 const { TextArea } = Input;
 
 interface ChatInputProps {
-    onSendText: (text: string) => void;
-    onSendVoice: (voice: Blob, duration: number) => void;
+    onSendText: (text: string) => Promise<void> | void;
+    onSendVoice: (voice: Blob, duration: number) => Promise<void> | void;
     sending: boolean;
     onTyping?: () => void;
 }
@@ -103,16 +103,24 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
         }
     };
 
-    const handleSendText = () => {
-        if (!messageInput.trim()) return;
-        onSendText(messageInput);
-        setMessageInput('');
+    const handleSendText = async () => {
+        if (!messageInput.trim() || sending) return;
+        try {
+            await onSendText(messageInput);
+            setMessageInput('');
+        } catch (e) {
+            console.error('Failed to send text:', e);
+        }
     };
 
-    const handleSendVoice = () => {
-        if (!recordedAudio) return;
-        onSendVoice(recordedAudio, recordingDuration);
-        cancelRecording();
+    const handleSendVoice = async () => {
+        if (!recordedAudio || sending) return;
+        try {
+            await onSendVoice(recordedAudio, recordingDuration);
+            cancelRecording();
+        } catch (e) {
+            console.error('Failed to send voice:', e);
+        }
     };
 
     return (

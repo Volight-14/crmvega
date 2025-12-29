@@ -220,6 +220,55 @@ router.post('/contact/:contactId', auth, async (req, res) => {
 
     console.log(`[POST /contact/${contactId}] Final leadId for message:`, leadId);
 
+    // Если сообщение от менеджера, отправляем через Telegram бота (если есть telegram_user_id)
+    let telegramMessageId = null;
+    let messageStatus = 'delivered';
+    let errorMessage = null;
+
+    if (sender_type === 'manager' && leadId) {
+      // Ищем contact telegram_id
+      const { data: contact } = await supabase
+        .from('contacts')
+        .select('telegram_user_id')
+        .eq('id', contactId)
+        .single();
+
+      if (contact && contact.telegram_user_id) {
+        try {
+          const sent = await sendMessageToTelegram(contact.telegram_user_id, content);
+          // sendMessageToTelegram returns boolean, but we need ID and error details. 
+          // Let's refactor inline or use a better helper.
+          // Inline for now to capture errors precisely.
+          const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+          if (TELEGRAM_BOT_TOKEN) {
+            const tgResponse = await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+              chat_id: contact.telegram_user_id,
+              text: content
+            });
+            telegramMessageId = tgResponse.data?.result?.message_id;
+          }
+        } catch (err) {
+          console.error('Failed to send message via bot:', err.response?.data || err.message);
+          const errorCode = err.response?.data?.error_code;
+          if (errorCode === 403) {
+            messageStatus = 'blocked';
+            errorMessage = 'Пользователь заблокировал бота';
+          } else if (errorCode === 400) {
+            messageStatus = 'deleted_chat'; // or generic error
+            errorMessage = 'Пользователь удалил чат с ботом';
+          } else {
+            messageStatus = 'error';
+            errorMessage = err.response?.data?.description || err.message;
+          }
+        }
+      }
+
+      // Трекаем ответ для аналитики AI
+      trackOperatorResponse(leadId, content).catch(err => {
+        console.error('Failed to track operator response:', err);
+      });
+    }
+
     // Создаем сообщение
     const { data: message, error: messageError } = await supabase
       .from('messages')
@@ -227,6 +276,9 @@ router.post('/contact/:contactId', auth, async (req, res) => {
         main_id: leadId,
         content,
         author_type: sender_type === 'user' ? 'user' : 'Менеджер',
+        status: messageStatus, // Add status column to DB schema if not exists, or handle in frontend via metadata? Assuming DB supports it or we use metadata
+        error_message: errorMessage,
+        message_id_tg: telegramMessageId
       })
       .select(`*`)
       .single();
@@ -246,32 +298,8 @@ router.post('/contact/:contactId', auth, async (req, res) => {
         }, { onConflict: 'order_id,message_id' });
     }
 
-    // Получаем io для уведомлений
     const io = req.app.get('io');
-
-    // Если сообщение от менеджера, отправляем через Telegram бота (если есть telegram_user_id)
-    if (sender_type === 'manager' && leadId) {
-      // Ищем contact telegram_id
-      const { data: contact } = await supabase
-        .from('contacts')
-        .select('telegram_user_id')
-        .eq('id', contactId)
-        .single();
-
-      if (contact && contact.telegram_user_id) {
-        sendMessageToTelegram(contact.telegram_user_id, content).catch(err => {
-          console.error('Failed to send message via bot:', err);
-        });
-      }
-
-      // Трекаем ответ для аналитики AI
-      trackOperatorResponse(leadId, content).catch(err => {
-        console.error('Failed to track operator response:', err);
-      });
-    }
-
     // Отправляем Socket.IO событие
-    // Try sending to explicit order room too
     if (io) {
       if (leadId) io.to(`lead_${leadId}`).emit('new_message', message);
       io.to(`order_${orderId}`).emit('new_message', message);

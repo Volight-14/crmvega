@@ -362,31 +362,61 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
                     {/* Attachments */}
                     {renderAttachment()}
 
-                    {/* Footer: Reply Button + Time + Status */}
+                    {/* Metadata: Time and Status */}
                     <div style={{
-                        fontSize: 11,
-                        opacity: 0.6,
-                        marginTop: 4,
-                        textAlign: 'right',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'flex-end',
-                        gap: 8,
+                        gap: 4,
+                        marginTop: 4,
+                        fontSize: 11,
+                        opacity: 0.8
                     }}>
-                        {onReply && (
-                            <span
-                                onClick={(e) => { e.stopPropagation(); onReply(msg); }}
-                                style={{ cursor: 'pointer', opacity: 0.8, display: 'flex', alignItems: 'center' }}
-                                title="Ответить"
-                            >
-                                <RollbackOutlined rotate={180} />
-                            </span>
+                        <span>{formatTime(msg['Created Date'] || msg.created_at)}</span>
+
+                        {isOwn && variant !== 'internal' && (
+                            <>
+                                {msg.status === 'delivered' && <span>Доставлено</span>}
+                                {msg.status === 'read' && <span style={{ color: '#52c41a' }}>Прочитано</span>}
+                                {msg.status === 'error' && <span style={{ color: '#ff4d4f' }}>Ошибка</span>}
+                                {msg.status === 'blocked' && <span style={{ color: '#ff4d4f' }}>🚫 Заблокирован</span>}
+                                {msg.status === 'deleted_chat' && <span style={{ color: '#ff4d4f' }}>💔 Чат удален</span>}
+                            </>
                         )}
-                        <span>
-                            {formatTime(msg['Created Date'] || msg.created_at)}
-                        </span>
-                        {/* If we had 'read' status for specific messages, we would put it here */}
+
+                        {/* Internal Read Status */}
+                        {isOwn && variant === 'internal' && (
+                            <span>{msg.is_read ? '✓✓' : '✓'}</span>
+                        )}
                     </div>
+
+                    {/* Critical Error Message Text */}
+                    {(msg.status === 'blocked' || msg.status === 'deleted_chat' || msg.status === 'error') && msg.error_message && (
+                        <div style={{
+                            fontSize: 10,
+                            color: styles.color === 'white' ? '#ffccc7' : '#cf1322',
+                            marginTop: 2,
+                            textAlign: 'right'
+                        }}>
+                            {msg.error_message}
+                        </div>
+                    )}
+
+                    {onReply && (
+                        <div
+                            className="reply-icon"
+                            style={{
+                                position: 'absolute',
+                                top: 4,
+                                right: isRight ? 'auto' : -24,
+                                left: isRight ? -24 : 'auto',
+                                cursor: 'pointer', // Hover CSS typically handles visibility
+                                opacity: 0 // Hidden by default, shown on hover (needs CSS support or always visible?)
+                            }}
+                        >
+                            <RollbackOutlined onClick={(e) => { e.stopPropagation(); onReply(msg); }} />
+                        </div>
+                    )}
 
                     {/* Reactions */}
                     {msg.reactions && msg.reactions.length > 0 && (

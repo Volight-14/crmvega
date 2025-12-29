@@ -38,6 +38,9 @@ export interface Message {
   sender_id?: number;
   telegram_message_id?: number;
   reactions?: any[];
+  status?: 'delivered' | 'read' | 'error' | 'blocked' | 'deleted_chat';
+  error_message?: string;
+  is_read?: boolean;
 }
 
 export interface InternalMessage {
