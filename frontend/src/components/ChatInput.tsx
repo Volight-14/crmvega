@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Input, Button, message as antMessage } from 'antd';
+import { Input, Button, message as antMessage, Typography } from 'antd';
 import {
     SendOutlined,
     AudioOutlined,
@@ -9,6 +9,7 @@ import {
 import { formatDuration } from '../utils/chatUtils';
 
 const { TextArea } = Input;
+const { Text } = Typography;
 
 interface ChatInputProps {
     onSendText: (text: string) => Promise<void> | void;
@@ -222,5 +223,4 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
         </div>
     );
 };
-import { Typography } from 'antd';
-const { Text } = Typography;
+
