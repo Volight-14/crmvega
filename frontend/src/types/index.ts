@@ -225,6 +225,7 @@ export interface Order { // Renamed from Deal
   plused_temp2?: string;
   UndoStep?: string;
   OnlineExchInfo?: string;
+  last_message?: Message;
 }
 
 export interface Note {

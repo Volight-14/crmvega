@@ -35,7 +35,8 @@ router.get('/', auth, async (req, res) => {
       query = supabase
         .from('orders')
         // Renamed title -> OrderName
-        .select('id, contact_id, "OrderName", "SumInput", "CurrPair1", status, created_at, main_id, contact:contacts(name)')
+        // Added fields for Kanban card
+        .select('id, contact_id, "OrderName", "SumInput", "CurrPair1", status, created_at, main_id, "CityEsp02", "DeliveryTime", "NextDay", "SumOutput", "CurrPair2", contact:contacts(name)')
         .order('created_at', { ascending: false })
         .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
     } else {
@@ -64,8 +65,6 @@ router.get('/', auth, async (req, res) => {
     if (error) throw error;
 
     // Преобразуем amount (из строки в число)
-    // Map OrderName to title for frontend compatibility if needed, OR just send OrderName
-    // Let's send OrderName and let frontend adapt.
     let orders = data.map(order => ({
       ...order,
       title: order.OrderName, // Alias for backward compatibility if useful
@@ -74,17 +73,30 @@ router.get('/', auth, async (req, res) => {
       description: order.Comment // Alias for backward compatibility
     }));
 
-    // ... (rest of logic) ...
-    // Note: I only need to replace up to line 168 (Create Order)
-    // But this tool call covers the GET logic.
-    // I need to split or cover specific block.
-    // The insert logic is further down.
+    // Для минимального режима (Канбан) подгружаем последние сообщения клиентов
+    if (isMinimal && orders.length > 0) {
+      // Fetch latest client message for each order
+      // We use Promise.all with map. For 50 items it's okay. For larger generic lists, we might need optimization.
+      const ordersWithMessages = await Promise.all(orders.map(async (order) => {
+        let lastMessage = null;
+        if (order.main_id) {
+          const { data: msg } = await supabase
+            .from('messages')
+            .select('content, "Created Date", author_type')
+            .eq('main_id', String(order.main_id))
+            // Filter purely for client messages if possible, but 'author_type' values vary.
+            // Common client types: 'user', 'Клиент', 'Client'
+            .in('author_type', ['user', 'Клиент', 'Client'])
+            .order('Created Date', { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
-    // Let's target the GET logic first.
-
-
-    // Загружаем теги отдельным запросом (эффективнее чем N+1)
-    if (!isMinimal && orders.length > 0) {
+          lastMessage = msg;
+        }
+        return { ...order, last_message: lastMessage, tags: [] };
+      }));
+      orders = ordersWithMessages;
+    } else if (!isMinimal && orders.length > 0) {
       const orderIds = orders.map(o => o.id);
       const { data: tagsData } = await supabase
         .from('order_tags')
@@ -104,11 +116,8 @@ router.get('/', auth, async (req, res) => {
         tags: tagsByOrder[order.id] || []
       }));
     } else {
-      // В минимальном режиме теги не нужны
-      orders = orders.map(order => ({
-        ...order,
-        tags: []
-      }));
+      // В минимальном режиме (если пустой или ошибка) теги не нужны
+      orders = orders.map(order => ({ ...order, tags: [] }));
     }
 
     const response = { orders };

@@ -89,6 +89,29 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onClick, onStatusChange })
       color: value.color,
     }));
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'short'
+    }).replace('.', '') + ', ' + date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Construct main info string
+  const mainInfoParts = [
+    order.DeliveryTime ? `с ${order.DeliveryTime}` : '',
+    order.NextDay ? order.NextDay : '',
+    order.CityEsp02 ? order.CityEsp02 : '',
+    order.SumInput ? order.SumInput.toString() : '',
+    order.CurrPair1 ? order.CurrPair1 : '',
+    (order.SumOutput || order.CurrPair2) ? 'на' : '',
+    order.SumOutput ? order.SumOutput.toString() : '',
+    order.CurrPair2 ? order.CurrPair2 : ''
+  ];
+
+  // Join parts and handle empty strings nicely, also handle potentially "с null" if DeliveryTime was somehow null string
+  const mainInfoString = mainInfoParts.filter(part => part && part.trim() !== '').join(' ');
+
   return (
     <div
       ref={setNodeRef}
@@ -109,135 +132,100 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onClick, onStatusChange })
         bodyStyle={{ padding: '10px 12px' }}
         hoverable
       >
-        {/* Имя контакта и дата */}
+        {/* Header: Name + Date */}
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 6,
+          marginBottom: 2,
         }}>
           <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            flex: 1,
-            minWidth: 0,
+            fontWeight: 600,
+            fontSize: 14,
+            color: '#262626',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            maxWidth: '70%'
           }}>
-            <Avatar
-              size={28}
-              style={{
-                backgroundColor: '#667eea',
-                flexShrink: 0,
-              }}
-            >
-              {(order.contact?.name || 'К')[0].toUpperCase()}
-            </Avatar>
-            <div style={{ minWidth: 0 }}>
-              <div style={{
-                fontWeight: 600,
-                fontSize: 13,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}>
-                {order.contact?.name || 'Без контакта'}
-              </div>
-            </div>
+            {order.OrderName || order.title || 'Без имени'}
           </div>
           <Text type="secondary" style={{ fontSize: 11, flexShrink: 0 }}>
-            {new Date(order.created_at).toLocaleDateString('ru-RU', {
-              day: 'numeric',
-              month: 'short'
-            }).replace('.', '')}
+            {formatDate(order.created_at)}
           </Text>
         </div>
 
-        {/* Название заявки */}
+        {/* Subtitle: City */}
+        {order.CityEsp02 && (
+          <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 6 }}>
+            {order.CityEsp02}
+          </div>
+        )}
+
+        {/* Main Info String */}
         <div style={{
-          fontSize: 12,
+          fontSize: 14,
           color: '#1890ff',
-          marginBottom: 6,
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
+          marginBottom: 8,
+          lineHeight: '1.4',
+          wordWrap: 'break-word'
         }}>
-          {order.title}
+          {mainInfoString}
         </div>
 
-        {/* Сумма */}
-        {order.amount > 0 && (
+        {/* Footer: Last Message */}
+        {order.last_message && (
           <div style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: '#262626',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
+            marginTop: 8,
+            background: '#f0f5ff',
+            borderRadius: '8px 8px 8px 0',
+            padding: '6px 10px',
+            display: 'inline-block',
+            maxWidth: '90%'
           }}>
-            {order.currency === 'EUR' ? '€' : order.currency === 'USD' ? '$' : '₽'}
-            {order.amount.toLocaleString('ru-RU')}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {/* Mini avatar or icon for client */}
+              <Avatar size={16} src={order.contact?.name ? undefined : undefined} style={{ backgroundColor: '#87d068' }} icon={<UserOutlined style={{ fontSize: 10 }} />} />
+              <Text style={{ fontSize: 12, color: '#262626' }} ellipsis>
+                {order.last_message.content}
+              </Text>
+            </div>
           </div>
         )}
 
-        {/* Теги */}
-        {order.tags && order.tags.length > 0 && (
-          <div style={{ marginTop: 6 }}>
-            {order.tags.slice(0, 2).map((tag) => (
-              <Tag
-                key={tag.id}
-                color={tag.color}
-                style={{
-                  fontSize: 10,
-                  padding: '0 6px',
-                  marginRight: 4,
-                  borderRadius: 4,
-                }}
-              >
-                {tag.name}
-              </Tag>
-            ))}
-          </div>
-        )}
-
-        {/* Нижняя панель с статусом и индикатором задач */}
+        {/* Status Dropdown (Right aligned at bottom if needed, or keeping it separate?) 
+            User didn't explicitly ask to remove it, but screenshot 2 shows a "No tasks" dot on the RIGHT and "Paid" check.
+            User said "Below 500 euro - not needed yet". "Right of it 'Paid' tag - needed later".
+            "Right of 'No tasks' - not needed yet".
+            Wait. "Ниже 'Верно' - это последнее сообщение клиента".
+            So the message is at the bottom.
+            Where is the status dropdown?
+            The user instructions don't mention the status dropdown.
+            But functionality-wise, we need to change status.
+            I will keep the status dropdown but maybe make it subtle or just keep it as is if space permits.
+            Actually, the user design (screenshot 2) DOES NOT show the standard status dropdown. 
+            However, this is a Kanban board. We usually drag to change status.
+            The old card had a dropdown. 
+            I'll add the status dropdown at the bottom right, subtle, so functionality stays.
+        */}
         <div style={{
           marginTop: 8,
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 8,
+          justifyContent: 'flex-end',
         }}>
-          {/* Индикатор задач */}
-          <div style={{
-            fontSize: 11,
-            color: '#f5222d',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            flexShrink: 0,
-          }}>
-            <span style={{ color: '#f5222d' }}>●</span>
-            Нет задач
-          </div>
-
-          {/* Дропдаун статуса */}
           <div
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
-            style={{ flexShrink: 0 }}
           >
+            {/* Minimal status indicator/dropdown */}
             <Select
               size="small"
               value={order.status}
               onChange={(newStatus) => onStatusChange?.(newStatus)}
-              style={{ width: 130, fontSize: 11 }}
-              popupMatchSelectWidth={false}
+              style={{ width: 24, fontSize: 11 }}
+              dropdownMatchSelectWidth={false}
               bordered={false}
-              className="status-select-compact"
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-              }}
+              suffixIcon={<div style={{ width: 10, height: 10, borderRadius: '50%', background: ORDER_STATUSES[order.status]?.color === 'default' ? '#d9d9d9' : ORDER_STATUSES[order.status]?.color || '#1890ff' }} />}
             >
               {sortedStatusOptions.map((opt) => (
                 <Option key={opt.value} value={opt.value}>
@@ -250,6 +238,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onClick, onStatusChange })
             </Select>
           </div>
         </div>
+
       </Card>
     </div>
   );
