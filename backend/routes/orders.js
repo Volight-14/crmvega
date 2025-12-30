@@ -36,7 +36,8 @@ router.get('/', auth, async (req, res) => {
         .from('orders')
         // Renamed title -> OrderName
         // Added fields for Kanban card
-        .select('id, contact_id, "OrderName", "SumInput", "CurrPair1", status, created_at, main_id, "CityEsp02", "DeliveryTime", "NextDay", "SumOutput", "CurrPair2", contact:contacts(name)')
+        // Returning * temporarily to debug missing column issue
+        .select('*, contact:contacts(name)')
         .order('created_at', { ascending: false })
         .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
     } else {
