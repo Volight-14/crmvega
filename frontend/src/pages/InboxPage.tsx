@@ -134,8 +134,12 @@ const InboxPage: React.FC = () => {
             const data = await contactMessagesAPI.getByContactId(contactId, { limit: 50 });
             setMessages(data);
             scrollToBottom();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching messages:', error);
+            if (error.response) {
+                console.error('Server Error Details:', error.response.data);
+                antMessage.error(`Ошибка загрузки: ${JSON.stringify(error.response.data)}`);
+            }
         } finally {
             setIsLoadingMessages(false);
         }
