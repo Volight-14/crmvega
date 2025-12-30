@@ -67,6 +67,23 @@ export const authAPI = {
   },
 };
 
+// Managers API
+export const managersAPI = {
+  getAll: async (): Promise<Manager[]> => {
+    const response = await api.get('/managers');
+    return response.data;
+  },
+
+  create: async (manager: { email: string; password: string; name: string; role: string }): Promise<Manager> => {
+    const response = await api.post('/managers', manager);
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/managers/${id}`);
+  },
+};
+
 // Messages API
 export const messagesAPI = {
   getByLeadId: async (leadId: string | number, params?: { limit?: number; offset?: number }): Promise<Message[]> => {

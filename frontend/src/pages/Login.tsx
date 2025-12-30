@@ -152,141 +152,59 @@ const Login: React.FC = () => {
           />
         )}
 
-        <Tabs defaultActiveKey="login" centered onChange={() => setLoginError(null)}>
-          <TabPane tab="Вход" key="login">
-            <Form onFinish={onLogin} layout="vertical">
-              <Form.Item
-                name="email"
-                rules={[
-                  { required: true, message: 'Введите email' },
-                  { type: 'email', message: 'Неверный формат email' }
-                ]}
+        <div style={{ padding: '0 24px' }}>
+          <Title level={4} style={{ textAlign: 'center', marginBottom: 24 }}>Вход в систему</Title>
+          <Form onFinish={onLogin} layout="vertical">
+            <Form.Item
+              name="email"
+              rules={[
+                { required: true, message: 'Введите email' },
+                { type: 'email', message: 'Неверный формат email' }
+              ]}
+            >
+              <Input
+                prefix={<MailOutlined style={{ color: '#bfbfbf' }} />}
+                placeholder="Email"
+                size="large"
+                autoComplete="email"
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="password"
+              rules={[{ required: true, message: 'Введите пароль' }]}
+            >
+              <Input.Password
+                prefix={<LockOutlined style={{ color: '#bfbfbf' }} />}
+                placeholder="Пароль"
+                size="large"
+                autoComplete="current-password"
+              />
+            </Form.Item>
+
+            <Form.Item style={{ marginBottom: 12 }}>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={loading}
+                block
+                size="large"
               >
-                <Input
-                  prefix={<MailOutlined style={{ color: '#bfbfbf' }} />}
-                  placeholder="Email"
-                  size="large"
-                  autoComplete="email"
-                />
-              </Form.Item>
+                Войти
+              </Button>
+            </Form.Item>
 
-              <Form.Item
-                name="password"
-                rules={[{ required: true, message: 'Введите пароль' }]}
+            <div style={{ textAlign: 'center' }}>
+              <Button
+                type="link"
+                onClick={openResetModal}
+                style={{ padding: 0 }}
               >
-                <Input.Password
-                  prefix={<LockOutlined style={{ color: '#bfbfbf' }} />}
-                  placeholder="Пароль"
-                  size="large"
-                  autoComplete="current-password"
-                />
-              </Form.Item>
-
-              <Form.Item style={{ marginBottom: 12 }}>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  loading={loading}
-                  block
-                  size="large"
-                >
-                  Войти
-                </Button>
-              </Form.Item>
-
-              <div style={{ textAlign: 'center' }}>
-                <Button
-                  type="link"
-                  onClick={openResetModal}
-                  style={{ padding: 0 }}
-                >
-                  Забыли пароль?
-                </Button>
-              </div>
-            </Form>
-          </TabPane>
-
-          <TabPane tab="Регистрация" key="register">
-            <Form onFinish={onRegister} layout="vertical">
-              <Form.Item
-                name="name"
-                rules={[{ required: true, message: 'Введите имя' }]}
-              >
-                <Input
-                  prefix={<UserOutlined style={{ color: '#bfbfbf' }} />}
-                  placeholder="Ваше имя"
-                  size="large"
-                  autoComplete="name"
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="email"
-                rules={[
-                  { required: true, message: 'Введите email' },
-                  { type: 'email', message: 'Неверный формат email' }
-                ]}
-              >
-                <Input
-                  prefix={<MailOutlined style={{ color: '#bfbfbf' }} />}
-                  placeholder="Email"
-                  size="large"
-                  autoComplete="email"
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="password"
-                rules={[
-                  { required: true, message: 'Введите пароль' },
-                  { min: 6, message: 'Минимум 6 символов' }
-                ]}
-              >
-                <Input.Password
-                  prefix={<LockOutlined style={{ color: '#bfbfbf' }} />}
-                  placeholder="Пароль"
-                  size="large"
-                  autoComplete="new-password"
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="confirmPassword"
-                dependencies={['password']}
-                rules={[
-                  { required: true, message: 'Подтвердите пароль' },
-                  ({ getFieldValue }) => ({
-                    validator(_, value) {
-                      if (!value || getFieldValue('password') === value) {
-                        return Promise.resolve();
-                      }
-                      return Promise.reject(new Error('Пароли не совпадают'));
-                    },
-                  }),
-                ]}
-              >
-                <Input.Password
-                  prefix={<LockOutlined style={{ color: '#bfbfbf' }} />}
-                  placeholder="Подтвердите пароль"
-                  size="large"
-                  autoComplete="new-password"
-                />
-              </Form.Item>
-
-              <Form.Item>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  loading={loading}
-                  block
-                  size="large"
-                >
-                  Зарегистрироваться
-                </Button>
-              </Form.Item>
-            </Form>
-          </TabPane>
-        </Tabs>
+                Забыли пароль?
+              </Button>
+            </div>
+          </Form>
+        </div>
 
         <Divider style={{ margin: '16px 0' }} />
 

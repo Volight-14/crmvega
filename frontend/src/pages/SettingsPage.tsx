@@ -18,6 +18,7 @@ import {
   Table,
   Modal,
   Popconfirm,
+  Result,
 } from 'antd';
 import {
   UserOutlined,
@@ -27,8 +28,12 @@ import {
   ApiOutlined,
   ExportOutlined,
   KeyOutlined,
+  PlusOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
+import { managersAPI } from '../services/api';
+import { Manager } from '../types';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -37,8 +42,14 @@ const { TextArea } = Input;
 const SettingsPage: React.FC = () => {
   const { manager } = useAuth();
   const [form] = Form.useForm();
+  const [userForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
+
+  // State for Users Management
+  const [managers, setManagers] = useState<Manager[]>([]);
+  const [isUserModalVisible, setIsUserModalVisible] = useState(false);
+  const [usersLoading, setUsersLoading] = useState(false);
 
   useEffect(() => {
     if (manager) {
@@ -60,6 +71,53 @@ const SettingsPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const fetchManagers = async () => {
+    if (manager?.role !== 'admin') return;
+    setUsersLoading(true);
+    try {
+      const data = await managersAPI.getAll();
+      setManagers(data);
+    } catch (error) {
+      console.error('Error fetching managers:', error);
+      // message.error('Ошибка загрузки пользователей');
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'users' && manager?.role === 'admin') {
+      fetchManagers();
+    }
+  }, [activeTab, manager]);
+
+  const handleCreateUser = async (values: any) => {
+    setUsersLoading(true);
+    try {
+      await managersAPI.create(values);
+      message.success('Пользователь создан');
+      setIsUserModalVisible(false);
+      userForm.resetFields();
+      fetchManagers();
+    } catch (error: any) {
+      message.error(error.response?.data?.error || 'Ошибка создания пользователя');
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (id: number) => {
+    try {
+      await managersAPI.delete(id);
+      message.success('Пользователь удален');
+      fetchManagers();
+    } catch (error: any) {
+      message.error(error.response?.data?.error || 'Ошибка удаления пользователя');
+    }
+  };
+
+
 
   const handleChangePassword = async (values: any) => {
     if (values.newPassword !== values.confirmPassword) {
@@ -243,10 +301,115 @@ const SettingsPage: React.FC = () => {
               ),
               children: (
                 <div>
-                  <Title level={4}>Управление пользователями</Title>
-                  <Text type="secondary">
-                    Управление менеджерами и правами доступа. В разработке...
-                  </Text>
+                  <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+                    <Title level={4} style={{ margin: 0 }}>Управление пользователями</Title>
+                    {manager?.role === 'admin' && (
+                      <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsUserModalVisible(true)}>
+                        Добавить пользователя
+                      </Button>
+                    )}
+                  </Space>
+
+                  {manager?.role === 'admin' ? (
+                    <Table
+                      dataSource={managers}
+                      rowKey="id"
+                      loading={usersLoading}
+                      columns={[
+                        {
+                          title: 'Имя',
+                          dataIndex: 'name',
+                          key: 'name',
+                          render: (text, record) => (
+                            <Space>
+                              <UserOutlined />
+                              {text}
+                              {record.id === manager.id && <Tag color="blue">Вы</Tag>}
+                            </Space>
+                          )
+                        },
+                        {
+                          title: 'Email',
+                          dataIndex: 'email',
+                          key: 'email',
+                        },
+                        {
+                          title: 'Роль',
+                          dataIndex: 'role',
+                          key: 'role',
+                          render: (role) => {
+                            let color = 'geekblue';
+                            let text = role;
+                            if (role === 'admin') { color = 'red'; text = 'Администратор'; }
+                            if (role === 'manager') { color = 'green'; text = 'Менеджер'; }
+                            if (role === 'operator') { color = 'blue'; text = 'Оператор'; }
+                            return <Tag color={color}>{text}</Tag>;
+                          }
+                        },
+                        {
+                          title: 'Дата создания',
+                          dataIndex: 'created_at',
+                          key: 'created_at',
+                          render: (date) => new Date(date).toLocaleDateString('ru-RU')
+                        },
+                        {
+                          title: 'Действия',
+                          key: 'actions',
+                          render: (_, record) => (
+                            <Space size="middle">
+                              {record.id !== manager.id && (
+                                <Popconfirm
+                                  title="Удалить пользователя?"
+                                  description="Это действие нельзя отменить."
+                                  onConfirm={() => handleDeleteUser(record.id)}
+                                  okText="Да"
+                                  cancelText="Нет"
+                                >
+                                  <Button type="link" danger icon={<DeleteOutlined />}>
+                                    Удалить
+                                  </Button>
+                                </Popconfirm>
+                              )}
+                            </Space>
+                          ),
+                        },
+                      ]}
+                    />
+                  ) : (
+                    <Card>
+                      <Result
+                        status="403"
+                        title="Доступ запрещен"
+                        subTitle="У вас нет прав для просмотра этой страницы."
+                      />
+                    </Card>
+                  )}
+
+                  <Modal
+                    title="Новый пользователь"
+                    open={isUserModalVisible}
+                    onCancel={() => setIsUserModalVisible(false)}
+                    onOk={() => userForm.submit()}
+                  >
+                    <Form form={userForm} layout="vertical" onFinish={handleCreateUser}>
+                      <Form.Item name="name" label="Имя" rules={[{ required: true }]}>
+                        <Input prefix={<UserOutlined />} placeholder="Иван Иванов" />
+                      </Form.Item>
+                      <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
+                        <Input prefix={<UserOutlined />} placeholder="ivan@example.com" />
+                      </Form.Item>
+                      <Form.Item name="password" label="Пароль" rules={[{ required: true, min: 6 }]}>
+                        <Input.Password prefix={<KeyOutlined />} placeholder="Минимум 6 символов" />
+                      </Form.Item>
+                      <Form.Item name="role" label="Роль" rules={[{ required: true }]}>
+                        <Select placeholder="Выберите роль">
+                          <Option value="admin">Администратор</Option>
+                          <Option value="manager">Менеджер</Option>
+                          <Option value="operator">Оператор</Option>
+                        </Select>
+                      </Form.Item>
+                    </Form>
+                  </Modal>
                 </div>
               ),
             },
