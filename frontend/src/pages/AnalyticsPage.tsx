@@ -163,8 +163,8 @@ const AnalyticsPage: React.FC = () => {
       </Row>
 
       {/* Сводные показатели */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={6}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
               title="Всего заявок"
@@ -173,7 +173,7 @@ const AnalyticsPage: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
               title="Общая сумма"
@@ -184,7 +184,7 @@ const AnalyticsPage: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
               title="Закрыто на сумму"
@@ -196,7 +196,7 @@ const AnalyticsPage: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
               title="Конверсия"
@@ -210,7 +210,7 @@ const AnalyticsPage: React.FC = () => {
       </Row>
 
       {/* Графики */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         {/* Продажи по месяцам */}
         <Col span={24}>
           <Card title="Продажи по месяцам">
@@ -236,9 +236,9 @@ const AnalyticsPage: React.FC = () => {
         </Col>
       </Row>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         {/* Распределение по статусам */}
-        <Col span={12}>
+        <Col xs={24} lg={12}>
           <Card title="Распределение заявок по статусам">
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -266,7 +266,7 @@ const AnalyticsPage: React.FC = () => {
         </Col>
 
         {/* Воронка продаж */}
-        <Col span={12}>
+        <Col xs={24} lg={12}>
           <Card title="Воронка конверсии">
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={funnelData} layout="vertical">
@@ -283,9 +283,9 @@ const AnalyticsPage: React.FC = () => {
         </Col>
       </Row>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         {/* Топ менеджеров */}
-        <Col span={12}>
+        <Col xs={24} lg={12}>
           <Card title="Топ менеджеров по продажам">
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={managerChartData}>
@@ -303,7 +303,7 @@ const AnalyticsPage: React.FC = () => {
         </Col>
 
         {/* Источники заявок */}
-        <Col span={12}>
+        <Col xs={24} lg={12}>
           <Card title="Распределение по источникам">
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -336,25 +336,25 @@ const AnalyticsPage: React.FC = () => {
         <Row gutter={16}>
           <Col span={24}>
             <Card title="Статистика контактов">
-              <Row gutter={16}>
-                <Col span={6}>
+              <Row gutter={[16, 16]}>
+                <Col xs={24} sm={12} md={6}>
                   <Statistic title="Всего контактов" value={contactsData.total || 0} />
                 </Col>
-                <Col span={6}>
+                <Col xs={24} sm={12} md={6}>
                   <Statistic
                     title="Активные"
                     value={contactsData.statusStats?.active || 0}
                     valueStyle={{ color: '#3f8600' }}
                   />
                 </Col>
-                <Col span={6}>
+                <Col xs={24} sm={12} md={6}>
                   <Statistic
                     title="Требуют внимания"
                     value={contactsData.statusStats?.needs_attention || 0}
                     valueStyle={{ color: '#faad14' }}
                   />
                 </Col>
-                <Col span={6}>
+                <Col xs={24} sm={12} md={6}>
                   <Statistic
                     title="Неактивные"
                     value={contactsData.statusStats?.inactive || 0}

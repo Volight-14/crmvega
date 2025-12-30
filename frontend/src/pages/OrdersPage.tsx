@@ -684,28 +684,32 @@ const OrdersPage: React.FC = () => {
       overflow: 'hidden',
     }}>
       {/* Header */}
+      {/* Header */}
       <div style={{
         background: '#fff',
         padding: '16px 24px',
         borderBottom: '1px solid #f0f0f0',
         display: 'flex',
+        flexDirection: 'row',
+        flexWrap: 'wrap',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexShrink: 0,
+        gap: 16
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap', flex: '1 1 auto' }}>
           <Title level={4} style={{ margin: 0 }}>ЗАЯВКИ</Title>
           <Input
             placeholder="Поиск и фильтр"
             prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 250, borderRadius: 8 }}
+            style={{ width: '100%', maxWidth: 250, borderRadius: 8 }}
             allowClear
           />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <Text style={{ color: '#8c8c8c' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', justifyContent: 'flex-end', flex: '1 1 auto' }}>
+          <Text style={{ color: '#8c8c8c', whiteSpace: 'nowrap' }}>
             {filteredOrders.length} заявок: €{Math.round(totalOrdersAmount).toLocaleString('ru-RU')}
           </Text>
           <Button

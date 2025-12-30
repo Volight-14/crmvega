@@ -118,7 +118,9 @@ const Login: React.FC = () => {
     }}>
       <Card
         style={{
-          width: 420,
+          width: '100%',
+          maxWidth: 420,
+          margin: '0 16px',
           boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
           borderRadius: 12
         }}

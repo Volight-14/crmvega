@@ -59,3 +59,33 @@ code {
 .status-select-header .ant-select-arrow {
   color: #666 !important;
 }
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+
+  .mobile-hidden {
+    display: none !important;
+  }
+
+  .mobile-only {
+    display: block !important;
+  }
+
+  .ant-layout-header {
+    padding: 0 12px !important;
+  }
+
+  .ant-layout-content {
+    margin: 12px !important;
+    padding: 12px !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-only {
+    display: none !important;
+  }
+}

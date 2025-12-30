@@ -298,6 +298,7 @@ const ContactsPage: React.FC = () => {
             showQuickJumper: true,
             showTotal: (total) => `Всего ${total} контактов`,
           }}
+          scroll={{ x: 'max-content' }}
         />
       </Card>
 

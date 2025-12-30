@@ -411,6 +411,7 @@ const SettingsPage: React.FC = () => {
                           ),
                         },
                       ]}
+                      scroll={{ x: 'max-content' }}
                     />
                   ) : (
                     <Card>

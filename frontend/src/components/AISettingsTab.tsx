@@ -116,8 +116,8 @@ const ModelSettings: React.FC = () => {
       onFinish={handleSave}
       initialValues={settings}
     >
-      <Row gutter={24}>
-        <Col span={12}>
+      <Row gutter={[24, 24]}>
+        <Col xs={24} md={12}>
           <Form.Item
             name="model"
             label="Модель AI"
@@ -142,7 +142,7 @@ const ModelSettings: React.FC = () => {
             </Select>
           </Form.Item>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} md={6}>
           <Form.Item
             name="temperature"
             label={
@@ -154,7 +154,7 @@ const ModelSettings: React.FC = () => {
             <Slider min={0} max={1} step={0.1} marks={{ 0: '0', 0.5: '0.5', 1: '1' }} />
           </Form.Item>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} md={6}>
           <Form.Item name="max_tokens" label="Макс. токенов">
             <InputNumber min={100} max={4096} style={{ width: '100%' }} />
           </Form.Item>
@@ -174,8 +174,8 @@ const ModelSettings: React.FC = () => {
         />
       </Form.Item>
 
-      <Row gutter={24}>
-        <Col span={12}>
+      <Row gutter={[24, 24]}>
+        <Col xs={24} sm={12}>
           <Form.Item
             name="auto_suggestions_enabled"
             label="Автоматические подсказки"
@@ -184,7 +184,7 @@ const ModelSettings: React.FC = () => {
             <Switch checkedChildren="Вкл" unCheckedChildren="Выкл" />
           </Form.Item>
         </Col>
-        <Col span={12}>
+        <Col xs={24} sm={12}>
           <Form.Item name="min_delay_seconds" label="Минимальная задержка (сек)">
             <InputNumber min={1} max={60} style={{ width: '100%' }} />
           </Form.Item>
@@ -969,13 +969,13 @@ const AIAnalyticsPanel: React.FC = () => {
 
   return (
     <>
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={6}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic title="Всего подсказок" value={analytics.total} prefix={<RobotOutlined />} />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
               title="Отправлено в Telegram"
@@ -985,7 +985,7 @@ const AIAnalyticsPanel: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
               title="Положительный фидбек"
@@ -995,7 +995,7 @@ const AIAnalyticsPanel: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
               title="Отрицательный фидбек"
@@ -1092,8 +1092,8 @@ const AITesting: React.FC = () => {
   };
 
   return (
-    <Row gutter={24}>
-      <Col span={12}>
+    <Row gutter={[24, 24]}>
+      <Col xs={24} md={12}>
         <Card title="Тестовый запрос">
           <Form form={form} layout="vertical" onFinish={handleTest}>
             <Form.Item name="operator_id" label="Оператор (опционально)">
@@ -1132,10 +1132,10 @@ const AITesting: React.FC = () => {
         </Card>
       </Col>
 
-      <Col span={12}>
+      <Col xs={24} md={12}>
         <Card title="Результат">
           {loading && <Spin tip="Генерация..." />}
-          
+
           {result && !result.error && (
             <Space direction="vertical" style={{ width: '100%' }}>
               {result.suggested_response && (

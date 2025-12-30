@@ -20,6 +20,7 @@ import {
 import {
     SearchOutlined,
     UserOutlined,
+    ArrowLeftOutlined,
 } from '@ant-design/icons';
 import { UnifiedMessageBubble } from '../components/UnifiedMessageBubble';
 import { ChatInput } from '../components/ChatInput';
@@ -177,176 +178,200 @@ const InboxPage: React.FC = () => {
         }
     };
 
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     const scrollToBottom = () => {
         setTimeout(() => {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
         }, 100);
     };
 
+    const showList = !isMobile || (isMobile && !selectedContact);
+    const showChat = !isMobile || (isMobile && selectedContact);
+
     return (
         <Layout style={{ height: 'calc(100vh - 100px)', background: '#fff', border: '1px solid #f0f0f0', borderRadius: 8 }}>
-            <Sider width={350} theme="light" style={{ borderRight: '1px solid #f0f0f0' }}>
-                <div style={{ padding: 16, borderBottom: '1px solid #f0f0f0' }}>
-                    <Title level={4} style={{ marginBottom: 16 }}>Диалоги</Title>
-                    <Input
-                        placeholder="Поиск..."
-                        prefix={<SearchOutlined />}
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onPressEnter={fetchContacts}
-                    />
-                </div>
-                <div style={{ height: 'calc(100% - 108px)', overflowY: 'auto' }}>
-                    {isLoadingContacts && contacts.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: 20 }}><Spin /></div>
-                    ) : (
-                        <List
-                            itemLayout="horizontal"
-                            dataSource={contacts}
-                            renderItem={(contact) => (
-                                <List.Item
-                                    className={`contact-item ${selectedContact?.id === contact.id ? 'active' : ''}`}
-                                    onClick={() => selectContact(contact)}
-                                    style={{
-                                        cursor: 'pointer',
-                                        padding: '12px 16px',
-                                        background: selectedContact?.id === contact.id ? '#e6f7ff' : 'transparent',
-                                        borderBottom: '1px solid #f0f0f0',
-                                        transition: 'all 0.3s'
-                                    }}
-                                >
-                                    <List.Item.Meta
-                                        avatar={
-                                            <Badge count={contact.unread_count} size="small">
-                                                <Avatar size={48} icon={<UserOutlined />} src={contact.avatar_url} />
-                                            </Badge>
-                                        }
-                                        title={
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                <Text strong style={{ maxWidth: 160 }} ellipsis>{contact.name}</Text>
-                                                {contact.last_active && (
-                                                    <Text type="secondary" style={{ fontSize: 12 }}>
-                                                        {formatTime(contact.last_active)}
-                                                    </Text>
-                                                )}
-                                            </div>
-                                        }
-                                        description={
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                <Text type="secondary" style={{ width: 180 }} ellipsis>
-                                                    {contact.last_message?.content || 'Нет сообщений'}
-                                                </Text>
-                                                {contact.telegram_user_id && <Tag color="blue" style={{ margin: 0, fontSize: 10 }}>TG</Tag>}
-                                            </div>
-                                        }
-                                    />
-                                </List.Item>
-                            )}
+            {showList && (
+                <Sider
+                    width={isMobile ? '100%' : 350}
+                    theme="light"
+                    style={{ borderRight: isMobile ? 'none' : '1px solid #f0f0f0' }}
+                >
+                    <div style={{ padding: 16, borderBottom: '1px solid #f0f0f0' }}>
+                        <Title level={4} style={{ marginBottom: 16 }}>Диалоги</Title>
+                        <Input
+                            placeholder="Поиск..."
+                            prefix={<SearchOutlined />}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onPressEnter={fetchContacts}
                         />
-                    )}
-                </div>
-            </Sider>
-            <Content style={{ display: 'flex', flexDirection: 'column' }}>
-                {selectedContact ? (
-                    <>
-                        {/* Header */}
-                        <div style={{
-                            padding: '12px 24px',
-                            borderBottom: '1px solid #f0f0f0',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            background: '#fff',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-                            zIndex: 1
-                        }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                <Avatar size="large" style={{ backgroundColor: '#87d068' }} icon={<UserOutlined />} />
-                                <div>
-                                    <Title level={5} style={{ margin: 0, whiteSpace: 'nowrap' }}>{selectedContact.name}</Title>
-                                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                        {selectedContact.phone && <Text type="secondary" style={{ fontSize: 12 }}>{selectedContact.phone}</Text>}
-                                        {selectedContact.telegram_user_id && (
-                                            <Text type="secondary" style={{ fontSize: 12 }}>
-                                                Telegram: {selectedContact.telegram_user_id}
-                                            </Text>
+                    </div>
+                    <div style={{ height: 'calc(100% - 108px)', overflowY: 'auto' }}>
+                        {isLoadingContacts && contacts.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: 20 }}><Spin /></div>
+                        ) : (
+                            <List
+                                itemLayout="horizontal"
+                                dataSource={contacts}
+                                renderItem={(contact) => (
+                                    <List.Item
+                                        className={`contact-item ${selectedContact?.id === contact.id ? 'active' : ''}`}
+                                        onClick={() => selectContact(contact)}
+                                        style={{
+                                            cursor: 'pointer',
+                                            padding: '12px 16px',
+                                            background: selectedContact?.id === contact.id ? '#e6f7ff' : 'transparent',
+                                            borderBottom: '1px solid #f0f0f0',
+                                            transition: 'all 0.3s'
+                                        }}
+                                    >
+                                        <List.Item.Meta
+                                            avatar={
+                                                <Badge count={contact.unread_count} size="small">
+                                                    <Avatar size={48} icon={<UserOutlined />} src={contact.avatar_url} />
+                                                </Badge>
+                                            }
+                                            title={
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <Text strong style={{ maxWidth: 160 }} ellipsis>{contact.name}</Text>
+                                                    {contact.last_active && (
+                                                        <Text type="secondary" style={{ fontSize: 12 }}>
+                                                            {formatTime(contact.last_active)}
+                                                        </Text>
+                                                    )}
+                                                </div>
+                                            }
+                                            description={
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <Text type="secondary" style={{ width: 180 }} ellipsis>
+                                                        {contact.last_message?.content || 'Нет сообщений'}
+                                                    </Text>
+                                                    {contact.telegram_user_id && <Tag color="blue" style={{ margin: 0, fontSize: 10 }}>TG</Tag>}
+                                                </div>
+                                            }
+                                        />
+                                    </List.Item>
+                                )}
+                            />
+                        )}
+                    </div>
+                </Sider>
+            )}
+
+            {showChat && (
+                <Content style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                    {selectedContact ? (
+                        <>
+                            {/* Header */}
+                            <div style={{
+                                padding: '12px 12px',
+                                borderBottom: '1px solid #f0f0f0',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                background: '#fff',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                                zIndex: 1
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    {isMobile && (
+                                        <Button
+                                            icon={<ArrowLeftOutlined />}
+                                            type="text"
+                                            onClick={() => setSelectedContact(null)}
+                                            style={{ marginRight: -8 }}
+                                        />
+                                    )}
+                                    <Avatar size={isMobile ? "default" : "large"} style={{ backgroundColor: '#87d068' }} icon={<UserOutlined />} />
+                                    <div style={{ overflow: 'hidden' }}>
+                                        <Title level={5} style={{ margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: isMobile ? 150 : 'auto' }}>
+                                            {selectedContact.name}
+                                        </Title>
+                                        {!isMobile && (
+                                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                                {selectedContact.phone && <Text type="secondary" style={{ fontSize: 12 }}>{selectedContact.phone}</Text>}
+                                            </div>
                                         )}
                                     </div>
                                 </div>
+                                <div style={{ display: 'flex', gap: 4 }}>
+                                    {selectedContact.latest_order_id && (
+                                        <Link to={`/order/${selectedContact.latest_order_id}`}>
+                                            <Button type="link" size="small">{isMobile ? 'Сделка' : 'Открыть сделку'}</Button>
+                                        </Link>
+                                    )}
+                                </div>
                             </div>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                {selectedContact.latest_order_id && (
-                                    <Link to={`/order/${selectedContact.latest_order_id}`}>
-                                        <Button type="link">Открыть сделку</Button>
-                                    </Link>
-                                )}
-                                <Link to={`/contact/${selectedContact.telegram_user_id || selectedContact.id}`}>
-                                    <Button type="link">Открыть профиль</Button>
-                                </Link>
-                            </div>
-                        </div>
 
-                        {/* Messages Area */}
-                        <div style={{
-                            flex: 1,
-                            padding: '24px',
-                            overflowY: 'auto',
-                            background: '#f5f5f5',
-                            backgroundImage: 'url("https://gw.alipayobjects.com/zos/rmsportal/FfdJeJRQWjEeGTpqgBKj.png")', // Subtle pattern
-                            backgroundBlendMode: 'overlay',
-                        }}>
-                            {isLoadingMessages ? (
-                                <div style={{ textAlign: 'center', marginTop: 40 }}><Spin /></div>
-                            ) : messages.length === 0 ? (
-                                <Empty description="История сообщений пуста" style={{ marginTop: 60 }} />
-                            ) : (
-                                (() => {
-                                    const groupedMessages: { date: string, msgs: Message[] }[] = [];
-                                    messages.forEach(msg => {
-                                        const dateKey = formatDate(msg['Created Date'] || msg.created_at);
-                                        const lastGroup = groupedMessages[groupedMessages.length - 1];
-                                        if (lastGroup && lastGroup.date === dateKey) {
-                                            lastGroup.msgs.push(msg);
-                                        } else {
-                                            groupedMessages.push({ date: dateKey, msgs: [msg] });
-                                        }
-                                    });
+                            {/* Messages Area */}
+                            <div style={{
+                                flex: 1,
+                                padding: isMobile ? '12px' : '24px',
+                                overflowY: 'auto',
+                                background: '#f5f5f5',
+                                backgroundImage: 'url("https://gw.alipayobjects.com/zos/rmsportal/FfdJeJRQWjEeGTpqgBKj.png")', // Subtle pattern
+                                backgroundBlendMode: 'overlay',
+                            }}>
+                                {isLoadingMessages ? (
+                                    <div style={{ textAlign: 'center', marginTop: 40 }}><Spin /></div>
+                                ) : messages.length === 0 ? (
+                                    <Empty description="История сообщений пуста" style={{ marginTop: 60 }} />
+                                ) : (
+                                    (() => {
+                                        const groupedMessages: { date: string, msgs: Message[] }[] = [];
+                                        messages.forEach(msg => {
+                                            const dateKey = formatDate(msg['Created Date'] || msg.created_at);
+                                            const lastGroup = groupedMessages[groupedMessages.length - 1];
+                                            if (lastGroup && lastGroup.date === dateKey) {
+                                                lastGroup.msgs.push(msg);
+                                            } else {
+                                                groupedMessages.push({ date: dateKey, msgs: [msg] });
+                                            }
+                                        });
 
-                                    return groupedMessages.map(group => (
-                                        <div key={group.date}>
-                                            <div style={{ textAlign: 'center', margin: '24px 0 16px', opacity: 0.5, fontSize: 12 }}>
-                                                <span style={{ background: '#e0e0e0', padding: '4px 12px', borderRadius: 12 }}>{group.date}</span>
+                                        return groupedMessages.map(group => (
+                                            <div key={group.date}>
+                                                <div style={{ textAlign: 'center', margin: '24px 0 16px', opacity: 0.5, fontSize: 12 }}>
+                                                    <span style={{ background: '#e0e0e0', padding: '4px 12px', borderRadius: 12 }}>{group.date}</span>
+                                                </div>
+                                                {group.msgs.map(msg => {
+                                                    const isOwn = !isClientMessage(msg.author_type);
+                                                    return (
+                                                        <UnifiedMessageBubble
+                                                            key={msg.id}
+                                                            msg={msg}
+                                                            isOwn={isOwn}
+                                                        // Reply logic can be added here if we implement onReply/replyTo state
+                                                        />
+                                                    );
+                                                })}
                                             </div>
-                                            {group.msgs.map(msg => {
-                                                const isOwn = !isClientMessage(msg.author_type);
-                                                return (
-                                                    <UnifiedMessageBubble
-                                                        key={msg.id}
-                                                        msg={msg}
-                                                        isOwn={isOwn}
-                                                    // Reply logic can be added here if we implement onReply/replyTo state
-                                                    />
-                                                );
-                                            })}
-                                        </div>
-                                    ));
-                                })()
-                            )}
-                            <div ref={messagesEndRef} />
-                        </div>
+                                        ));
+                                    })()
+                                )}
+                                <div ref={messagesEndRef} />
+                            </div>
 
-                        <ChatInput
-                            onSendText={handleSendMessage}
-                            onSendVoice={handleSendVoice}
-                            sending={sending}
-                        />
-                    </>
-                ) : (
-                    <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#f5f5f5' }}>
-                        <Empty description="Выберите диалог" />
-                    </div>
-                )}
-            </Content>
+                            <ChatInput
+                                onSendText={handleSendMessage}
+                                onSendVoice={handleSendVoice}
+                                sending={sending}
+                            />
+                        </>
+                    ) : (
+                        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#f5f5f5' }}>
+                            <Empty description={isMobile ? "Выберите диалог" : "Выберите диалог из списка слева"} />
+                        </div>
+                    )}
+                </Content>
+            )}
         </Layout>
     );
 };

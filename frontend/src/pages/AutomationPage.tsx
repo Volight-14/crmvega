@@ -95,7 +95,7 @@ const AutomationPage: React.FC = () => {
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
-      
+
       // Преобразуем JSON строки в объекты, если нужно
       if (typeof values.trigger_conditions === 'string') {
         values.trigger_conditions = JSON.parse(values.trigger_conditions);
@@ -224,6 +224,7 @@ const AutomationPage: React.FC = () => {
             showSizeChanger: true,
             showTotal: (total) => `Всего: ${total} автоматизаций`,
           }}
+          scroll={{ x: 'max-content' }}
         />
       </Card>
 
