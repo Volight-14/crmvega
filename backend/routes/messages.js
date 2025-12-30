@@ -148,7 +148,7 @@ router.get('/contact/:contactId', auth, async (req, res) => {
         .from('messages')
         .select('*')
         .in('main_id', leadIdsArray)
-        .order('Created Date', { ascending: true });
+        .order('"Created Date"', { ascending: true });
 
       if (messagesError) throw messagesError;
       allMessages = messages || [];
