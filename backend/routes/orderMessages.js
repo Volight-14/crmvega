@@ -52,7 +52,7 @@ router.get('/:orderId/client', auth, async (req, res) => {
       .from('messages')
       .select('*', { count: 'exact' })
       .eq('main_id', order.main_id)
-      .order('Created Date', { ascending: true })
+      .order('"Created Date"', { ascending: true })
       .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
     if (messagesError) throw messagesError;

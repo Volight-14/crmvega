@@ -89,7 +89,7 @@ router.get('/', auth, async (req, res) => {
               // Filter purely for client messages if possible, but 'author_type' values vary.
               // Common client types: 'user', 'Клиент', 'Client'
               .in('author_type', ['user', 'Клиент', 'Client'])
-              .order('Created Date', { ascending: false })
+              .order('"Created Date"', { ascending: false })
               .limit(1)
               .maybeSingle();
 
