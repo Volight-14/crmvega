@@ -36,8 +36,8 @@ router.get('/', auth, async (req, res) => {
         .from('orders')
         // Renamed title -> OrderName
         // Added fields for Kanban card
-        // Returning * temporarily to debug missing column issue
-        .select('*, contact:contacts(name)')
+        // Verified columns via MCP: CityEsp02, DeliveryTime, NextDay, SumOutput, CurrPair2 EXIST.
+        .select('id, contact_id, "OrderName", "SumInput", "CurrPair1", status, created_at, main_id, "CityEsp02", "DeliveryTime", "NextDay", "SumOutput", "CurrPair2", contact:contacts(name)')
         .order('created_at', { ascending: false })
         .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
     } else {
@@ -76,27 +76,33 @@ router.get('/', auth, async (req, res) => {
 
     // Для минимального режима (Канбан) подгружаем последние сообщения клиентов
     if (isMinimal && orders.length > 0) {
-      // Fetch latest client message for each order
-      // We use Promise.all with map. For 50 items it's okay. For larger generic lists, we might need optimization.
-      const ordersWithMessages = await Promise.all(orders.map(async (order) => {
-        let lastMessage = null;
-        if (order.main_id) {
-          const { data: msg } = await supabase
-            .from('messages')
-            .select('content, "Created Date", author_type')
-            .eq('main_id', String(order.main_id))
-            // Filter purely for client messages if possible, but 'author_type' values vary.
-            // Common client types: 'user', 'Клиент', 'Client'
-            .in('author_type', ['user', 'Клиент', 'Client'])
-            .order('Created Date', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+      try {
+        // Fetch latest client message for each order
+        // We use Promise.all with map. For 50 items it's okay. For larger generic lists, we might need optimization.
+        const ordersWithMessages = await Promise.all(orders.map(async (order) => {
+          let lastMessage = null;
+          if (order.main_id) {
+            const { data: msg } = await supabase
+              .from('messages')
+              .select('content, "Created Date", author_type')
+              .eq('main_id', String(order.main_id))
+              // Filter purely for client messages if possible, but 'author_type' values vary.
+              // Common client types: 'user', 'Клиент', 'Client'
+              .in('author_type', ['user', 'Клиент', 'Client'])
+              .order('Created Date', { ascending: false })
+              .limit(1)
+              .maybeSingle();
 
-          lastMessage = msg;
-        }
-        return { ...order, last_message: lastMessage, tags: [] };
-      }));
-      orders = ordersWithMessages;
+            lastMessage = msg;
+          }
+          return { ...order, last_message: lastMessage, tags: [] };
+        }));
+        orders = ordersWithMessages;
+      } catch (err) {
+        console.error('Error fetching messages for orders:', err);
+        // Fallback: return orders without messages rather than crashing
+        orders = orders.map(o => ({ ...o, tags: [] }));
+      }
     } else if (!isMinimal && orders.length > 0) {
       const orderIds = orders.map(o => o.id);
       const { data: tagsData } = await supabase
