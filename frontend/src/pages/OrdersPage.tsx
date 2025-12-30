@@ -99,7 +99,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onClick, onStatusChange })
 
   // Construct main info string
   const mainInfoParts = [
-    order.DeliveryTime ? `с ${order.DeliveryTime}` : '',
+    order.DeliveryTime ? order.DeliveryTime : '',
     order.NextDay ? order.NextDay : '',
     order.CityEsp02 ? order.CityEsp02 : '',
     order.SumInput ? order.SumInput.toString() : '',
