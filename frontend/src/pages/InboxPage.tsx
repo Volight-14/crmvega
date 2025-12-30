@@ -15,6 +15,7 @@ import {
     Empty,
     Tag,
     Badge,
+    Space,
     message as antMessage
 } from 'antd';
 import {
@@ -271,34 +272,36 @@ const InboxPage: React.FC = () => {
                         <>
                             {/* Header */}
                             <div style={{
-                                padding: '12px 12px',
+                                padding: '16px 24px',
                                 borderBottom: '1px solid #f0f0f0',
                                 display: 'flex',
                                 justifyContent: 'space-between',
                                 alignItems: 'center',
                                 background: '#fff',
                                 boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-                                zIndex: 1
+                                zIndex: 1,
                             }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                     {isMobile && (
                                         <Button
                                             icon={<ArrowLeftOutlined />}
-                                            type="text"
                                             onClick={() => setSelectedContact(null)}
-                                            style={{ marginRight: -8 }}
+                                            type="text"
                                         />
                                     )}
-                                    <Avatar size={isMobile ? "default" : "large"} style={{ backgroundColor: '#87d068' }} icon={<UserOutlined />} />
-                                    <div style={{ overflow: 'hidden' }}>
-                                        <Title level={5} style={{ margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: isMobile ? 150 : 'auto' }}>
-                                            {selectedContact.name}
-                                        </Title>
-                                        {!isMobile && (
-                                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                                {selectedContact.phone && <Text type="secondary" style={{ fontSize: 12 }}>{selectedContact.phone}</Text>}
-                                            </div>
-                                        )}
+                                    <Avatar size={40} style={{ backgroundColor: '#87d068' }}>{selectedContact.name[0]}</Avatar>
+                                    <div>
+                                        <Title level={5} style={{ margin: 0 }}>{selectedContact.name}</Title>
+                                        <Space size="small">
+                                            {selectedContact.phone && (
+                                                <Text type="secondary" style={{ fontSize: 12 }}>
+                                                    {selectedContact.phone}
+                                                </Text>
+                                            )}
+                                            <Text type="secondary" style={{ fontSize: 10, color: '#d9d9d9' }}>
+                                                ID: {selectedContact.id} {selectedContact.telegram_user_id ? `| TG: ${selectedContact.telegram_user_id}` : '| No TG ID'}
+                                            </Text>
+                                        </Space>
                                     </div>
                                 </div>
                                 <div style={{ display: 'flex', gap: 4 }}>
@@ -369,10 +372,12 @@ const InboxPage: React.FC = () => {
                         <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#f5f5f5' }}>
                             <Empty description={isMobile ? "Выберите диалог" : "Выберите диалог из списка слева"} />
                         </div>
-                    )}
-                </Content>
-            )}
-        </Layout>
+                    )
+                    }
+                </Content >
+            )
+            }
+        </Layout >
     );
 };
 

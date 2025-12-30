@@ -18,6 +18,7 @@ import {
   Row,
   Col,
   Tabs,
+  Grid,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -53,10 +54,19 @@ const OrderDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
-  const [activeInfoTab, setActiveInfoTab] = useState<'info' | 'notes'>('info');
-  const socketRef = useRef<Socket | null>(null);
   const [form] = Form.useForm();
   const [noteForm] = Form.useForm();
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
+  const [activeInfoTab, setActiveInfoTab] = useState<'info' | 'notes' | 'chat'>('info');
+  const socketRef = useRef<Socket | null>(null);
+
+  // Reset tab to info if switching to desktop while in chat tab
+  useEffect(() => {
+    if (!isMobile && activeInfoTab === 'chat') {
+      setActiveInfoTab('info');
+    }
+  }, [isMobile, activeInfoTab]);
 
   useEffect(() => {
     if (id) {
@@ -201,29 +211,46 @@ const OrderDetailPage: React.FC = () => {
       {/* Header */}
       <div style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        padding: '16px 24px',
+        padding: isMobile ? '12px 16px' : '16px 24px',
         color: 'white',
         boxShadow: '0 2px 8px rgba(102, 126, 234, 0.4)',
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Space size="middle">
-            <Button
-              ghost
-              icon={<ArrowLeftOutlined />}
-              onClick={() => navigate('/orders')}
-              style={{ border: '1px solid rgba(255,255,255,0.5)' }}
-            >
-              Назад
-            </Button>
-            <div>
-              <Title level={3} style={{ margin: 0, color: 'white' }}>
+        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: 12 }}>
+          <Space size="middle" direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: '100%', alignItems: isMobile ? 'flex-start' : 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+              <Button
+                ghost
+                icon={<ArrowLeftOutlined />}
+                onClick={() => navigate('/orders')}
+                style={{ border: '1px solid rgba(255,255,255,0.5)' }}
+              >
+                Назад
+              </Button>
+              {isMobile && (
+                <Button
+                  type="primary"
+                  icon={<EditOutlined />}
+                  onClick={() => setIsEditModalVisible(true)}
+                  style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    border: 'none',
+                    borderRadius: 8,
+                  }}
+                >
+                  Редактировать
+                </Button>
+              )}
+            </div>
+
+            <div style={{ width: '100%' }}>
+              <Title level={3} style={{ margin: 0, color: 'white', fontSize: isMobile ? 20 : 24 }}>
                 {order.title}
               </Title>
-              <Space style={{ marginTop: 4 }}>
+              <Space style={{ marginTop: 4, flexWrap: 'wrap' }}>
                 <Select
                   value={order.status}
                   onChange={handleStatusChange}
-                  style={{ width: 180 }}
+                  style={{ width: isMobile ? '100%' : 180, minWidth: 160 }}
                   className="status-select-header"
                   popupMatchSelectWidth={false}
                 >
@@ -243,6 +270,7 @@ const OrderDetailPage: React.FC = () => {
                     borderRadius: 12,
                     fontSize: 14,
                     fontWeight: 600,
+                    whiteSpace: 'nowrap',
                   }}>
                     <DollarOutlined /> {order.amount.toLocaleString('ru-RU')} {order.currency || 'RUB'}
                   </span>
@@ -250,70 +278,56 @@ const OrderDetailPage: React.FC = () => {
               </Space>
             </div>
           </Space>
-          <Button
-            type="primary"
-            icon={<EditOutlined />}
-            onClick={() => setIsEditModalVisible(true)}
-            style={{
-              background: 'rgba(255,255,255,0.2)',
-              border: 'none',
-              borderRadius: 8,
-            }}
-          >
-            Редактировать
-          </Button>
+
+          {!isMobile && (
+            <Button
+              type="primary"
+              icon={<EditOutlined />}
+              onClick={() => setIsEditModalVisible(true)}
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                border: 'none',
+                borderRadius: 8,
+              }}
+            >
+              Редактировать
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Main Content */}
       <div style={{
         display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
         flex: 1,
-        padding: 16,
+        padding: isMobile ? 8 : 16,
         gap: 16,
         overflow: 'hidden',
         minHeight: 0,
       }}>
         {/* Left Sidebar - Order Info */}
         <div style={{
-          width: 320,
+          width: isMobile ? '100%' : 320,
           flexShrink: 0,
           display: 'flex',
           flexDirection: 'column',
-          overflow: 'hidden',
+          overflow: isMobile ? 'visible' : 'hidden',
+          height: isMobile ? 'auto' : '100%',
         }}>
-          <Card
-            style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              borderRadius: 12,
-              overflow: 'hidden',
-            }}
-            bodyStyle={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              padding: 0,
-              overflow: 'hidden',
-            }}
-          >
+          {isMobile ? (
             <Tabs
               activeKey={activeInfoTab}
-              onChange={(key) => setActiveInfoTab(key as 'info' | 'notes')}
-              style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
-              tabBarStyle={{ padding: '0 16px', margin: 0 }}
+              onChange={(key) => setActiveInfoTab(key as 'info' | 'notes' | 'chat')}
+              type="card"
               items={[
                 {
                   key: 'info',
-                  label: (
-                    <span>
-                      <InfoCircleOutlined /> Информация
-                    </span>
-                  ),
+                  label: <span><InfoCircleOutlined /> Инфо</span>,
                   children: (
-                    <div style={{ padding: 16, overflowY: 'auto', flex: 1 }}>
-                      {/* Order Info */}
+                    <Card style={{ borderRadius: '0 0 12px 12px' }} bodyStyle={{ padding: 12 }}>
+                      {/* Mobile Info Content Content */}
+                      {/* This effectively duplicates the rendering logic but optimized for mobile tab structure */}
                       <Descriptions column={1} size="small" style={{ marginBottom: 16 }}>
                         <Descriptions.Item label="Статус">
                           <Select
@@ -355,13 +369,7 @@ const OrderDetailPage: React.FC = () => {
                         <Descriptions.Item label="Создано">
                           {new Date(order.created_at).toLocaleString('ru-RU')}
                         </Descriptions.Item>
-                        {order.closed_date && (
-                          <Descriptions.Item label="Закрыто">
-                            {new Date(order.closed_date).toLocaleDateString('ru-RU')}
-                          </Descriptions.Item>
-                        )}
                       </Descriptions>
-
                       {order.description && (
                         <>
                           <Divider style={{ margin: '12px 0' }} />
@@ -423,18 +431,14 @@ const OrderDetailPage: React.FC = () => {
                           </div>
                         </>
                       )}
-                    </div>
+                    </Card>
                   ),
                 },
                 {
                   key: 'notes',
-                  label: (
-                    <span>
-                      <MessageOutlined /> Заметки ({notes.length})
-                    </span>
-                  ),
+                  label: <span><MessageOutlined /> Заметки</span>,
                   children: (
-                    <div style={{ padding: 16, overflowY: 'auto', flex: 1 }}>
+                    <Card style={{ borderRadius: '0 0 12px 12px' }} bodyStyle={{ padding: 12 }}>
                       <Button
                         type="dashed"
                         icon={<PlusOutlined />}
@@ -445,10 +449,7 @@ const OrderDetailPage: React.FC = () => {
                         Добавить заметку
                       </Button>
                       {notes.length === 0 ? (
-                        <Empty
-                          description="Нет заметок"
-                          image={Empty.PRESENTED_IMAGE_SIMPLE}
-                        />
+                        <Empty description="Нет заметок" />
                       ) : (
                         <List
                           dataSource={notes}
@@ -487,42 +488,273 @@ const OrderDetailPage: React.FC = () => {
                           )}
                         />
                       )}
-                    </div>
-                  ),
+                    </Card>
+                  )
                 },
+                {
+                  key: 'chat',
+                  label: <span><MessageOutlined /> Чат</span>,
+                  children: (
+                    <div style={{ height: 'calc(100vh - 250px)', background: '#fff' }}>
+                      {/* We render OrderChat here for mobile */}
+                      {order.contact_id || order.main_id || order.external_id ? (
+                        <OrderChat
+                          orderId={order.id}
+                          contactName={order.contact?.name}
+                        />
+                      ) : (
+                        <Empty description="Нет чата" />
+                      )}
+                    </div>
+                  )
+                }
               ]}
             />
-          </Card>
-        </div>
-
-        {/* Right Side - Chat */}
-        <div style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          minWidth: 0,
-          overflow: 'hidden',
-        }}>
-          {order.contact_id || order.main_id || order.external_id ? (
-            <OrderChat
-              orderId={order.id}
-              contactName={order.contact?.name}
-            />
           ) : (
-            <Card style={{
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 12,
-            }}>
-              <Empty
-                description="У заявки нет связанного контакта или ID"
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
+            <Card
+              style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                borderRadius: 12,
+                overflow: 'hidden',
+              }}
+              bodyStyle={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                padding: 0,
+                overflow: 'hidden',
+              }}
+            >
+              <Tabs
+                activeKey={activeInfoTab}
+                onChange={(key) => setActiveInfoTab(key as 'info' | 'notes')}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+                tabBarStyle={{ padding: '0 16px', margin: 0 }}
+                items={[
+                  {
+                    key: 'info',
+                    label: (
+                      <span>
+                        <InfoCircleOutlined /> Информация
+                      </span>
+                    ),
+                    children: (
+                      <div style={{ padding: 16, overflowY: 'auto', flex: 1 }}>
+                        {/* Order Info */}
+                        <Descriptions column={1} size="small" style={{ marginBottom: 16 }}>
+                          <Descriptions.Item label="Статус">
+                            <Select
+                              value={order.status}
+                              onChange={handleStatusChange}
+                              size="small"
+                              style={{ width: '100%' }}
+                              popupMatchSelectWidth={false}
+                              bordered={false}
+                            >
+                              {sortedStatusOptions.map((opt) => (
+                                <Option key={opt.value} value={opt.value}>
+                                  <Space>
+                                    <span>{opt.icon}</span>
+                                    <span>{opt.label}</span>
+                                  </Space>
+                                </Option>
+                              ))}
+                            </Select>
+                          </Descriptions.Item>
+                          <Descriptions.Item label="Сумма">
+                            <Text strong>{order.amount.toLocaleString('ru-RU') || 0} {order.currency || 'RUB'}</Text>
+                          </Descriptions.Item>
+                          {order.due_date && (
+                            <Descriptions.Item label="Крайний срок">
+                              <CalendarOutlined /> {new Date(order.due_date).toLocaleDateString('ru-RU')}
+                            </Descriptions.Item>
+                          )}
+                          {order.source && (
+                            <Descriptions.Item label="Источник">
+                              {order.source}
+                            </Descriptions.Item>
+                          )}
+                          {order.manager && (
+                            <Descriptions.Item label="Менеджер">
+                              {order.manager.name}
+                            </Descriptions.Item>
+                          )}
+                          <Descriptions.Item label="Создано">
+                            {new Date(order.created_at).toLocaleString('ru-RU')}
+                          </Descriptions.Item>
+                          {order.closed_date && (
+                            <Descriptions.Item label="Закрыто">
+                              {new Date(order.closed_date).toLocaleDateString('ru-RU')}
+                            </Descriptions.Item>
+                          )}
+                        </Descriptions>
+
+                        {order.description && (
+                          <>
+                            <Divider style={{ margin: '12px 0' }} />
+                            <div>
+                              <Text strong style={{ fontSize: 13 }}>Описание:</Text>
+                              <div style={{ marginTop: 8, color: '#595959' }}>
+                                <Text>{order.description}</Text>
+                              </div>
+                            </div>
+                          </>
+                        )}
+
+                        {/* Contact Card */}
+                        {order.contact && (
+                          <>
+                            <Divider style={{ margin: '16px 0' }} />
+                            <div style={{
+                              background: 'linear-gradient(135deg, #f6f8fc 0%, #eef2f7 100%)',
+                              borderRadius: 12,
+                              padding: 16,
+                            }}>
+                              <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginBottom: 12,
+                              }}>
+                                <Text strong style={{ fontSize: 14 }}>Контакт</Text>
+                                <Button
+                                  type="link"
+                                  size="small"
+                                  onClick={() => navigate(`/contact/${order.contact_id}`)}
+                                >
+                                  Открыть
+                                </Button>
+                              </div>
+                              <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <Avatar
+                                    style={{ backgroundColor: '#667eea' }}
+                                    icon={<UserOutlined />}
+                                    size={32}
+                                  />
+                                  <Text strong>{order.contact.name}</Text>
+                                </div>
+                                {order.contact.phone && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#595959' }}>
+                                    <PhoneOutlined />
+                                    <Text copyable>{order.contact.phone}</Text>
+                                  </div>
+                                )}
+                                {order.contact.email && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#595959' }}>
+                                    <MailOutlined />
+                                    <Text copyable>{order.contact.email}</Text>
+                                  </div>
+                                )}
+                              </Space>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ),
+                  },
+                  {
+                    key: 'notes',
+                    label: (
+                      <span>
+                        <MessageOutlined /> Заметки ({notes.length})
+                      </span>
+                    ),
+                    children: (
+                      <div style={{ padding: 16, overflowY: 'auto', flex: 1 }}>
+                        <Button
+                          type="dashed"
+                          icon={<PlusOutlined />}
+                          onClick={() => setIsNoteModalVisible(true)}
+                          block
+                          style={{ marginBottom: 16, borderRadius: 8 }}
+                        >
+                          Добавить заметку
+                        </Button>
+                        {notes.length === 0 ? (
+                          <Empty
+                            description="Нет заметок"
+                            image={Empty.PRESENTED_IMAGE_SIMPLE}
+                          />
+                        ) : (
+                          <List
+                            dataSource={notes}
+                            renderItem={(note) => (
+                              <div style={{
+                                background: '#fafafa',
+                                borderRadius: 8,
+                                padding: 12,
+                                marginBottom: 8,
+                                borderLeft: `3px solid ${NOTE_PRIORITIES[note.priority]?.color === 'red' ? '#ff4d4f' :
+                                  NOTE_PRIORITIES[note.priority]?.color === 'orange' ? '#fa8c16' :
+                                    NOTE_PRIORITIES[note.priority]?.color === 'blue' ? '#1890ff' : '#52c41a'}`,
+                              }}>
+                                <div style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  marginBottom: 8,
+                                }}>
+                                  <Tag color={NOTE_PRIORITIES[note.priority]?.color} style={{ margin: 0 }}>
+                                    {NOTE_PRIORITIES[note.priority]?.icon} {NOTE_PRIORITIES[note.priority]?.label}
+                                  </Tag>
+                                  <Text type="secondary" style={{ fontSize: 11 }}>
+                                    {new Date(note.created_at).toLocaleString('ru-RU')}
+                                  </Text>
+                                </div>
+                                <Text style={{ fontSize: 13 }}>{note.content}</Text>
+                                {note.manager && (
+                                  <div style={{ marginTop: 8 }}>
+                                    <Text type="secondary" style={{ fontSize: 11 }}>
+                                      — {note.manager.name}
+                                    </Text>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          />
+                        )}
+                      </div>
+                    ),
+                  },
+                ]}
               />
             </Card>
           )}
         </div>
+
+        {/* Right Side - Chat (Desktop Only) */}
+        {!isMobile && (
+          <div style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            minWidth: 0,
+            overflow: 'hidden',
+          }}>
+            {order.contact_id || order.main_id || order.external_id ? (
+              <OrderChat
+                orderId={order.id}
+                contactName={order.contact?.name}
+              />
+            ) : (
+              <Card style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 12,
+              }}>
+                <Empty
+                  description="У заявки нет связанного контакта или ID"
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                />
+              </Card>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Edit Order Modal */}

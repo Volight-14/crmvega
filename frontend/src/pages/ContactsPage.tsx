@@ -263,20 +263,20 @@ const ContactsPage: React.FC = () => {
       </Row>
 
       <Card style={{ marginBottom: 16 }}>
-        <Space size="middle" style={{ width: '100%' }}>
+        <Space size="middle" style={{ width: '100%', flexWrap: 'wrap' }} wrap>
           <Input
             placeholder="Поиск по имени, телефону, email..."
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 300 }}
+            style={{ width: '100%', maxWidth: 300 }}
             allowClear
           />
           <Select
             value={statusFilter}
             onChange={setStatusFilter}
             placeholder="Фильтр по статусу"
-            style={{ width: 200 }}
+            style={{ width: '100%', maxWidth: 200 }}
             allowClear
           >
             <Option value="active">Активные</Option>
