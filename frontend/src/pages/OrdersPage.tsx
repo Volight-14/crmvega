@@ -695,7 +695,7 @@ const OrdersPage: React.FC = () => {
                 key={status}
                 status={status}
                 orders={ordersByStatus[status] || []}
-                onOrderClick={(order) => navigate(`/order/${order.id}`)}
+                onOrderClick={(order) => navigate(`/order/${order.main_id || order.id}`)}
                 onAddOrder={() => openCreateModal(status)}
                 onStatusChange={handleStatusChange}
               />

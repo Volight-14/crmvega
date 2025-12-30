@@ -119,6 +119,7 @@ export interface Contact {
   id: number;
   name: string;
   phone?: string;
+  telegram_user_id?: string;
   email?: string;
   company?: string;
   position?: string;

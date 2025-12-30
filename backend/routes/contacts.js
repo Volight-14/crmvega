@@ -190,15 +190,23 @@ router.get('/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data: contact, error } = await supabase
+    let query = supabase
       .from('contacts')
       .select(`
         *,
         manager:managers(name),
         tags:contact_tags(tag:tags(*))
-      `)
-      .eq('id', id)
-      .single();
+      `);
+
+    // Check if id is a large number (likely Telegram ID)
+    // Telegram IDs are typically > 9 digits. Internal IDs are smaller.
+    if (/^\d{9,}$/.test(id)) {
+      query = query.eq('telegram_user_id', id);
+    } else {
+      query = query.eq('id', id);
+    }
+
+    const { data: contact, error } = await query.single();
 
     if (error) throw error;
 

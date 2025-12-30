@@ -128,16 +128,24 @@ router.get('/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('orders')
       .select(`
         *,
         contact:contacts(*),
         manager:managers(name),
         tags:order_tags(tag:tags(*))
-      `)
-      .eq('id', id)
-      .single();
+      `);
+
+    // Check if id is a large number (likely main_id) or small integer (internal id)
+    // main_id is usually a timestamp (13 chars) or similar
+    if (/^\d{10,}$/.test(id)) {
+      query = query.eq('main_id', id);
+    } else {
+      query = query.eq('id', id);
+    }
+
+    const { data, error } = await query.single();
 
     if (error) throw error;
 

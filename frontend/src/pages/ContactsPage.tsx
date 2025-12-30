@@ -152,7 +152,7 @@ const ContactsPage: React.FC = () => {
           <div>
             <div
               style={{ fontWeight: 'bold', cursor: 'pointer', color: '#1890ff' }}
-              onClick={() => navigate(`/contact/${record.id}`)}
+              onClick={() => navigate(`/contact/${record.telegram_user_id || record.id}`)}
             >
               {record.name}
             </div>

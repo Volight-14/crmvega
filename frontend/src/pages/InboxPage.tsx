@@ -280,7 +280,7 @@ const InboxPage: React.FC = () => {
                                         <Button type="link">Открыть сделку</Button>
                                     </Link>
                                 )}
-                                <Link to={`/contact/${selectedContact.id}`}>
+                                <Link to={`/contact/${selectedContact.telegram_user_id || selectedContact.id}`}>
                                     <Button type="link">Открыть профиль</Button>
                                 </Link>
                             </div>
