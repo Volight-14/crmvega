@@ -78,6 +78,42 @@ router.post('/', auth, requireAdmin, async (req, res) => {
     }
 });
 
+// Обновить менеджера (только для админов)
+router.patch('/:id', auth, requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, role, password } = req.body;
+
+        const updates = {};
+        if (name) updates.name = name;
+        if (role) updates.role = role;
+        if (password) {
+            if (password.length < 6) {
+                return res.status(400).json({ error: 'Password must be at least 6 characters' });
+            }
+            updates.password_hash = await bcrypt.hash(password, 10);
+        }
+
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ error: 'No fields to update' });
+        }
+
+        const { data, error } = await supabase
+            .from('managers')
+            .update(updates)
+            .eq('id', id)
+            .select('id, name, email, role, created_at')
+            .single();
+
+        if (error) throw error;
+
+        res.json(data);
+    } catch (error) {
+        console.error('Error updating manager:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Удалить менеджера (только для админов)
 router.delete('/:id', auth, requireAdmin, async (req, res) => {
     try {

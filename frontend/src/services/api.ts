@@ -79,6 +79,11 @@ export const managersAPI = {
     return response.data;
   },
 
+  update: async (id: number, manager: { name?: string; role?: string; password?: string }): Promise<Manager> => {
+    const response = await api.patch(`/managers/${id}`, manager);
+    return response.data;
+  },
+
   delete: async (id: number): Promise<void> => {
     await api.delete(`/managers/${id}`);
   },

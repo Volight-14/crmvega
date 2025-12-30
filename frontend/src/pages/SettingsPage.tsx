@@ -30,6 +30,7 @@ import {
   KeyOutlined,
   PlusOutlined,
   DeleteOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
 import { managersAPI } from '../services/api';
@@ -49,7 +50,9 @@ const SettingsPage: React.FC = () => {
   // State for Users Management
   const [managers, setManagers] = useState<Manager[]>([]);
   const [isUserModalVisible, setIsUserModalVisible] = useState(false);
+
   const [usersLoading, setUsersLoading] = useState(false);
+  const [editingManager, setEditingManager] = useState<Manager | null>(null);
 
   useEffect(() => {
     if (manager) {
@@ -92,19 +95,42 @@ const SettingsPage: React.FC = () => {
     }
   }, [activeTab, manager]);
 
-  const handleCreateUser = async (values: any) => {
+  const handleSaveUser = async (values: any) => {
     setUsersLoading(true);
     try {
-      await managersAPI.create(values);
-      message.success('Пользователь создан');
+      if (editingManager) {
+        await managersAPI.update(editingManager.id, values);
+        message.success('Пользователь обновлен');
+      } else {
+        await managersAPI.create(values);
+        message.success('Пользователь создан');
+      }
       setIsUserModalVisible(false);
       userForm.resetFields();
+      setEditingManager(null);
       fetchManagers();
     } catch (error: any) {
-      message.error(error.response?.data?.error || 'Ошибка создания пользователя');
+      message.error(error.response?.data?.error || 'Ошибка сохранения пользователя');
     } finally {
       setUsersLoading(false);
     }
+  };
+
+  const handleEditUser = (record: Manager) => {
+    setEditingManager(record);
+    userForm.setFieldsValue({
+      name: record.name,
+      email: record.email,
+      role: record.role,
+      password: '', // Reset password field
+    });
+    setIsUserModalVisible(true);
+  };
+
+  const handleAddUser = () => {
+    setEditingManager(null);
+    userForm.resetFields();
+    setIsUserModalVisible(true);
   };
 
   const handleDeleteUser = async (id: number) => {
@@ -304,7 +330,7 @@ const SettingsPage: React.FC = () => {
                   <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
                     <Title level={4} style={{ margin: 0 }}>Управление пользователями</Title>
                     {manager?.role === 'admin' && (
-                      <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsUserModalVisible(true)}>
+                      <Button type="primary" icon={<PlusOutlined />} onClick={handleAddUser}>
                         Добавить пользователя
                       </Button>
                     )}
@@ -357,19 +383,30 @@ const SettingsPage: React.FC = () => {
                           key: 'actions',
                           render: (_, record) => (
                             <Space size="middle">
-                              {record.id !== manager.id && (
-                                <Popconfirm
-                                  title="Удалить пользователя?"
-                                  description="Это действие нельзя отменить."
-                                  onConfirm={() => handleDeleteUser(record.id)}
-                                  okText="Да"
-                                  cancelText="Нет"
-                                >
-                                  <Button type="link" danger icon={<DeleteOutlined />}>
-                                    Удалить
-                                  </Button>
-                                </Popconfirm>
-                              )}
+                              <Space size="middle">
+                                {record.id !== manager.id && (
+                                  <Space>
+                                    <Button
+                                      type="link"
+                                      icon={<EditOutlined />}
+                                      onClick={() => handleEditUser(record)}
+                                    >
+                                      Изменить
+                                    </Button>
+                                    <Popconfirm
+                                      title="Удалить пользователя?"
+                                      description="Это действие нельзя отменить."
+                                      onConfirm={() => handleDeleteUser(record.id)}
+                                      okText="Да"
+                                      cancelText="Нет"
+                                    >
+                                      <Button type="link" danger icon={<DeleteOutlined />}>
+                                        Удалить
+                                      </Button>
+                                    </Popconfirm>
+                                  </Space>
+                                )}
+                              </Space>
                             </Space>
                           ),
                         },
@@ -386,20 +423,28 @@ const SettingsPage: React.FC = () => {
                   )}
 
                   <Modal
-                    title="Новый пользователь"
+                    title={editingManager ? "Редактирование пользователя" : "Новый пользователь"}
                     open={isUserModalVisible}
-                    onCancel={() => setIsUserModalVisible(false)}
+                    onCancel={() => {
+                      setIsUserModalVisible(false);
+                      setEditingManager(null);
+                      userForm.resetFields();
+                    }}
                     onOk={() => userForm.submit()}
                   >
-                    <Form form={userForm} layout="vertical" onFinish={handleCreateUser}>
+                    <Form form={userForm} layout="vertical" onFinish={handleSaveUser}>
                       <Form.Item name="name" label="Имя" rules={[{ required: true }]}>
                         <Input prefix={<UserOutlined />} placeholder="Иван Иванов" />
                       </Form.Item>
                       <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
-                        <Input prefix={<UserOutlined />} placeholder="ivan@example.com" />
+                        <Input prefix={<UserOutlined />} placeholder="ivan@example.com" disabled={!!editingManager} />
                       </Form.Item>
-                      <Form.Item name="password" label="Пароль" rules={[{ required: true, min: 6 }]}>
-                        <Input.Password prefix={<KeyOutlined />} placeholder="Минимум 6 символов" />
+                      <Form.Item
+                        name="password"
+                        label={editingManager ? "Новый пароль (оставьте пустым, чтобы не менять)" : "Пароль"}
+                        rules={[{ required: !editingManager, min: 6 }]}
+                      >
+                        <Input.Password prefix={<KeyOutlined />} placeholder={editingManager ? "Только если хотите сменить пароль" : "Минимум 6 символов"} />
                       </Form.Item>
                       <Form.Item name="role" label="Роль" rules={[{ required: true }]}>
                         <Select placeholder="Выберите роль">
