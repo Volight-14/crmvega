@@ -65,7 +65,29 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization']
 };
 app.use(cors(corsOptions));
-app.use(express.json());
+// Custom JSON parser to handle Bubble's invalid JSON (unquoted yes/no)
+app.use(express.text({ type: 'application/json' }));
+app.use((req, res, next) => {
+  if (req.headers['content-type'] === 'application/json' && typeof req.body === 'string') {
+    try {
+      // Try standard parsing first
+      req.body = JSON.parse(req.body);
+    } catch (err) {
+      // Attempt to fix unquoted keys/values from Bubble
+      try {
+        const fixed = req.body
+          .replace(/("\s*:\s*)no\b/g, '$1false')
+          .replace(/("\s*:\s*)yes\b/g, '$1true');
+        req.body = JSON.parse(fixed);
+      } catch (err2) {
+        // If still invalid, pass the error
+        console.error('JSON Parse Error:', err.message);
+        return next(err);
+      }
+    }
+  }
+  next();
+});
 
 // Сохраняем io в app для доступа из routes
 app.set('io', io);
