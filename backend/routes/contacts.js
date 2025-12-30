@@ -167,7 +167,7 @@ router.get('/summary', auth, async (req, res) => {
         last_message: lastMessage,
         // Fallback if last_message_at was not populated yet
         last_active: contact.last_message_at || lastMessage?.['Created Date'],
-        latest_order_id: latestOrder?.id
+        latest_order_id: latestOrder ? (latestOrder.main_id || latestOrder.id) : null
       };
     }));
 

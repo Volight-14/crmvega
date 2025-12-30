@@ -270,7 +270,7 @@ const ContactDetailPage: React.FC = () => {
       title: 'Действия',
       key: 'actions',
       render: (_: any, record: Order) => (
-        <Button type="link" onClick={() => navigate(`/order/${record.id}`)}>
+        <Button type="link" onClick={() => navigate(`/order/${record.main_id || record.id}`)}>
           Открыть
         </Button>
       ),
