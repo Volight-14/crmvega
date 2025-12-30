@@ -173,65 +173,77 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onClick, onStatusChange })
           {mainInfoString}
         </div>
 
-        {/* Footer: Last Message */}
-        {order.last_message && (
-          <div style={{
-            marginTop: 8,
-            background: '#f0f5ff',
-            borderRadius: '8px 8px 8px 0',
-            padding: '6px 10px',
-            display: 'inline-block',
-            maxWidth: '90%'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {/* Mini avatar or icon for client */}
-              <Avatar size={16} src={order.contact?.name ? undefined : undefined} style={{ backgroundColor: '#87d068' }} icon={<UserOutlined style={{ fontSize: 10 }} />} />
-              <Text style={{ fontSize: 12, color: '#262626' }} ellipsis>
-                {order.last_message.content}
-              </Text>
-            </div>
-          </div>
-        )}
-
-        {/* Status Dropdown (Right aligned at bottom if needed, or keeping it separate?) 
-            User didn't explicitly ask to remove it, but screenshot 2 shows a "No tasks" dot on the RIGHT and "Paid" check.
-            User said "Below 500 euro - not needed yet". "Right of it 'Paid' tag - needed later".
-            "Right of 'No tasks' - not needed yet".
-            Wait. "Ниже 'Верно' - это последнее сообщение клиента".
-            So the message is at the bottom.
-            Where is the status dropdown?
-            The user instructions don't mention the status dropdown.
-            But functionality-wise, we need to change status.
-            I will keep the status dropdown but maybe make it subtle or just keep it as is if space permits.
-            Actually, the user design (screenshot 2) DOES NOT show the standard status dropdown. 
-            However, this is a Kanban board. We usually drag to change status.
-            The old card had a dropdown. 
-            I'll add the status dropdown at the bottom right, subtle, so functionality stays.
-        */}
+        {/* Footer: Last Message and Status */}
         <div style={{
           marginTop: 8,
           display: 'flex',
-          justifyContent: 'flex-end',
+          justifyContent: 'space-between',
+          alignItems: 'flex-end',
+          gap: 8,
         }}>
+          {/* Last Message */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {order.last_message && (
+              <div style={{
+                background: '#f0f5ff',
+                borderRadius: '8px 8px 8px 0',
+                padding: '6px 10px',
+                display: 'inline-block',
+                maxWidth: '100%'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Avatar size={16} src={order.contact?.name ? undefined : undefined} style={{ backgroundColor: '#87d068', flexShrink: 0 }} icon={<UserOutlined style={{ fontSize: 10 }} />} />
+                  <Text style={{ fontSize: 12, color: '#262626' }} ellipsis>
+                    {order.last_message.content}
+                  </Text>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Status dropdown trigger as Tag */}
           <div
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
+            style={{ flexShrink: 0 }}
           >
-            {/* Minimal status indicator/dropdown */}
             <Select
               size="small"
               value={order.status}
               onChange={(newStatus) => onStatusChange?.(newStatus)}
-              style={{ width: 24, fontSize: 11 }}
+              style={{ width: 'auto', minWidth: 100 }}
               dropdownMatchSelectWidth={false}
               bordered={false}
-              suffixIcon={<div style={{ width: 10, height: 10, borderRadius: '50%', background: ORDER_STATUSES[order.status]?.color === 'default' ? '#d9d9d9' : ORDER_STATUSES[order.status]?.color || '#1890ff' }} />}
+              showArrow={false}
+              // Render the selected value as a visually distinct Tag-like element
+              labelRender={(props) => {
+                const statusConfig = ORDER_STATUSES[props.value as OrderStatus];
+                return (
+                  <div style={{
+                    backgroundColor: statusConfig?.color === 'default' ? '#f0f0f0' : `${statusConfig?.color}15`, // Light bg
+                    color: statusConfig?.color || '#595959',
+                    border: `1px solid ${statusConfig?.color || '#d9d9d9'}`,
+                    borderRadius: 4,
+                    padding: '0 8px',
+                    height: 22,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 11,
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {statusConfig?.label || props.label}
+                  </div>
+                );
+              }}
             >
               {sortedStatusOptions.map((opt) => (
                 <Option key={opt.value} value={opt.value}>
                   <Space size={4}>
-                    <span>{opt.icon}</span>
-                    <span style={{ fontSize: 11 }}>{opt.label}</span>
+                    <span style={{ color: opt.color }}>●</span>
+                    <span style={{ fontSize: 12 }}>{opt.label}</span>
                   </Space>
                 </Option>
               ))}
