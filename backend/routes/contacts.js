@@ -213,7 +213,7 @@ router.get('/:id', auth, async (req, res) => {
     // Получаем статистику по заявкам (orders)
     const { data: orders } = await supabase
       .from('orders')
-      .select('id, title, amount, status, created_at')
+      .select('id, OrderName, amount, status, created_at')
       .eq('contact_id', id)
       .order('created_at', { ascending: false });
 

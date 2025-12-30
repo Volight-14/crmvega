@@ -112,7 +112,7 @@ router.get('/contact/:contactId', auth, async (req, res) => {
       .select(`
         id,
         telegram_user_id,
-        orders(id, main_id, title)
+        orders(id, main_id, OrderName)
       `)
       .eq('id', contactId)
       .single();
