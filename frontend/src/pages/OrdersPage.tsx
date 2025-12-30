@@ -22,6 +22,7 @@ import {
   DollarOutlined,
   CalendarOutlined,
   EuroOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
@@ -62,9 +63,10 @@ interface OrderCardProps {
   order: Order;
   onClick: () => void;
   onStatusChange?: (newStatus: OrderStatus) => void;
+  onEditContact?: (contact: Contact) => void;
 }
 
-const OrderCard: React.FC<OrderCardProps> = ({ order, onClick, onStatusChange }) => {
+const OrderCard: React.FC<OrderCardProps> = ({ order, onClick, onStatusChange, onEditContact }) => {
   const {
     attributes,
     listeners,
@@ -146,9 +148,21 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onClick, onStatusChange })
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
-            maxWidth: '70%'
+            maxWidth: '70%',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6
           }}>
-            {order.OrderName || order.title || 'Без имени'}
+            {order.contact?.name || order.OrderName || order.title || 'Без имени'}
+            {order.contact && 'id' in order.contact && (
+              <EditOutlined
+                style={{ fontSize: 12, color: '#bfbfbf', cursor: 'pointer' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditContact?.(order.contact as Contact);
+                }}
+              />
+            )}
           </div>
           <Text type="secondary" style={{ fontSize: 11, flexShrink: 0 }}>
             {formatDate(order.created_at)}
@@ -262,9 +276,10 @@ interface KanbanColumnProps {
   onOrderClick: (order: Order) => void;
   onAddOrder: () => void;
   onStatusChange: (orderId: number, newStatus: OrderStatus) => void;
+  onEditContact: (contact: Contact) => void;
 }
 
-const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClick, onAddOrder, onStatusChange }) => {
+const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClick, onAddOrder, onStatusChange, onEditContact }) => {
   const statusInfo = ORDER_STATUSES[status];
   const orderIds = orders.map(d => d.id);
   const columnColor = COLUMN_COLORS[status] || '#8c8c8c';
@@ -370,6 +385,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClic
                   order={order}
                   onClick={() => onOrderClick(order)}
                   onStatusChange={(status) => onStatusChange(order.id, status)}
+                  onEditContact={onEditContact}
                 />
               ))}
               {/* Кнопка добавления внизу */}
@@ -405,6 +421,12 @@ const OrdersPage: React.FC = () => {
   const [createStatus, setCreateStatus] = useState<OrderStatus>('unsorted');
   const [activeId, setActiveId] = useState<number | null>(null);
   const [form] = Form.useForm();
+
+  // Edit Contact state
+  const [isEditContactModalVisible, setIsEditContactModalVisible] = useState(false);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [editContactForm] = Form.useForm();
+
   const socketRef = useRef<Socket | null>(null);
   const kanbanRef = useRef<HTMLDivElement>(null);
 
@@ -585,6 +607,38 @@ const OrdersPage: React.FC = () => {
     setIsCreateModalVisible(true);
   };
 
+  // Edit Contact Logic
+  const handleEditContact = (contact: Contact) => {
+    setEditingContact(contact);
+    editContactForm.setFieldsValue({ name: contact.name });
+    setIsEditContactModalVisible(true);
+  };
+
+  const handleUpdateContactName = async (values: any) => {
+    if (!editingContact) return;
+    try {
+      await contactsAPI.update(editingContact.id, { name: values.name });
+      message.success('Имя контакта обновлено');
+      setIsEditContactModalVisible(false);
+
+      // Update local state to reflect change across all orders for this contact
+      setOrders(prev => prev.map(order =>
+        order.contact_id === editingContact.id
+          ? { ...order, contact: { ...order.contact!, name: values.name } }
+          : order
+      ));
+
+      // Also update contacts list just in case
+      setContacts(prev => prev.map(c =>
+        c.id === editingContact.id ? { ...c, name: values.name } : c
+      ));
+
+    } catch (error: any) {
+      console.error('Error updating contact:', error);
+      message.error(error.response?.data?.error || 'Ошибка обновления имени контакта');
+    }
+  };
+
   // Группируем заявки по статусам
   const ordersByStatus = useMemo(() => {
     const grouped: Record<string, Order[]> = {};
@@ -699,6 +753,7 @@ const OrdersPage: React.FC = () => {
                 onOrderClick={(order) => navigate(`/order/${order.main_id || order.id}`)}
                 onAddOrder={() => openCreateModal(status)}
                 onStatusChange={handleStatusChange}
+                onEditContact={handleEditContact}
               />
             ))}
           </div>
@@ -795,6 +850,29 @@ const OrdersPage: React.FC = () => {
           </Form.Item>
           <Form.Item name="description" label="Описание">
             <Input.TextArea rows={3} placeholder="Описание заявки" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Edit Contact Modal */}
+      <Modal
+        title="Редактировать имя клиента"
+        open={isEditContactModalVisible}
+        onCancel={() => setIsEditContactModalVisible(false)}
+        onOk={() => editContactForm.submit()}
+        width={400}
+      >
+        <Form
+          form={editContactForm}
+          layout="vertical"
+          onFinish={handleUpdateContactName}
+        >
+          <Form.Item
+            name="name"
+            label="Имя клиента"
+            rules={[{ required: true, message: 'Введите имя' }]}
+          >
+            <Input placeholder="Имя клиента" autoFocus />
           </Form.Item>
         </Form>
       </Modal>
