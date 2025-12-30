@@ -36,13 +36,31 @@ router.get('/order/:orderId', auth, async (req, res) => {
   try {
     const { orderId } = req.params;
 
+    let internalOrderId = orderId;
+
+    // Check if orderId is a main_id (large number)
+    if (/^\d{10,}$/.test(orderId)) {
+      const { data: order } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('main_id', orderId)
+        .single();
+
+      if (order) {
+        internalOrderId = order.id;
+      } else {
+        // If logical order not found by main_id, return empty list or 404
+        return res.json([]);
+      }
+    }
+
     const { data, error } = await supabase
       .from('notes')
       .select(`
         *,
         manager:managers(name)
       `)
-      .eq('order_id', orderId)
+      .eq('order_id', internalOrderId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
