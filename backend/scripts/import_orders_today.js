@@ -28,9 +28,66 @@ const supabase = createClient(
 );
 
 async function findOrCreateContact(bubbleOrder) {
-    // Try to match by phone
+    const BUBBLE_USER_URL = 'https://vega-ex.com/api/1.1/obj/User';
+
+    // Step 1: Get User ID from Order
+    const bubbleUserId = bubbleOrder.User;
+
+    if (bubbleUserId) {
+        try {
+            // Step 2: Fetch User from Bubble by ID
+            const userResponse = await axios.get(`${BUBBLE_USER_URL}/${bubbleUserId}`, {
+                headers: { Authorization: `Bearer ${BUBBLE_TOKEN}` }
+            });
+
+            const bubbleUser = userResponse.data.response;
+            const telegramId = bubbleUser.TelegramID;
+
+            // Step 3: Search contact by telegram_user_id
+            if (telegramId) {
+                const { data: existing } = await supabase
+                    .from('contacts')
+                    .select('id')
+                    .eq('telegram_user_id', telegramId)
+                    .maybeSingle();
+
+                if (existing) {
+                    console.log(`Found contact ${existing.id} by TG ID ${telegramId}`);
+                    return existing.id;
+                }
+
+                // Step 4: If not found, create new contact with full data
+                const name = bubbleUser.AmoName ||
+                    (bubbleUser.FirstName ? `${bubbleUser.FirstName} ${bubbleUser.LastName || ''}`.trim() : null) ||
+                    bubbleUser.TelegramUsername ? `@${bubbleUser.TelegramUsername}` :
+                    `Client ${telegramId}`;
+
+                const { data: newContact, error } = await supabase
+                    .from('contacts')
+                    .insert({
+                        name: name,
+                        telegram_user_id: telegramId,
+                        telegram_username: bubbleUser.TelegramUsername || null,
+                        bubble_id: bubbleUserId,
+                        email: bubbleUser.authentication?.email?.email || null,
+                        status: 'active',
+                        created_at: bubbleOrder['Created Date'] || new Date().toISOString()
+                    })
+                    .select('id')
+                    .single();
+
+                if (error) throw error;
+                console.log(`Created new contact ${newContact.id} for TG ID ${telegramId}`);
+                return newContact.id;
+            }
+        } catch (err) {
+            console.warn(`Could not fetch User ${bubbleUserId} from Bubble:`, err.message);
+            // Fall through to fallback logic
+        }
+    }
+
+    // Fallback: Try to match by phone if User lookup failed
     let phone = bubbleOrder.MobilePhone;
-    // Basic cleanup of phone
     if (phone) phone = String(phone).replace(/[^\d+]/g, '');
 
     if (phone) {
@@ -43,28 +100,25 @@ async function findOrCreateContact(bubbleOrder) {
         if (existing) return existing.id;
     }
 
-    // If email?
-    // bubbleOrder.User might have email if we fetch User object, but we only have Order.
-    // Assuming MobilePhone is the main link.
-
-    // Create new contact
-    const name = bubbleOrder.ClientName || `Client ${phone || bubbleOrder.User || 'Unknown'}`;
+    // Last resort: Create "Unknown" contact
+    const name = bubbleOrder.ClientName || `User Unknown`;
 
     const { data: newContact, error } = await supabase
         .from('contacts')
         .insert({
             name: name,
             phone: phone || null,
-            status: 'active', // Default
+            status: 'active',
             created_at: bubbleOrder['Created Date'] || new Date().toISOString()
         })
         .select('id')
         .single();
 
     if (error) {
-        console.error('Error creating contact:', error.message);
-        return null; // Should handle this
+        console.error('Error creating contact:', error);
+        return null;
     }
+
     return newContact.id;
 }
 
