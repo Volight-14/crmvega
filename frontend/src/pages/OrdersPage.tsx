@@ -99,20 +99,28 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onClick, onStatusChange, o
     }).replace('.', '') + ', ' + date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   };
 
+  // Helper to clean values (remove 'null' strings)
+  const clean = (val: string | number | undefined | null) => {
+    if (!val) return '';
+    const str = String(val).trim();
+    if (str.toLowerCase() === 'null') return '';
+    return str;
+  };
+
   // Construct main info string
   const mainInfoParts = [
-    order.DeliveryTime ? order.DeliveryTime : '',
-    order.NextDay ? order.NextDay : '',
-    order.CityEsp02 ? order.CityEsp02 : '',
-    order.SumInput ? order.SumInput.toString() : '',
-    order.CurrPair1 ? order.CurrPair1 : '',
-    (order.SumOutput || order.CurrPair2) ? 'на' : '',
-    order.SumOutput ? order.SumOutput.toString() : '',
-    order.CurrPair2 ? order.CurrPair2 : ''
+    clean(order.DeliveryTime),
+    clean(order.NextDay),
+    clean(order.CityEsp02),
+    clean(order.SumInput),
+    clean(order.CurrPair1),
+    (clean(order.SumOutput) || clean(order.CurrPair2)) ? 'на' : '',
+    clean(order.SumOutput),
+    clean(order.CurrPair2)
   ];
 
-  // Join parts and handle empty strings nicely, also handle potentially "с null" if DeliveryTime was somehow null string
-  const mainInfoString = mainInfoParts.filter(part => part && part.trim() !== '').join(' ');
+  // Join parts and handle empty strings nicely
+  const mainInfoString = mainInfoParts.filter(part => part && part !== '').join(' ');
 
   return (
     <div
@@ -170,9 +178,9 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onClick, onStatusChange, o
         </div>
 
         {/* Subtitle: City */}
-        {order.CityEsp02 && (
+        {clean(order.CityEsp02) && (
           <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 6 }}>
-            {order.CityEsp02}
+            {clean(order.CityEsp02)}
           </div>
         )}
 
