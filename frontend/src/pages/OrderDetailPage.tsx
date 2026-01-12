@@ -199,7 +199,143 @@ const OrderDetailPage: React.FC = () => {
     );
   }
 
-  const statusInfo = ORDER_STATUSES[order.status] || ORDER_STATUSES.unsorted;
+  const clean = (val: any) => {
+    if (val === null || val === undefined) return null;
+    const str = String(val).trim();
+    if (str === '' || str.toLowerCase() === 'null') return null;
+    return str;
+  };
+
+  const FieldItem = ({ label, value, isCurrency = false }: { label: string, value: any, isCurrency?: boolean }) => {
+    const cleaned = clean(value);
+    if (!cleaned) return null;
+    return (
+      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+        <Text type="secondary" style={{ width: '40%' }}>{label}</Text>
+        <div style={{ width: '60%', textAlign: 'right', wordBreak: 'break-word' }}>
+          {isCurrency ? (
+            <Text strong>{value}</Text>
+          ) : (
+            <Text>{cleaned}</Text>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const OrderInfoTab = () => (
+    <div style={{ padding: 16, overflowY: 'auto', flex: 1 }}>
+      {/* Contact Card */}
+      {order.contact && (
+        <div style={{
+          background: 'linear-gradient(135deg, #f6f8fc 0%, #eef2f7 100%)',
+          borderRadius: 12,
+          padding: 16,
+          marginBottom: 24
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 12,
+          }}>
+            <Text strong style={{ fontSize: 14 }}>Контакт</Text>
+            <Button
+              type="link"
+              size="small"
+              onClick={() => navigate(`/contact/${order.contact_id}`)}
+            >
+              Открыть
+            </Button>
+          </div>
+          <Space direction="vertical" style={{ width: '100%' }} size={8}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Avatar
+                style={{ backgroundColor: '#667eea' }}
+                icon={<UserOutlined />}
+                size={32}
+              />
+              <Text strong>{order.contact.name}</Text>
+            </div>
+            {clean(order.contact.phone) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#595959' }}>
+                <PhoneOutlined />
+                <Text copyable>{order.contact.phone}</Text>
+              </div>
+            )}
+            {clean(order.contact.email) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#595959' }}>
+                <MailOutlined />
+                <Text copyable>{order.contact.email}</Text>
+              </div>
+            )}
+          </Space>
+        </div>
+      )}
+
+      {/* Main Fields List */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        <div style={{ marginBottom: 16 }}>
+          <Text type="secondary" style={{ fontSize: 12 }}>Статус</Text>
+          <div style={{ marginTop: 4 }}>
+            <Select
+              value={order.status}
+              onChange={handleStatusChange}
+              size="middle"
+              style={{ width: '100%' }}
+              popupMatchSelectWidth={false}
+            >
+              {sortedStatusOptions.map((opt) => (
+                <Option key={opt.value} value={opt.value}>
+                  <Space>
+                    <span>{opt.icon}</span>
+                    <span>{opt.label}</span>
+                  </Space>
+                </Option>
+              ))}
+            </Select>
+          </div>
+        </div>
+
+        <FieldItem label="Менеджер" value={order.manager?.name} />
+        <FieldItem label="Бюджет (Сумма)" value={order.amount ? `${order.amount.toLocaleString('ru-RU')} ${order.currency || ''}` : null} isCurrency />
+
+        <FieldItem label="Клиент отдает" value={order.SumInput} />
+        <FieldItem label="Отдает в валюте" value={order.CurrPair1} />
+        <FieldItem label="Клиент получает" value={order.SumOutput} />
+        <FieldItem label="Получает в валюте" value={order.CurrPair2} />
+
+        <FieldItem label="Геолокация" value={order.CityEsp02 || order.Location1 || order.Location2} />
+        <FieldItem label="Время встречи" value={order.DeliveryTime} />
+
+        <FieldItem label="Отправляет из банка" value={order.BankRus01} />
+        <FieldItem label="Город РФ где отдает" value={order.CityRus01} />
+        <FieldItem label="Город Испания где отдает" value={order.CityEsp01} />
+        <FieldItem label="Сеть с какой отправляет USDT" value={order.NetworkUSDT01} />
+
+        <FieldItem label="Оплата сейчас или при встрече" value={order.PayNow} />
+        <FieldItem label="Выдача на следующий день" value={order.NextDay} />
+
+        <FieldItem label="Получает в банк" value={order.BankRus02 || order.BankEsp} />
+        <FieldItem label="Город РФ где получает" value={order.CityRus02} />
+        <FieldItem label="Город Испания где получает" value={order.CityEsp02} />
+        <FieldItem label="Сеть на которую получает" value={order.NetworkUSDT02} />
+
+        <FieldItem label="Адрес кошелька куда получает" value={order.ClientCryptoWallet} />
+        <FieldItem label="Номер IBAN клиента" value={order.ClientIBAN || order.MessageIBAN} />
+        <FieldItem label="Получатель Имя" value={order.PayeeName} />
+        <FieldItem label="Назначение IBAN" value={null} />
+        <FieldItem label="Номер карты или телефон" value={order.Card_NumberOrSBP} />
+
+        <FieldItem label="Банкомат" value={order.ATM || order.ATM_Esp} />
+        <FieldItem label="Адрес доставки" value={order.End_address || order.New_address} />
+        <FieldItem label="Комментарий" value={order.description || order.Comment} />
+        <FieldItem label="Источник" value={order.source} />
+        <FieldItem label="Создано" value={new Date(order.created_at).toLocaleString('ru-RU')} />
+        <FieldItem label="Закрыто" value={order.closed_date ? new Date(order.closed_date).toLocaleDateString('ru-RU') : null} />
+      </div>
+    </div>
+  );
 
   return (
     <div style={{
@@ -326,117 +462,13 @@ const OrderDetailPage: React.FC = () => {
                   label: <span><InfoCircleOutlined /> Инфо</span>,
                   children: (
                     <Card style={{ borderRadius: '0 0 12px 12px' }} bodyStyle={{ padding: 12 }}>
-                      {/* Mobile Info Content Content */}
-                      {/* This effectively duplicates the rendering logic but optimized for mobile tab structure */}
-                      <Descriptions column={1} size="small" style={{ marginBottom: 16 }}>
-                        <Descriptions.Item label="Статус">
-                          <Select
-                            value={order.status}
-                            onChange={handleStatusChange}
-                            size="small"
-                            style={{ width: '100%' }}
-                            popupMatchSelectWidth={false}
-                            bordered={false}
-                          >
-                            {sortedStatusOptions.map((opt) => (
-                              <Option key={opt.value} value={opt.value}>
-                                <Space>
-                                  <span>{opt.icon}</span>
-                                  <span>{opt.label}</span>
-                                </Space>
-                              </Option>
-                            ))}
-                          </Select>
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Сумма">
-                          <Text strong>{order.amount.toLocaleString('ru-RU') || 0} {order.currency || 'RUB'}</Text>
-                        </Descriptions.Item>
-                        {order.due_date && (
-                          <Descriptions.Item label="Крайний срок">
-                            <CalendarOutlined /> {new Date(order.due_date).toLocaleDateString('ru-RU')}
-                          </Descriptions.Item>
-                        )}
-                        {order.source && (
-                          <Descriptions.Item label="Источник">
-                            {order.source}
-                          </Descriptions.Item>
-                        )}
-                        {order.manager && (
-                          <Descriptions.Item label="Менеджер">
-                            {order.manager.name}
-                          </Descriptions.Item>
-                        )}
-                        <Descriptions.Item label="Создано">
-                          {new Date(order.created_at).toLocaleString('ru-RU')}
-                        </Descriptions.Item>
-                      </Descriptions>
-                      {order.description && (
-                        <>
-                          <Divider style={{ margin: '12px 0' }} />
-                          <div>
-                            <Text strong style={{ fontSize: 13 }}>Описание:</Text>
-                            <div style={{ marginTop: 8, color: '#595959' }}>
-                              <Text>{order.description}</Text>
-                            </div>
-                          </div>
-                        </>
-                      )}
-
-                      {/* Contact Card */}
-                      {order.contact && (
-                        <>
-                          <Divider style={{ margin: '16px 0' }} />
-                          <div style={{
-                            background: 'linear-gradient(135deg, #f6f8fc 0%, #eef2f7 100%)',
-                            borderRadius: 12,
-                            padding: 16,
-                          }}>
-                            <div style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              marginBottom: 12,
-                            }}>
-                              <Text strong style={{ fontSize: 14 }}>Контакт</Text>
-                              <Button
-                                type="link"
-                                size="small"
-                                onClick={() => navigate(`/contact/${order.contact_id}`)}
-                              >
-                                Открыть
-                              </Button>
-                            </div>
-                            <Space direction="vertical" style={{ width: '100%' }} size={8}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <Avatar
-                                  style={{ backgroundColor: '#667eea' }}
-                                  icon={<UserOutlined />}
-                                  size={32}
-                                />
-                                <Text strong>{order.contact.name}</Text>
-                              </div>
-                              {order.contact.phone && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#595959' }}>
-                                  <PhoneOutlined />
-                                  <Text copyable>{order.contact.phone}</Text>
-                                </div>
-                              )}
-                              {order.contact.email && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#595959' }}>
-                                  <MailOutlined />
-                                  <Text copyable>{order.contact.email}</Text>
-                                </div>
-                              )}
-                            </Space>
-                          </div>
-                        </>
-                      )}
+                      <OrderInfoTab />
                     </Card>
                   ),
                 },
                 {
                   key: 'notes',
-                  label: <span><MessageOutlined /> Заметки</span>,
+                  label: <span><MessageOutlined /> Заметки ({notes.length})</span>,
                   children: (
                     <Card style={{ borderRadius: '0 0 12px 12px' }} bodyStyle={{ padding: 12 }}>
                       <Button
@@ -496,7 +528,6 @@ const OrderDetailPage: React.FC = () => {
                   label: <span><MessageOutlined /> Чат</span>,
                   children: (
                     <div style={{ height: 'calc(100vh - 250px)', background: '#fff' }}>
-                      {/* We render OrderChat here for mobile */}
                       {order.contact_id || order.main_id || order.external_id ? (
                         <OrderChat
                           orderId={order.id}
@@ -540,120 +571,7 @@ const OrderDetailPage: React.FC = () => {
                         <InfoCircleOutlined /> Информация
                       </span>
                     ),
-                    children: (
-                      <div style={{ padding: 16, overflowY: 'auto', flex: 1 }}>
-                        {/* Order Info */}
-                        <Descriptions column={1} size="small" style={{ marginBottom: 16 }}>
-                          <Descriptions.Item label="Статус">
-                            <Select
-                              value={order.status}
-                              onChange={handleStatusChange}
-                              size="small"
-                              style={{ width: '100%' }}
-                              popupMatchSelectWidth={false}
-                              bordered={false}
-                            >
-                              {sortedStatusOptions.map((opt) => (
-                                <Option key={opt.value} value={opt.value}>
-                                  <Space>
-                                    <span>{opt.icon}</span>
-                                    <span>{opt.label}</span>
-                                  </Space>
-                                </Option>
-                              ))}
-                            </Select>
-                          </Descriptions.Item>
-                          <Descriptions.Item label="Сумма">
-                            <Text strong>{order.amount.toLocaleString('ru-RU') || 0} {order.currency || 'RUB'}</Text>
-                          </Descriptions.Item>
-                          {order.due_date && (
-                            <Descriptions.Item label="Крайний срок">
-                              <CalendarOutlined /> {new Date(order.due_date).toLocaleDateString('ru-RU')}
-                            </Descriptions.Item>
-                          )}
-                          {order.source && (
-                            <Descriptions.Item label="Источник">
-                              {order.source}
-                            </Descriptions.Item>
-                          )}
-                          {order.manager && (
-                            <Descriptions.Item label="Менеджер">
-                              {order.manager.name}
-                            </Descriptions.Item>
-                          )}
-                          <Descriptions.Item label="Создано">
-                            {new Date(order.created_at).toLocaleString('ru-RU')}
-                          </Descriptions.Item>
-                          {order.closed_date && (
-                            <Descriptions.Item label="Закрыто">
-                              {new Date(order.closed_date).toLocaleDateString('ru-RU')}
-                            </Descriptions.Item>
-                          )}
-                        </Descriptions>
-
-                        {order.description && (
-                          <>
-                            <Divider style={{ margin: '12px 0' }} />
-                            <div>
-                              <Text strong style={{ fontSize: 13 }}>Описание:</Text>
-                              <div style={{ marginTop: 8, color: '#595959' }}>
-                                <Text>{order.description}</Text>
-                              </div>
-                            </div>
-                          </>
-                        )}
-
-                        {/* Contact Card */}
-                        {order.contact && (
-                          <>
-                            <Divider style={{ margin: '16px 0' }} />
-                            <div style={{
-                              background: 'linear-gradient(135deg, #f6f8fc 0%, #eef2f7 100%)',
-                              borderRadius: 12,
-                              padding: 16,
-                            }}>
-                              <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                marginBottom: 12,
-                              }}>
-                                <Text strong style={{ fontSize: 14 }}>Контакт</Text>
-                                <Button
-                                  type="link"
-                                  size="small"
-                                  onClick={() => navigate(`/contact/${order.contact_id}`)}
-                                >
-                                  Открыть
-                                </Button>
-                              </div>
-                              <Space direction="vertical" style={{ width: '100%' }} size={8}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <Avatar
-                                    style={{ backgroundColor: '#667eea' }}
-                                    icon={<UserOutlined />}
-                                    size={32}
-                                  />
-                                  <Text strong>{order.contact.name}</Text>
-                                </div>
-                                {order.contact.phone && (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#595959' }}>
-                                    <PhoneOutlined />
-                                    <Text copyable>{order.contact.phone}</Text>
-                                  </div>
-                                )}
-                                {order.contact.email && (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#595959' }}>
-                                    <MailOutlined />
-                                    <Text copyable>{order.contact.email}</Text>
-                                  </div>
-                                )}
-                              </Space>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    ),
+                    children: <OrderInfoTab />,
                   },
                   {
                     key: 'notes',
