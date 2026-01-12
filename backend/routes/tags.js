@@ -1,6 +1,7 @@
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 const { auth, requireAdmin } = require('../middleware/auth');
+const { clearCache } = require('../utils/cache');
 
 const router = express.Router();
 const supabase = createClient(
@@ -131,6 +132,7 @@ router.post('/', auth, async (req, res) => {
             .single();
 
         if (error) throw error;
+        clearCache('orders');
         res.json(data);
     } catch (error) {
         console.error('Error creating tag:', error);
@@ -165,6 +167,7 @@ router.patch('/:id', auth, async (req, res) => {
             .single();
 
         if (error) throw error;
+        clearCache('orders');
         res.json(data);
     } catch (error) {
         console.error('Error updating tag:', error);
@@ -195,6 +198,7 @@ router.delete('/:id', auth, async (req, res) => {
             .eq('id', id);
 
         if (error) throw error;
+        clearCache('orders');
         res.json({ success: true });
     } catch (error) {
         console.error('Error deleting tag:', error);
@@ -222,6 +226,7 @@ router.post('/order/:orderId/assign', auth, async (req, res) => {
             throw error;
         }
 
+        clearCache('orders');
         res.json(data);
     } catch (error) {
         console.error('Error assigning tag:', error);
@@ -241,6 +246,7 @@ router.delete('/order/:orderId/remove/:tagId', auth, async (req, res) => {
             .eq('tag_id', tagId);
 
         if (error) throw error;
+        clearCache('orders');
         res.json({ success: true });
     } catch (error) {
         console.error('Error removing tag:', error);
