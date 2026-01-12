@@ -58,7 +58,7 @@ const OrderDetailPage: React.FC = () => {
   const [noteForm] = Form.useForm();
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
-  const [activeInfoTab, setActiveInfoTab] = useState<'info' | 'notes' | 'chat'>('info');
+  const [activeInfoTab, setActiveInfoTab] = useState<'info' | 'notes' | 'chat'>('chat');
   const socketRef = useRef<Socket | null>(null);
 
   // Reset tab to info if switching to desktop while in chat tab

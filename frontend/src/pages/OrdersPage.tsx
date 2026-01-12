@@ -44,7 +44,7 @@ const COLUMN_COLORS: Record<string, string> = {
   accepted_anna: '#13c2c2',
   accepted_kostya: '#13c2c2',
   accepted_stas: '#13c2c2',
-  accepted_lusi: '#13c2c2',
+  accepted_lucy: '#13c2c2',
   in_progress: '#1890ff',
   survey: '#722ed1',
   transferred_nikita: '#fa8c16',

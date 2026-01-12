@@ -6,6 +6,7 @@ const STATUS_TO_BUBBLE_ID = {
     'accepted_anna': '68464458',
     'accepted_kostya': '68626790',
     'accepted_stas': '68627678',
+    'accepted_lucy': '80739506',
     'in_progress': '71445094',
     'survey': '75360614',
     'transferred_nikita': '68464462',
