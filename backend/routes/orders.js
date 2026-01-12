@@ -14,7 +14,7 @@ const supabase = createClient(
 // Получить все заявки (orders)
 router.get('/', auth, async (req, res) => {
   try {
-    const { contact_id, status, limit = 50, offset = 0, minimal } = req.query;
+    const { contact_id, status, tag_id, limit = 50, offset = 0, minimal } = req.query;
 
     // Генерируем ключ кэша
     const cacheKey = generateCacheKey('orders', req.query);
@@ -37,7 +37,7 @@ router.get('/', auth, async (req, res) => {
         // Renamed title -> OrderName
         // Added fields for Kanban card
         // Verified columns via MCP: CityEsp02, DeliveryTime, NextDay, SumOutput, CurrPair2 EXIST.
-        .select('id, contact_id, "OrderName", "SumInput", "CurrPair1", status, created_at, main_id, "CityEsp02", "DeliveryTime", "NextDay", "SumOutput", "CurrPair2", contact:contacts(id, name)')
+        .select(`id, contact_id, "OrderName", "SumInput", "CurrPair1", status, created_at, main_id, "CityEsp02", "DeliveryTime", "NextDay", "SumOutput", "CurrPair2", contact:contacts(id, name)${tag_id ? ', order_tags!inner(tag_id)' : ''}`)
         .order('created_at', { ascending: false })
         .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
     } else {
@@ -47,7 +47,7 @@ router.get('/', auth, async (req, res) => {
         .select(`
           *,
           contact:contacts(id, name, email, phone),
-          manager:managers(id, name)
+          manager:managers(id, name)${tag_id ? ', order_tags!inner(tag_id)' : ''}
         `)
         .order('created_at', { ascending: false })
         .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
@@ -59,6 +59,10 @@ router.get('/', auth, async (req, res) => {
 
     if (status) {
       query = query.eq('status', status);
+    }
+
+    if (tag_id) {
+      query = query.eq('order_tags.tag_id', tag_id);
     }
 
     const { data, error } = await query;

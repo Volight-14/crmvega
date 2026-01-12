@@ -37,7 +37,10 @@ import { Order, Note, ORDER_STATUSES, NOTE_PRIORITIES } from '../types';
 import { ordersAPI, notesAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import io from 'socket.io-client';
-import OrderChat from '../components/OrderChat'; // Updated import
+import OrderChat from '../components/OrderChat';
+import { OrderTags } from '../components/OrderTags';
+
+
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -379,9 +382,16 @@ const OrderDetailPage: React.FC = () => {
             </div>
 
             <div style={{ width: '100%' }}>
-              <Title level={3} style={{ margin: 0, color: 'white', fontSize: isMobile ? 20 : 24 }}>
-                {order.title}
-              </Title>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <Title level={3} style={{ margin: 0, color: 'white', fontSize: isMobile ? 20 : 24 }}>
+                  {order.title}
+                </Title>
+                <OrderTags
+                  orderId={order.id}
+                  initialTags={order.tags}
+                  onTagsChange={(newTags) => setOrder(prev => prev ? { ...prev, tags: newTags } : null)}
+                />
+              </div>
               <Space style={{ marginTop: 4, flexWrap: 'wrap' }}>
                 <Select
                   value={order.status}

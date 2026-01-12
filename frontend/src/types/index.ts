@@ -247,6 +247,7 @@ export interface Tag {
   color: string;
   category?: string;
   created_at: string;
+  count?: number;
 }
 
 export const NOTE_PRIORITIES = {

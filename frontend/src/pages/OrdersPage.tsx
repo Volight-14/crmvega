@@ -465,7 +465,7 @@ const OrdersPage: React.FC = () => {
     return () => {
       socketRef.current?.disconnect();
     };
-  }, []);
+  }, [searchParams]);
 
   const fetchContacts = async () => {
     try {
@@ -499,9 +499,12 @@ const OrdersPage: React.FC = () => {
     try {
       // Используем minimal=true для быстрой загрузки канбана
       // Загружаем только необходимые поля без тегов и полных данных контактов
+      const tagId = searchParams.get('tag');
       const { orders: fetchedOrders } = await ordersAPI.getAll({
         limit: 500,
-        minimal: true
+        minimal: true,
+        // @ts-ignore
+        tag_id: tagId ? parseInt(tagId) : undefined
       });
       setOrders(fetchedOrders);
     } catch (error) {
@@ -716,6 +719,24 @@ const OrdersPage: React.FC = () => {
             allowClear
           />
         </div>
+
+        {searchParams.get('tag') && (
+          <div style={{ display: 'flex', alignItems: 'center', margin: '0 16px' }}>
+            <Tag
+              closable
+              onClose={() => {
+                const newParams = new URLSearchParams(searchParams);
+                newParams.delete('tag');
+                navigate({ search: newParams.toString() });
+              }}
+              color="blue"
+              style={{ fontSize: 14, padding: '4px 10px' }}
+            >
+              Фильтр: Тег #{searchParams.get('tag')}
+            </Tag>
+          </div>
+        )}
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', justifyContent: 'flex-end', flex: '1 1 auto' }}>
           <Text style={{ color: '#8c8c8c', whiteSpace: 'nowrap' }}>
             {filteredOrders.length} заявок: €{Math.round(totalOrdersAmount).toLocaleString('ru-RU')}
