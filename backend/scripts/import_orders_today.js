@@ -48,13 +48,29 @@ async function findOrCreateContact(bubbleOrder) {
         }
 
         try {
-            // Step 2: Fetch User from Bubble by ID
-            const userResponse = await axios.get(`${BUBBLE_USER_URL}/${bubbleUserId}`, {
-                headers: { Authorization: `Bearer ${BUBBLE_TOKEN}` },
-                timeout: 5000 // Add timeout
-            });
+            // Step 2: Fetch User from Bubble by ID using Retry Logic
+            let bubbleUser = null;
+            let attempts = 0;
+            const maxAttempts = 5;
 
-            const bubbleUser = userResponse.data.response;
+            while (attempts < maxAttempts && !bubbleUser) {
+                try {
+                    attempts++;
+                    const userResponse = await axios.get(`${BUBBLE_USER_URL}/${bubbleUserId}`, {
+                        headers: { Authorization: `Bearer ${BUBBLE_TOKEN}` },
+                        timeout: 10000 // Increased timeout to 10s
+                    });
+                    bubbleUser = userResponse.data.response;
+                } catch (fetchErr) {
+                    console.warn(`Attempt ${attempts}/${maxAttempts} failed to fetch User ${bubbleUserId}: ${fetchErr.message}`);
+                    if (attempts < maxAttempts) {
+                        // Wait 2 seconds before retrying
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                    } else {
+                        throw fetchErr; // Throw after max attempts to trigger fallback
+                    }
+                }
+            }
             const telegramId = bubbleUser.TelegramID;
 
             // Step 3: Search contact by telegram_user_id
