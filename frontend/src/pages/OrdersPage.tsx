@@ -28,8 +28,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Order, ORDER_STATUSES, Contact, OrderStatus } from '../types';
-import { ordersAPI, contactsAPI } from '../services/api';
+import { Order, ORDER_STATUSES, Contact, OrderStatus, Tag as TagData } from '../types';
+import { ordersAPI, contactsAPI, tagsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import io from 'socket.io-client';
 
@@ -194,6 +194,21 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onClick, onStatusChange, o
         }}>
           {mainInfoString}
         </div>
+
+        {/* Tags */}
+        {order.tags && order.tags.length > 0 && (
+          <div style={{ marginBottom: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {order.tags.map(tag => (
+              <Tag
+                key={tag.id}
+                color={tag.color}
+                style={{ margin: 0, fontSize: 10, lineHeight: '18px' }}
+              >
+                {tag.name}
+              </Tag>
+            ))}
+          </div>
+        )}
 
         {/* Footer: Last Message and Status */}
         <div style={{
@@ -423,6 +438,7 @@ const OrdersPage: React.FC = () => {
   const { manager } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [allTags, setAllTags] = useState<TagData[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
@@ -460,6 +476,7 @@ const OrdersPage: React.FC = () => {
   useEffect(() => {
     fetchOrders();
     fetchContacts();
+    fetchTags();
     setupSocket();
 
     return () => {
@@ -473,6 +490,15 @@ const OrdersPage: React.FC = () => {
       setContacts(fetchedContacts);
     } catch (error) {
       console.error('Error fetching contacts:', error);
+    }
+  };
+
+  const fetchTags = async () => {
+    try {
+      const tags = await tagsAPI.getAll();
+      setAllTags(tags);
+    } catch (error) {
+      console.error('Error fetching tags:', error);
     }
   };
 
@@ -732,7 +758,7 @@ const OrdersPage: React.FC = () => {
               color="blue"
               style={{ fontSize: 14, padding: '4px 10px' }}
             >
-              Фильтр: Тег #{searchParams.get('tag')}
+              Фильтр: {allTags.find(t => t.id === parseInt(searchParams.get('tag')!))?.name || 'Тег #' + searchParams.get('tag')}
             </Tag>
           </div>
         )}

@@ -79,10 +79,10 @@ router.get('/', auth, async (req, res) => {
     }));
 
     // Для минимального режима (Канбан) подгружаем последние сообщения клиентов
+    // Для минимального режима (Канбан) подгружаем последние сообщения клиентов
     if (isMinimal && orders.length > 0) {
       try {
         // Fetch latest client message for each order
-        // We use Promise.all with map. For 50 items it's okay. For larger generic lists, we might need optimization.
         const ordersWithMessages = await Promise.all(orders.map(async (order) => {
           let lastMessage = null;
           if (order.main_id) {
@@ -90,8 +90,6 @@ router.get('/', auth, async (req, res) => {
               .from('messages')
               .select('content, "Created Date", author_type')
               .eq('main_id', String(order.main_id))
-              // Filter purely for client messages if possible, but 'author_type' values vary.
-              // Common client types: 'user', 'Клиент', 'Client'
               .in('author_type', ['user', 'Клиент', 'Client'])
               .order('"Created Date"', { ascending: false })
               .limit(1)
@@ -99,15 +97,16 @@ router.get('/', auth, async (req, res) => {
 
             lastMessage = msg;
           }
-          return { ...order, last_message: lastMessage, tags: [] };
+          return { ...order, last_message: lastMessage };
         }));
         orders = ordersWithMessages;
       } catch (err) {
         console.error('Error fetching messages for orders:', err);
-        // Fallback: return orders without messages rather than crashing
-        orders = orders.map(o => ({ ...o, tags: [] }));
       }
-    } else if (!isMinimal && orders.length > 0) {
+    }
+
+    // Подгружаем теги для ВСЕХ режимов (включая минимальный для канбана)
+    if (orders.length > 0) {
       const orderIds = orders.map(o => o.id);
       const { data: tagsData } = await supabase
         .from('order_tags')
@@ -118,7 +117,7 @@ router.get('/', auth, async (req, res) => {
       const tagsByOrder = {};
       tagsData?.forEach(t => {
         if (!tagsByOrder[t.order_id]) tagsByOrder[t.order_id] = [];
-        tagsByOrder[t.order_id].push(t.tag);
+        if (t.tag) tagsByOrder[t.order_id].push(t.tag);
       });
 
       // Присваиваем теги к ордерам
@@ -126,9 +125,6 @@ router.get('/', auth, async (req, res) => {
         ...order,
         tags: tagsByOrder[order.id] || []
       }));
-    } else {
-      // В минимальном режиме (если пустой или ошибка) теги не нужны
-      orders = orders.map(order => ({ ...order, tags: [] }));
     }
 
     const response = { orders };
