@@ -45,7 +45,8 @@ async function fixUnknownOrders() {
                         { key: 'main_ID', constraint_type: 'equals', value: order.main_id }
                     ]),
                     limit: 1
-                }
+                },
+                timeout: 10000
             });
 
             const bubbleOrder = orderResp.data.response.results[0];
@@ -62,65 +63,118 @@ async function fixUnknownOrders() {
                 continue;
             }
 
-            // 3. Get User from Bubble
-            let bubbleUser;
-            try {
-                const userResp = await axios.get(`${BUBBLE_USER_URL}/${bubbleUserId}`, {
-                    headers: { Authorization: `Bearer ${BUBBLE_TOKEN}` }
-                });
-                bubbleUser = userResp.data.response;
-            } catch (err) {
-                console.log(`  User ${bubbleUserId} not found in Bubble.`);
-                notFound++;
-                continue;
-            }
-
-            const telegramId = bubbleUser.TelegramID;
-            if (!telegramId) {
-                console.log(`  User has no TelegramID. Keeping as Unknown.`);
-                notFound++;
-                continue;
-            }
-
-            // 4. Find or create contact
-            let contactId;
-            const { data: existingContact } = await supabase
+            // Step 2a: Check if we already have this Bubble User linked locally
+            const { data: cachedContact } = await supabase
                 .from('contacts')
                 .select('id')
-                .eq('telegram_user_id', telegramId)
+                .eq('bubble_id', bubbleUserId)
                 .maybeSingle();
 
-            if (existingContact) {
-                contactId = existingContact.id;
-                console.log(`  Found existing contact ${contactId} (TG: ${telegramId})`);
+            let contactId;
+
+            if (cachedContact) {
+                contactId = cachedContact.id;
+                console.log(`  Found existing contact ${contactId} by Bubble ID ${bubbleUserId}`);
             } else {
-                // Create new contact with full data
-                const name = bubbleUser.AmoName ||
-                    (bubbleUser.FirstName ? `${bubbleUser.FirstName} ${bubbleUser.LastName || ''}`.trim() : null) ||
-                    (bubbleUser.TelegramUsername ? `@${bubbleUser.TelegramUsername}` : null) ||
-                    `Client ${telegramId}`;
-
-                const { data: newContact, error: createError } = await supabase
-                    .from('contacts')
-                    .insert({
-                        name: name,
-                        telegram_user_id: telegramId,
-                        telegram_username: bubbleUser.TelegramUsername || null,
-                        bubble_id: bubbleUserId,
-                        email: bubbleUser.authentication?.email?.email || null,
-                        status: 'active'
-                    })
-                    .select('id')
-                    .single();
-
-                if (createError) {
-                    console.error(`  Error creating contact:`, createError.message);
-                    errors++;
+                // 3. Get User from Bubble
+                let bubbleUser;
+                try {
+                    const userResp = await axios.get(`${BUBBLE_USER_URL}/${bubbleUserId}`, {
+                        headers: { Authorization: `Bearer ${BUBBLE_TOKEN}` },
+                        timeout: 5000
+                    });
+                    bubbleUser = userResp.data.response;
+                } catch (err) {
+                    console.log(`  User ${bubbleUserId} not found in Bubble.`);
+                    notFound++;
                     continue;
                 }
 
-                contactId = newContact.id;
-                console.log(`  Created new contact ${contactId} (${name})`);
+                const telegramId = bubbleUser.TelegramID;
+
+                // 4. Find or create contact
+                if (telegramId) {
+                    const { data: existingContact } = await supabase
+                        .from('contacts')
+                        .select('id, bubble_id')
+                        .eq('telegram_user_id', telegramId)
+                        .maybeSingle();
+
+                    if (existingContact) {
+                        contactId = existingContact.id;
+                        console.log(`  Found existing contact ${contactId} (TG: ${telegramId})`);
+
+                        // Link bubble_id if missing
+                        if (!existingContact.bubble_id) {
+                            await supabase
+                                .from('contacts')
+                                .update({ bubble_id: bubbleUserId })
+                                .eq('id', contactId);
+                            console.log(`  -> Linked Bubble ID ${bubbleUserId} to contact ${contactId}`);
+                        }
+                    }
+                }
+
+                if (!contactId) {
+                    // Try phone match
+                    let phone = bubbleOrder.MobilePhone || bubbleUser.Phone || bubbleUser.MobilePhone;
+                    if (phone) phone = String(phone).replace(/[^\d+]/g, '');
+
+                    if (phone) {
+                        const { data: phoneContact } = await supabase
+                            .from('contacts')
+                            .select('id, bubble_id')
+                            .eq('phone', phone)
+                            .maybeSingle();
+
+                        if (phoneContact) {
+                            contactId = phoneContact.id;
+                            // Link bubble_id
+                            if (!phoneContact.bubble_id) {
+                                await supabase.from('contacts').update({ bubble_id: bubbleUserId }).eq('id', contactId);
+                            }
+                        }
+                    }
+                }
+
+                if (!contactId && telegramId) {
+                    // Create new contact with full data ONLY if we have Telegram ID (otherwise we can't really identify them well)
+                    // Or should we create them even without TG ID if we have a name? 
+                    // Let's stick to TG ID required for new creation to avoid junk, but maybe use phone?
+
+                    const name = bubbleUser.AmoName ||
+                        (bubbleUser.FirstName ? `${bubbleUser.FirstName} ${bubbleUser.LastName || ''}`.trim() : null) ||
+                        (bubbleUser.TelegramUsername ? `@${bubbleUser.TelegramUsername}` : null) ||
+                        `Client ${telegramId}`;
+
+                    const { data: newContact, error: createError } = await supabase
+                        .from('contacts')
+                        .insert({
+                            name: name,
+                            telegram_user_id: telegramId,
+                            telegram_username: bubbleUser.TelegramUsername || null,
+                            bubble_id: bubbleUserId,
+                            email: bubbleUser.authentication?.email?.email || null,
+                            status: 'active'
+                        })
+                        .select('id')
+                        .single();
+
+                    if (createError) {
+                        console.error(`  Error creating contact:`, createError.message);
+                        errors++;
+                        continue;
+                    }
+
+                    contactId = newContact.id;
+                    console.log(`  Created new contact ${contactId} (${name})`);
+                }
+            }
+
+            if (!contactId) {
+                console.log(`  Could not identify user. Keeping as Unknown.`);
+                notFound++;
+                continue;
             }
 
             // 5. Update order
