@@ -23,6 +23,8 @@ import {
   CalendarOutlined,
   EuroOutlined,
   EditOutlined,
+  DeleteOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
@@ -638,6 +640,27 @@ const OrdersPage: React.FC = () => {
     }
   };
 
+  const handleClearUnsorted = () => {
+    Modal.confirm({
+      title: 'Очистить неразобранное?',
+      icon: <ExclamationCircleOutlined />,
+      content: 'Вы уверены, что хотите удалить ВСЕ заявки из статуса "Неразобранное"? Это действие нельзя отменить.',
+      okText: 'Удалить',
+      okType: 'danger',
+      cancelText: 'Отмена',
+      onOk: async () => {
+        try {
+          const result = await ordersAPI.clearUnsorted();
+          message.success(`Удалено заявок: ${result.count}`);
+          fetchOrders();
+        } catch (error: any) {
+          console.error('Error clearing unsorted:', error);
+          message.error(error.response?.data?.error || 'Ошибка очистки');
+        }
+      },
+    });
+  };
+
   const openCreateModal = (status: OrderStatus) => {
     setCreateStatus(status);
     form.setFieldsValue({ status });
@@ -767,6 +790,18 @@ const OrdersPage: React.FC = () => {
           <Text style={{ color: '#8c8c8c', whiteSpace: 'nowrap' }}>
             {filteredOrders.length} заявок: €{Math.round(totalOrdersAmount).toLocaleString('ru-RU')}
           </Text>
+
+          {manager?.role === 'admin' && (
+            <Button
+              danger
+              icon={<DeleteOutlined />}
+              onClick={handleClearUnsorted}
+              style={{ borderRadius: 8 }}
+            >
+              Очистить "Неразобранное"
+            </Button>
+          )}
+
           <Button
             type="primary"
             icon={<PlusOutlined />}

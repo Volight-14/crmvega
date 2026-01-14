@@ -157,6 +157,11 @@ export const ordersAPI = {
   delete: async (id: number): Promise<void> => {
     await api.delete(`/orders/${id}`);
   },
+
+  clearUnsorted: async (): Promise<{ success: boolean; count: number }> => {
+    const response = await api.delete('/orders/unsorted');
+    return response.data;
+  },
 };
 
 // Notes API

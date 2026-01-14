@@ -1,6 +1,7 @@
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 const auth = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/auth');
 const { runAutomations } = require('../services/automationRunner');
 const { sendBubbleStatusWebhook } = require('../utils/bubbleWebhook');
 const { ordersCache, generateCacheKey, clearCache } = require('../utils/cache');
@@ -323,6 +324,31 @@ router.patch('/:id', auth, async (req, res) => {
     res.json(data);
   } catch (error) {
     console.error('Error updating order:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Удалить все неразобранные заявки (Только админ)
+router.delete('/unsorted', auth, requireAdmin, async (req, res) => {
+  try {
+    const { error, count } = await supabase
+      .from('orders')
+      .delete({ count: 'exact' })
+      .eq('status', 'unsorted');
+
+    if (error) throw error;
+
+    // Сбрасываем кэш ордеров
+    clearCache('orders');
+
+    // Опционально: уведомить через сокет, чтобы у всех пропали
+    // const io = req.app.get('io');
+    // if (io) io.emit('orders_bulk_deleted', { status: 'unsorted' });
+    // Но пока достаточно перезагрузки на клиенте
+
+    res.json({ success: true, count });
+  } catch (error) {
+    console.error('Error clearing unsorted orders:', error);
     res.status(400).json({ error: error.message });
   }
 });
