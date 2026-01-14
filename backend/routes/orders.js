@@ -82,24 +82,38 @@ router.get('/', auth, async (req, res) => {
     // Для минимального режима (Канбан) подгружаем последние сообщения клиентов
     if (isMinimal && orders.length > 0) {
       try {
-        // Fetch latest client message for each order
-        const ordersWithMessages = await Promise.all(orders.map(async (order) => {
-          let lastMessage = null;
-          if (order.main_id) {
-            const { data: msg } = await supabase
-              .from('messages')
-              .select('content, "Created Date", author_type')
-              .eq('main_id', String(order.main_id))
-              .in('author_type', ['user', 'Клиент', 'Client'])
-              .order('"Created Date"', { ascending: false })
-              .limit(1)
-              .maybeSingle();
+        const mainIds = orders
+          .map(o => o.main_id)
+          .filter(id => id); // Filter out null/undefined
 
-            lastMessage = msg;
+        if (mainIds.length > 0) {
+          // Fetch all messages for these orders in one go
+          // Warning: potential large payload if chat histories are long. 
+          // Ideally use a Postgres View or Function for "latest per group".
+          // For now, fetching all and filtering in-memory is vastly faster than 500 requests.
+          const { data: allMessages } = await supabase
+            .from('messages')
+            .select('main_id, content, "Created Date", author_type')
+            .in('main_id', mainIds.map(String)) // Ensure strings
+            .in('author_type', ['user', 'Клиент', 'Client'])
+            .order('"Created Date"', { ascending: false });
+
+          if (allMessages) {
+            // Group and pick latest
+            const lastMessagesMap = {};
+            for (const msg of allMessages) {
+              // Since we ordered by Date DESC, the first one we encounter for a main_id is the latest
+              if (!lastMessagesMap[msg.main_id]) {
+                lastMessagesMap[msg.main_id] = msg;
+              }
+            }
+
+            orders = orders.map(order => ({
+              ...order,
+              last_message: order.main_id ? lastMessagesMap[String(order.main_id)] : null
+            }));
           }
-          return { ...order, last_message: lastMessage };
-        }));
-        orders = ordersWithMessages;
+        }
       } catch (err) {
         console.error('Error fetching messages for orders:', err);
       }
