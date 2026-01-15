@@ -407,65 +407,53 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
     let contactId = null;
     let telegramId = null;
 
-    // Check direct field first, but strictly validate
-    if (data.telegram_user_id) {
-      const rawTg = String(data.telegram_user_id).trim();
-      if (/^\d+$/.test(rawTg)) {
-        telegramId = rawTg;
-      } else {
-        console.log(`[Bubble Webhook] Ignoring invalid telegram_user_id: '${data.telegram_user_id}'`);
-      }
-    }
+    // Check 'User' field FIRST (Primary)
+    if (data.User) {
+      const userStr = String(data.User);
+      const cleanDigits = userStr.replace(/\D/g, '');
 
-    // If no direct telegram_user_id, try to extract from 'User' field
-    if (!telegramId && data.User) {
-      // Case A: User is already an object (sometimes Bubble unwraps it)
-      if (typeof data.User === 'object' && data.User.TelegramID) {
-        telegramId = data.User.TelegramID;
-        console.log(`[Bubble Webhook] Extracted TelegramID ${telegramId} from User object`);
+      console.log(`[Bubble Webhook] Checking 'User' field: '${userStr}' -> Cleaned: '${cleanDigits}'`);
+
+      // 1. Direct digits (Standard case)
+      if (cleanDigits.length >= 5) {
+        telegramId = cleanDigits;
+        console.log(`[Bubble Webhook] Resolved TelegramID from 'User': ${telegramId}`);
       }
-      // Case B: User is a string ID (e.g. "1765619883..."), need to fetch
-      else if (typeof data.User === 'string' && data.User.length > 10) {
-        console.log(`[Bubble Webhook] User is ID (${data.User}), fetching details from Bubble...`);
+      // 2. Long Bubble ID (Legacy/Edge case) - only if digits check failed
+      else if (userStr.length > 15 && (userStr.includes('x') || userStr.match(/[a-f]/i))) {
+        console.log(`[Bubble Webhook] User might be Bubble ID (${data.User}), fetching...`);
         try {
-          const axios = require('axios'); // Lazy require
+          const axios = require('axios');
           const userRes = await axios.get(`https://vega-ex.com/version-live/api/1.1/obj/User/${data.User}`, {
-            headers: { Authorization: `Bearer ${process.env.BUBBLE_API_TOKEN || 'b897577858b2a032515db52f77e15e38'}` } // Use env or fallback
+            headers: { Authorization: `Bearer ${process.env.BUBBLE_API_TOKEN || 'b897577858b2a032515db52f77e15e38'}` }
           });
-
-          if (userRes.data && userRes.data.response && userRes.data.response.TelegramID) {
+          if (userRes.data?.response?.TelegramID) {
             telegramId = userRes.data.response.TelegramID;
             console.log(`[Bubble Webhook] Fetched TelegramID ${telegramId} from Bubble API`);
-
-            // Enrich contact data from fetched user if needed
-            if (!data.client_name) {
-              const u = userRes.data.response;
-              const nameParts = [u.FirstName, u.LastName].filter(Boolean);
-              if (nameParts.length > 0) data.client_name = nameParts.join(' ');
-              else if (u.AmoName) data.client_name = u.AmoName;
-              else if (u.TelegramUsername) data.client_name = u.TelegramUsername;
-            }
           }
-        } catch (fetchErr) {
-          console.error(`[Bubble Webhook] Failed to fetch User ${data.User}:`, fetchErr.message);
+        } catch (e) {
+          console.error('[Bubble Webhook] Failed to fetch User:', e.message);
         }
       }
     }
 
-    // Fallback: Check 'User' field - aggressive cleanup for digits
-    if (!telegramId && data.User) {
-      const userStr = String(data.User);
-      // Strip EVERYTHING that is not a digit
-      const cleanDigits = userStr.replace(/\D/g, '');
-
-      console.log(`[Bubble Webhook] User Raw: '${userStr}', Cleaned: '${cleanDigits}'`);
-
-      // If we have digits and it looks like a valid ID (e.g. at least 5 digits to avoid small random numbers)
-      if (cleanDigits.length >= 5) {
-        telegramId = cleanDigits;
-        console.log('[Bubble Webhook] User field resolved to Telegram ID:', telegramId);
+    // Fallback: Check direct telegram_user_id field ONLY if User failed
+    if (!telegramId && data.telegram_user_id) {
+      const rawTg = String(data.telegram_user_id).trim();
+      if (/^\d+$/.test(rawTg)) {
+        telegramId = rawTg;
+        console.log(`[Bubble Webhook] Resolved TelegramID from fallback 'telegram_user_id': ${telegramId}`);
       }
     }
+
+    // Old object check backup (just in case)
+    if (!telegramId && data.User && typeof data.User === 'object' && data.User.TelegramID) {
+      telegramId = data.User.TelegramID;
+    }
+
+
+
+
 
     // Fallback: Parse from tg_amo string ("Name, ID: 12345")
     if (!telegramId && data.tg_amo && data.tg_amo.includes('ID:')) {
