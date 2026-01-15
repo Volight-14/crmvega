@@ -408,6 +408,8 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
     let telegramId = null;
 
     console.log('[Bubble Webhook] --- Contact Resolution Start ---');
+    console.log('[Bubble Webhook] FULL KEY LIST:', Object.keys(data)); // Added
+    console.log('[Bubble Webhook] FULL PAYLOAD:', JSON.stringify(data, null, 2)); // Added
     console.log('[Bubble Webhook] Raw data.User value:', data.User);
     console.log('[Bubble Webhook] Type of data.User:', typeof data.User);
 
