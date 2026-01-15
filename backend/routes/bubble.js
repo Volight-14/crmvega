@@ -443,8 +443,14 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
     }
 
     // Fallback: Check 'User' field if it looks like a direct numeric Telegram ID (legacy/rare)
-    if (!telegramId && data.User && /^\d+$/.test(data.User)) {
-      telegramId = data.User;
+    if (!telegramId && data.User) {
+      const userValue = String(data.User).trim(); // Normalize to string and remove spaces
+      console.log('[Bubble Webhook] Checking User field:', userValue); // Debug log
+
+      if (/^\d+$/.test(userValue)) {
+        telegramId = userValue;
+        console.log('[Bubble Webhook] User field identified as Telegram ID:', telegramId);
+      }
     }
 
     // Fallback: Parse from tg_amo string ("Name, ID: 12345")
