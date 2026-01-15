@@ -405,7 +405,17 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
 
     // 1. Contact Resolution (Robust Bubble User Handling)
     let contactId = null;
-    let telegramId = data.telegram_user_id; // Try direct field first
+    let telegramId = null;
+
+    // Check direct field first, but strictly validate
+    if (data.telegram_user_id) {
+      const rawTg = String(data.telegram_user_id).trim();
+      if (/^\d+$/.test(rawTg)) {
+        telegramId = rawTg;
+      } else {
+        console.log(`[Bubble Webhook] Ignoring invalid telegram_user_id: '${data.telegram_user_id}'`);
+      }
+    }
 
     // If no direct telegram_user_id, try to extract from 'User' field
     if (!telegramId && data.User) {
