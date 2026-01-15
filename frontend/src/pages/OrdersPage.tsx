@@ -447,6 +447,7 @@ const OrdersPage: React.FC = () => {
   const [createStatus, setCreateStatus] = useState<OrderStatus>('unsorted');
   const [activeId, setActiveId] = useState<number | null>(null);
   const [form] = Form.useForm();
+  const [modal, contextHolder] = Modal.useModal();
 
   // Edit Contact state
   const [isEditContactModalVisible, setIsEditContactModalVisible] = useState(false);
@@ -641,17 +642,17 @@ const OrdersPage: React.FC = () => {
   };
 
   const handleClearUnsorted = () => {
-    // Debug log to ensure function is called
-    console.log('handleClearUnsorted called');
+    // Debug log
+    console.log('handleClearUnsorted called via useModal');
 
-    Modal.confirm({
+    modal.confirm({
       title: 'Очистить "Неразобранное"?',
       icon: <ExclamationCircleOutlined />,
       content: 'Вы уверены, что хотите удалить ВСЕ заявки из статуса "Неразобранное"? Это действие нельзя отменить.',
       okText: 'Удалить',
       okType: 'danger',
       cancelText: 'Отмена',
-      zIndex: 10000, // Ensure modal is above everything
+      zIndex: 10000,
       onOk: async () => {
         try {
           const result = await ordersAPI.clearUnsorted();
@@ -747,6 +748,7 @@ const OrdersPage: React.FC = () => {
       background: '#f0f2f5',
       overflow: 'hidden',
     }}>
+      {contextHolder}
       {/* Header */}
       {/* Header */}
       <div style={{
