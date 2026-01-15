@@ -403,42 +403,89 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
       data = data.response.results[0];
     }
 
-    // 1. Contact Resolution (Strict TG ID)
+    // 1. Contact Resolution (Robust Bubble User Handling)
     let contactId = null;
-    let telegramId = data.telegram_user_id;
+    let telegramId = data.telegram_user_id; // Try direct field first
 
-    // Fallback: Check 'User' field if it looks like a Telegram ID (digits)
+    // If no direct telegram_user_id, try to extract from 'User' field
+    if (!telegramId && data.User) {
+      // Case A: User is already an object (sometimes Bubble unwraps it)
+      if (typeof data.User === 'object' && data.User.TelegramID) {
+        telegramId = data.User.TelegramID;
+        console.log(`[Bubble Webhook] Extracted TelegramID ${telegramId} from User object`);
+      }
+      // Case B: User is a string ID (e.g. "1765619883..."), need to fetch
+      else if (typeof data.User === 'string' && data.User.length > 10) {
+        console.log(`[Bubble Webhook] User is ID (${data.User}), fetching details from Bubble...`);
+        try {
+          const axios = require('axios'); // Lazy require
+          const userRes = await axios.get(`https://vega-ex.com/version-live/api/1.1/obj/User/${data.User}`, {
+            headers: { Authorization: `Bearer ${process.env.BUBBLE_API_TOKEN || 'b897577858b2a032515db52f77e15e38'}` } // Use env or fallback
+          });
+
+          if (userRes.data && userRes.data.response && userRes.data.response.TelegramID) {
+            telegramId = userRes.data.response.TelegramID;
+            console.log(`[Bubble Webhook] Fetched TelegramID ${telegramId} from Bubble API`);
+
+            // Enrich contact data from fetched user if needed
+            if (!data.client_name) {
+              const u = userRes.data.response;
+              const nameParts = [u.FirstName, u.LastName].filter(Boolean);
+              if (nameParts.length > 0) data.client_name = nameParts.join(' ');
+              else if (u.AmoName) data.client_name = u.AmoName;
+              else if (u.TelegramUsername) data.client_name = u.TelegramUsername;
+            }
+          }
+        } catch (fetchErr) {
+          console.error(`[Bubble Webhook] Failed to fetch User ${data.User}:`, fetchErr.message);
+        }
+      }
+    }
+
+    // Fallback: Check 'User' field if it looks like a direct numeric Telegram ID (legacy/rare)
     if (!telegramId && data.User && /^\d+$/.test(data.User)) {
       telegramId = data.User;
     }
 
+    // Fallback: Parse from tg_amo string ("Name, ID: 12345")
     if (!telegramId && data.tg_amo && data.tg_amo.includes('ID:')) {
       const match = data.tg_amo.match(/ID:\s*(\d+)/);
       if (match) telegramId = match[1];
     }
 
     if (telegramId) {
-      const { data: c } = await supabase.from('contacts').select('id').eq('telegram_user_id', telegramId).maybeSingle();
-      if (c) contactId = c.id;
+      // Use string comparison for safety
+      const { data: c } = await supabase.from('contacts').select('id').eq('telegram_user_id', String(telegramId)).maybeSingle();
+      if (c) {
+        contactId = c.id;
+        console.log(`[Bubble Webhook] Found existing contact ${contactId} for TG ${telegramId}`);
+      }
     }
 
     if (!contactId) {
       let validPhone = (data.client_phone && data.client_phone !== '123' && data.client_phone.length > 5) ? data.client_phone : null;
 
-      const name = data.client_name || (data.tg_amo ? data.tg_amo.split(',')[0] : `User ${telegramId || 'Unknown'}`);
+      // Smart Name Resolution
+      let name = data.client_name || null;
+      if (!name && data.tg_amo) name = data.tg_amo.split(',')[0];
+      if (!name) name = `User ${telegramId || 'Unknown'}`;
+
+      console.log(`[Bubble Webhook] Creating new contact: ${name} (TG: ${telegramId})`);
 
       const { data: newContact, error: ce } = await supabase.from('contacts').insert({
         name: name,
         phone: validPhone,
-        telegram_user_id: telegramId || null,
+        telegram_user_id: telegramId ? String(telegramId) : null,
         status: 'active'
       }).select().single();
 
       if (!ce && newContact) {
         contactId = newContact.id;
-        console.log(`[Bubble Webhook] Created new contact: ${name} (TG: ${telegramId})`);
+        console.log(`[Bubble Webhook] Created new contact: ${newContact.id}`);
       } else {
         console.error('[Bubble Webhook] Error creating contact:', ce);
+        // Fallback: try to find "User Unknown" contact or create a dummy one?
+        // For now, let it be null, but order insertion might fail if contact_id is required
       }
     }
 
