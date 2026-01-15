@@ -641,13 +641,17 @@ const OrdersPage: React.FC = () => {
   };
 
   const handleClearUnsorted = () => {
+    // Debug log to ensure function is called
+    console.log('handleClearUnsorted called');
+
     Modal.confirm({
-      title: 'Очистить неразобранное?',
+      title: 'Очистить "Неразобранное"?',
       icon: <ExclamationCircleOutlined />,
       content: 'Вы уверены, что хотите удалить ВСЕ заявки из статуса "Неразобранное"? Это действие нельзя отменить.',
       okText: 'Удалить',
       okType: 'danger',
       cancelText: 'Отмена',
+      zIndex: 10000, // Ensure modal is above everything
       onOk: async () => {
         try {
           const result = await ordersAPI.clearUnsorted();

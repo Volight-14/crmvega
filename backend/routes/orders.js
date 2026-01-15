@@ -331,20 +331,24 @@ router.patch('/:id', auth, async (req, res) => {
 // Удалить все неразобранные заявки (Только админ)
 router.delete('/unsorted', auth, requireAdmin, async (req, res) => {
   try {
+    console.log(`[Orders] Clear Unsorted requested by ${req.manager.email} (role: ${req.manager.role})`);
+
+    // Delete 'unsorted', 'new', and NULL statuses
+    // Using .or() filter syntax for Supabase
     const { error, count } = await supabase
       .from('orders')
       .delete({ count: 'exact' })
-      .eq('status', 'unsorted');
+      .or('status.eq.unsorted,status.eq.new,status.is.null');
 
-    if (error) throw error;
+    if (error) {
+      console.error('[Orders] Delete error:', error);
+      throw error;
+    }
+
+    console.log(`[Orders] Cleared ${count} unsorted/new orders`);
 
     // Сбрасываем кэш ордеров
     clearCache('orders');
-
-    // Опционально: уведомить через сокет, чтобы у всех пропали
-    // const io = req.app.get('io');
-    // if (io) io.emit('orders_bulk_deleted', { status: 'unsorted' });
-    // Но пока достаточно перезагрузки на клиенте
 
     res.json({ success: true, count });
   } catch (error) {
