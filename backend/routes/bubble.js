@@ -410,11 +410,14 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
     console.log('[Bubble Webhook] --- Contact Resolution Start ---');
     console.log('[Bubble Webhook] FULL KEY LIST:', Object.keys(data)); // Added
     console.log('[Bubble Webhook] FULL PAYLOAD:', JSON.stringify(data, null, 2)); // Added
-    console.log('[Bubble Webhook] Raw data.User value:', data.User);
-    console.log('[Bubble Webhook] Type of data.User:', typeof data.User);
+    // Check 'User' or 'bubbleUser' field FIRST (Primary)
+    // Payload shows 'bubbleUser' is sometimes used instead of 'User'
+    const rawUserValue = data.User || data.bubbleUser;
 
-    if (data.User) {
-      const userStr = String(data.User);
+    console.log('[Bubble Webhook] Raw User value resolved:', rawUserValue);
+
+    if (rawUserValue) {
+      const userStr = String(rawUserValue);
       console.log(`[Bubble Webhook] User converted to string: '${userStr}'`);
 
       // 1. Try stripping non-digits
@@ -430,7 +433,7 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
         console.log(`[Bubble Webhook] ⚠️ Pattern suggests Bubble ID (not digits). Fetching details...`);
         try {
           const axios = require('axios');
-          const userRes = await axios.get(`https://vega-ex.com/version-live/api/1.1/obj/User/${data.User}`, {
+          const userRes = await axios.get(`https://vega-ex.com/version-live/api/1.1/obj/User/${rawUserValue}`, {
             headers: { Authorization: `Bearer ${process.env.BUBBLE_API_TOKEN || 'b897577858b2a032515db52f77e15e38'}` }
           });
 
@@ -449,7 +452,7 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
         console.log(`[Bubble Webhook] ❌ FAILURE: User value '${userStr}' is neither valid digits nor a fetchable ID.`);
       }
     } else {
-      console.log('[Bubble Webhook] ❌ FAILURE: data.User is missing or null.');
+      console.log('[Bubble Webhook] ❌ FAILURE: Both data.User and data.bubbleUser are missing or null.');
     }
 
     console.log('[Bubble Webhook] Final Resolved telegramId:', telegramId);
