@@ -442,14 +442,18 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
       }
     }
 
-    // Fallback: Check 'User' field if it looks like a direct numeric Telegram ID (legacy/rare)
+    // Fallback: Check 'User' field - aggressive cleanup for digits
     if (!telegramId && data.User) {
-      const userValue = String(data.User).trim(); // Normalize to string and remove spaces
-      console.log('[Bubble Webhook] Checking User field:', userValue); // Debug log
+      const userStr = String(data.User);
+      // Strip EVERYTHING that is not a digit
+      const cleanDigits = userStr.replace(/\D/g, '');
 
-      if (/^\d+$/.test(userValue)) {
-        telegramId = userValue;
-        console.log('[Bubble Webhook] User field identified as Telegram ID:', telegramId);
+      console.log(`[Bubble Webhook] User Raw: '${userStr}', Cleaned: '${cleanDigits}'`);
+
+      // If we have digits and it looks like a valid ID (e.g. at least 5 digits to avoid small random numbers)
+      if (cleanDigits.length >= 5) {
+        telegramId = cleanDigits;
+        console.log('[Bubble Webhook] User field resolved to Telegram ID:', telegramId);
       }
     }
 
