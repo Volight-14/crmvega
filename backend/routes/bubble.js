@@ -407,6 +407,11 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
     let contactId = null;
     let telegramId = data.telegram_user_id;
 
+    // Fallback: Check 'User' field if it looks like a Telegram ID (digits)
+    if (!telegramId && data.User && /^\d+$/.test(data.User)) {
+      telegramId = data.User;
+    }
+
     if (!telegramId && data.tg_amo && data.tg_amo.includes('ID:')) {
       const match = data.tg_amo.match(/ID:\s*(\d+)/);
       if (match) telegramId = match[1];
