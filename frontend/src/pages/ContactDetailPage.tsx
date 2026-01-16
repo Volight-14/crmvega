@@ -475,20 +475,27 @@ const ContactDetailPage: React.FC = () => {
                             <div style={{ textAlign: 'center', margin: '16px 0', opacity: 0.5, fontSize: 12 }}>
                               <span style={{ background: '#f5f5f5', padding: '4px 12px', borderRadius: 12 }}>{group.date}</span>
                             </div>
-                            {group.msgs.map(msg => (
-                              <div key={msg.id || `${msg.created_at}-${Math.random()}`}>
-                                {(msg as any).order_id && (
-                                  <div style={{ textAlign: 'center', margin: '8px 0', opacity: 0.6, fontSize: '11px' }}>
-                                    <Tag>Заявка #{(msg as any).order_id} - {(msg as any).order_title}</Tag>
-                                  </div>
-                                )}
-                                <UnifiedMessageBubble
-                                  msg={msg}
-                                  isOwn={(msg.author_type || msg.sender_type) === 'manager'}
-                                  variant="client"
-                                />
-                              </div>
-                            ))}
+                            {group.msgs.map((msg, index) => {
+                              const prevMsg = index > 0 ? group.msgs[index - 1] : null;
+                              const currentOrderId = (msg as any).order_id;
+                              const prevOrderId = prevMsg ? (prevMsg as any).order_id : null;
+                              const showOrderHeader = currentOrderId && currentOrderId !== prevOrderId;
+
+                              return (
+                                <div key={msg.id || `${msg.created_at}-${Math.random()}`}>
+                                  {showOrderHeader && (
+                                    <div style={{ textAlign: 'center', margin: '12px 0 4px 0', opacity: 0.6, fontSize: '11px' }}>
+                                      <Tag>Заявка #{currentOrderId} - {(msg as any).order_title}</Tag>
+                                    </div>
+                                  )}
+                                  <UnifiedMessageBubble
+                                    msg={msg}
+                                    isOwn={(msg.author_type || msg.sender_type) === 'manager'}
+                                    variant="client"
+                                  />
+                                </div>
+                              );
+                            })}
                           </div>
                         ));
                       })()
