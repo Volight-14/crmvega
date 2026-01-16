@@ -29,13 +29,12 @@ import {
   DeleteOutlined,
   SendOutlined,
   FileTextOutlined,
-  TagOutlined,
   HistoryOutlined,
   ArrowLeftOutlined,
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Contact, Order, Note, Message, NOTE_PRIORITIES, ORDER_STATUSES } from '../types';
-import { contactsAPI, ordersAPI, notesAPI, contactMessagesAPI } from '../services/api';
+import { contactsAPI, ordersAPI, notesAPI, contactMessagesAPI, orderMessagesAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import io from 'socket.io-client';
 
@@ -69,7 +68,7 @@ const ContactDetailPage: React.FC = () => {
       fetchContact();
       fetchOrders();
       fetchNotes();
-      fetchMessages();
+      fetchAllMessages();
       setupSocket();
     }
 
@@ -152,13 +151,47 @@ const ContactDetailPage: React.FC = () => {
     }
   };
 
-  const fetchMessages = async () => {
+  const fetchAllMessages = async () => {
     if (!id) return;
     try {
-      const data = await contactMessagesAPI.getByContactId(parseInt(id));
-      setMessages(data);
+      setSending(true);
+      // 1. Fetch direct contact messages
+      const contactMsgs = await contactMessagesAPI.getByContactId(parseInt(id));
+
+      // 2. Fetch messages from all orders
+      // We need orders to be loaded first. If not, we fetch them here or rely on passed orders.
+      // Ideally, we fetch orders first.
+      const { orders: contactOrders } = await ordersAPI.getAll({ contact_id: parseInt(id) });
+
+      const orderMessagePromises = contactOrders.map(async (order) => {
+        try {
+          const clientMsgs = await orderMessagesAPI.getClientMessages(order.id);
+          // Add context to messages
+          return clientMsgs.messages.map(m => ({
+            ...m,
+            order_title: order.title,
+            order_id: order.id
+          }));
+        } catch (e) {
+          return [];
+        }
+      });
+
+      const orderMessagesArrays = await Promise.all(orderMessagePromises);
+      const allOrderMessages = orderMessagesArrays.flat();
+
+      // Merge and sort
+      const allMessages = [...contactMsgs, ...allOrderMessages].sort((a, b) => {
+        const dateA = new Date(a['Created Date'] || a.created_at || 0).getTime();
+        const dateB = new Date(b['Created Date'] || b.created_at || 0).getTime();
+        return dateA - dateB;
+      });
+
+      setMessages(allMessages);
     } catch (error) {
       console.error('Error fetching messages:', error);
+    } finally {
+      setSending(false);
     }
   };
 
@@ -290,18 +323,7 @@ const ContactDetailPage: React.FC = () => {
               <Title level={2} style={{ margin: 0 }}>
                 {contact.name}
               </Title>
-              <Space>
-                {contact.phone && (
-                  <Text>
-                    <PhoneOutlined /> {contact.phone}
-                  </Text>
-                )}
-                {contact.email && (
-                  <Text>
-                    <MailOutlined /> {contact.email}
-                  </Text>
-                )}
-              </Space>
+
             </div>
           </Space>
         </Col>
@@ -314,27 +336,25 @@ const ContactDetailPage: React.FC = () => {
 
       <Card>
         <Descriptions column={2} bordered>
-          <Descriptions.Item label="Компания">{contact.company || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Должность">{contact.position || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Статус">
-            <Tag color={contact.status === 'active' ? 'green' : contact.status === 'needs_attention' ? 'orange' : 'default'}>
-              {contact.status === 'active' ? 'Активный' : contact.status === 'needs_attention' ? 'Требует внимания' : 'Неактивный'}
-            </Tag>
+          <Descriptions.Item label="Дата последнего обмена">
+            {contact.Date_LastOrder ? new Date(contact.Date_LastOrder).toLocaleDateString('ru-RU') : (
+              orders.length > 0 ? new Date(orders[0].created_at).toLocaleDateString('ru-RU') : '-'
+            )}
           </Descriptions.Item>
-          <Descriptions.Item label="Рейтинг">
-            {contact.rating ? `${contact.rating}/5` : '-'}
+          <Descriptions.Item label="Балл лояльности">
+            {contact.Loyality ?? '-'}
+          </Descriptions.Item>
+          <Descriptions.Item label="Сумма обменов">
+            {(contact.TotalSumExchanges || contact.orders_total_amount || 0).toLocaleString('ru-RU')}
+          </Descriptions.Item>
+          <Descriptions.Item label="Кто пригласил">
+            {contact.WhoInvite || '-'}
           </Descriptions.Item>
           <Descriptions.Item label="Всего заявок" span={2}>
-            <Badge count={contact.orders_count || 0} showZero>
+            <Badge count={contact.orders_count || orders.length || 0} showZero>
               <span style={{ marginRight: 8 }}>Заявок:</span>
             </Badge>
-            <Text strong style={{ marginLeft: 16 }}>
-              Сумма: {contact.orders_total_amount?.toLocaleString('ru-RU') || 0} ₽
-            </Text>
           </Descriptions.Item>
-          {contact.address && (
-            <Descriptions.Item label="Адрес" span={2}>{contact.address}</Descriptions.Item>
-          )}
           {contact.comment && (
             <Descriptions.Item label="Комментарий" span={2}>{contact.comment}</Descriptions.Item>
           )}
@@ -530,29 +550,6 @@ const ContactDetailPage: React.FC = () => {
               ),
             },
             {
-              key: 'tags',
-              label: (
-                <span>
-                  <TagOutlined /> Теги
-                </span>
-              ),
-              children: (
-                <>
-                  <Title level={4}>Теги контакта</Title>
-                  <Space wrap>
-                    {contact.tags?.map((tag) => (
-                      <Tag key={tag.id} color={tag.color} style={{ fontSize: 14, padding: '4px 12px' }}>
-                        {tag.name}
-                      </Tag>
-                    ))}
-                    {(!contact.tags || contact.tags.length === 0) && (
-                      <Text type="secondary">Тегов нет</Text>
-                    )}
-                  </Space>
-                </>
-              ),
-            },
-            {
               key: 'history',
               label: (
                 <span>
@@ -561,8 +558,33 @@ const ContactDetailPage: React.FC = () => {
               ),
               children: (
                 <>
-                  <Title level={4}>История действий</Title>
-                  <Empty description="История действий пока не реализована" />
+                  <Title level={4} style={{ marginBottom: 16 }}>История клиента</Title>
+                  <List
+                    bordered
+                    dataSource={[
+                      {
+                        label: 'Дата регистрации/создания',
+                        date: contact.created_at,
+                        icon: <UserOutlined />,
+                        link: undefined
+                      },
+                      ...orders.filter(o => o.closed_date || o.WhenDone || o.status === 'completed').map(o => ({
+                        label: `Заявка #${o.id} выполнена`,
+                        date: o.closed_date || o.WhenDone || o.updated_at,
+                        icon: <HistoryOutlined />,
+                        link: `/order/${o.main_id || o.id}`
+                      }))
+                    ]}
+                    renderItem={(item) => (
+                      <List.Item>
+                        <List.Item.Meta
+                          avatar={<Avatar icon={item.icon} style={{ backgroundColor: '#1890ff' }} />}
+                          title={item.link ? <a onClick={() => navigate(item.link || '')}>{item.label}</a> : item.label}
+                          description={new Date(item.date).toLocaleString('ru-RU')}
+                        />
+                      </List.Item>
+                    )}
+                  />
                 </>
               ),
             },

@@ -137,6 +137,10 @@ export interface Contact {
   orders_count?: number; // Renamed from deals_count
   orders_total_amount?: number; // Renamed
   last_contact_at?: string;
+  Date_LastOrder?: string;
+  Loyality?: number;
+  TotalSumExchanges?: number;
+  WhoInvite?: string;
 }
 
 export interface InboxContact extends Contact {
