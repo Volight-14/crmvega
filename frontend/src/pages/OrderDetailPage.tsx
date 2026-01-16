@@ -458,7 +458,7 @@ const OrderDetailPage: React.FC = () => {
           flexShrink: 0,
           display: 'flex',
           flexDirection: 'column',
-          overflowY: isMobile ? 'visible' : 'hidden',
+          overflowY: isMobile ? 'visible' : 'auto',
           height: isMobile ? 'auto' : '100%',
         }}>
           {isMobile ? (
@@ -569,8 +569,8 @@ const OrderDetailPage: React.FC = () => {
               <Tabs
                 activeKey={activeInfoTab}
                 onChange={(key) => setActiveInfoTab(key as 'info' | 'notes')}
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-                tabBarStyle={{ padding: '0 16px', margin: 0 }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+                tabBarStyle={{ padding: '0 16px', margin: 0, position: 'sticky', top: 0, zIndex: 10, background: '#fff' }}
                 items={[
                   {
                     key: 'info',
@@ -580,7 +580,7 @@ const OrderDetailPage: React.FC = () => {
                       </span>
                     ),
                     children: (
-                      <div style={{ overflowY: 'auto', height: '100%' }}>
+                      <div style={{ height: '100%' }}>
                         <OrderInfoTab />
                       </div>
                     ),
@@ -593,7 +593,7 @@ const OrderDetailPage: React.FC = () => {
                       </span>
                     ),
                     children: (
-                      <div style={{ padding: 16, overflowY: 'auto', flex: 1 }}>
+                      <div style={{ padding: 16, flex: 1 }}>
                         <Button
                           type="dashed"
                           icon={<PlusOutlined />}
