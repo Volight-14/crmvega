@@ -25,7 +25,6 @@ import {
   EditOutlined,
   PlusOutlined,
   DeleteOutlined,
-  SendOutlined,
   FileTextOutlined,
   HistoryOutlined,
   ArrowLeftOutlined,
@@ -36,7 +35,7 @@ import { contactsAPI, ordersAPI, notesAPI, contactMessagesAPI, orderMessagesAPI 
 import { useAuth } from '../contexts/AuthContext';
 import { UnifiedMessageBubble } from '../components/UnifiedMessageBubble';
 import { ChatInput } from '../components/ChatInput';
-import { formatDate, isClientMessage } from '../utils/chatUtils';
+import { formatDate } from '../utils/chatUtils';
 import io from 'socket.io-client';
 
 const { Title, Text } = Typography;
