@@ -34,6 +34,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Contact, Order, Note, Message, NOTE_PRIORITIES, ORDER_STATUSES } from '../types';
 import { contactsAPI, ordersAPI, notesAPI, contactMessagesAPI, orderMessagesAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { UnifiedMessageBubble } from '../components/UnifiedMessageBubble';
 import io from 'socket.io-client';
 
 const { Title, Text } = Typography;
@@ -178,14 +179,34 @@ const ContactDetailPage: React.FC = () => {
       const orderMessagesArrays = await Promise.all(orderMessagePromises);
       const allOrderMessages = orderMessagesArrays.flat();
 
-      // Merge and sort
-      const allMessages = [...contactMsgs, ...allOrderMessages].sort((a, b) => {
+      // Combine and Remove Duplicates
+      // Duplicates might exist if contact API returns messages that are also linked to orders
+      // or if same message ID appears multiple times.
+      const allRawMessages = [...contactMsgs, ...allOrderMessages];
+      const uniqueMessagesMap = new Map();
+
+      allRawMessages.forEach(msg => {
+        // Use a composite key or ID to detect duplicates.
+        // If IDs are consistent across endpoints:
+        if (msg.id) {
+          uniqueMessagesMap.set(msg.id, msg);
+        } else {
+          // Fallback for missing IDs (unlikely but possible during dev)
+          const key = `${msg.created_at}-${msg.content}`;
+          uniqueMessagesMap.set(key, msg);
+        }
+      });
+
+      const uniqueMessages = Array.from(uniqueMessagesMap.values());
+
+      // Sort by date
+      const sortedMessages = uniqueMessages.sort((a, b) => {
         const dateA = new Date(a['Created Date'] || a.created_at || 0).getTime();
         const dateB = new Date(b['Created Date'] || b.created_at || 0).getTime();
         return dateA - dateB;
       });
 
-      setMessages(allMessages);
+      setMessages(sortedMessages);
     } catch (error) {
       console.error('Error fetching messages:', error);
     } finally {
@@ -425,34 +446,17 @@ const ContactDetailPage: React.FC = () => {
                       <Empty description="Нет сообщений" />
                     ) : (
                       messages.map((msg) => (
-                        <div
-                          key={msg.id}
-                          style={{
-                            marginBottom: '16px',
-                            display: 'flex',
-                            justifyContent: (msg.author_type || msg.sender_type) === 'manager' ? 'flex-end' : 'flex-start',
-                          }}
-                        >
-                          <div
-                            style={{
-                              maxWidth: '70%',
-                              padding: '12px',
-                              borderRadius: '8px',
-                              background: (msg.author_type || msg.sender_type) === 'manager' ? '#1890ff' : '#f0f0f0',
-                              color: (msg.author_type || msg.sender_type) === 'manager' ? 'white' : 'black',
-                            }}
-                          >
-                            <div>{msg.content}</div>
-                            <div style={{ fontSize: '12px', opacity: 0.7, marginTop: '4px' }}>
-                              {new Date(msg['Created Date'] || msg.created_at || '').toLocaleString('ru-RU')}
-                              {msg.sender?.name && ` • ${msg.sender.name}`}
-                              {(msg as any).order_title && (
-                                <Tag style={{ marginLeft: 8, fontSize: '12px' }}>
-                                  Заявка: {(msg as any).order_title}
-                                </Tag>
-                              )}
+                        <div key={msg.id || `${msg.created_at}-${Math.random()}`}>
+                          {(msg as any).order_id && (
+                            <div style={{ textAlign: 'center', margin: '8px 0', opacity: 0.6, fontSize: '11px' }}>
+                              <Tag>Заявка #{(msg as any).order_id} - {(msg as any).order_title}</Tag>
                             </div>
-                          </div>
+                          )}
+                          <UnifiedMessageBubble
+                            msg={msg}
+                            isOwn={(msg.author_type || msg.sender_type) === 'manager'}
+                            variant="client"
+                          />
                         </div>
                       ))
                     )}
