@@ -7,7 +7,6 @@ import {
   Statistic,
   DatePicker,
   Space,
-  Select,
   message,
   Spin,
 } from 'antd';
@@ -40,7 +39,6 @@ import { ORDER_STATUSES } from '../types';
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
-const { Option } = Select;
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 

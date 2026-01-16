@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Tag as AntTag, Button, Dropdown, Space, Input, Modal, Typography, List, Switch, message, Divider, Popover, theme } from 'antd';
+import { Tag as AntTag, Button, Space, Input, Modal, Typography, List, Switch, message, Divider, Popover } from 'antd';
 import { PlusOutlined, SettingOutlined, DeleteOutlined, CheckOutlined, SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { Tag } from '../types';
@@ -7,7 +7,7 @@ import { tagsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const { Text } = Typography;
-const { useToken } = theme;
+
 
 const PREDEFINED_COLORS = [
     '#f5222d', // red
@@ -33,7 +33,7 @@ export const OrderTags: React.FC<OrderTagsProps> = ({ orderId, initialTags = [],
     const [dropdownVisible, setDropdownVisible] = useState(false);
     const [manageModalVisible, setManageModalVisible] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [, setLoading] = useState(false);
     const [settingsLoading, setSettingsLoading] = useState(false);
     const [creationDisabled, setCreationDisabled] = useState(false);
     const [selectedColor, setSelectedColor] = useState(PREDEFINED_COLORS[5]);
@@ -41,11 +41,12 @@ export const OrderTags: React.FC<OrderTagsProps> = ({ orderId, initialTags = [],
     const { manager } = useAuth();
     const isAdmin = manager?.role === 'admin';
     const navigate = useNavigate();
-    const { token } = useToken();
+
 
     useEffect(() => {
         fetchTags();
         fetchOrderTags();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [orderId]);
 
     const fetchTags = async () => {

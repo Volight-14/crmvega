@@ -10,13 +10,10 @@ import {
   Tag,
   Button,
   Space,
-  Alert,
   Spin,
   Empty,
-  Tooltip,
   Modal,
   Collapse,
-  Divider,
   message,
 } from 'antd';
 import {
@@ -33,7 +30,7 @@ import {
 } from '@ant-design/icons';
 import { aiAPI } from '../services/api';
 
-const { Title, Text, Paragraph } = Typography;
+const { Text, Paragraph } = Typography;
 const { Panel } = Collapse;
 
 const TARGET_EDIT_RATE = 5; // Цель: не более 5% редактирований
@@ -94,8 +91,8 @@ const PromptAnalyticsDashboard: React.FC = () => {
     try {
       const result = await aiAPI.runDailyAnalysis();
       if (result.skipped) {
-        message.info(result.skipped === 'already analyzed' 
-          ? 'Анализ за этот день уже выполнен' 
+        message.info(result.skipped === 'already analyzed'
+          ? 'Анализ за этот день уже выполнен'
           : 'Нет данных для анализа');
       } else {
         message.success(`Анализ завершён. Edit rate: ${result.stats?.edit_rate}`);
@@ -201,8 +198,8 @@ const PromptAnalyticsDashboard: React.FC = () => {
                   prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
                   suffix={
                     <Text type="secondary" style={{ fontSize: 12 }}>
-                      ({data.current.total_suggestions > 0 
-                        ? ((data.current.used_suggestions / data.current.total_suggestions) * 100).toFixed(0) 
+                      ({data.current.total_suggestions > 0
+                        ? ((data.current.used_suggestions / data.current.total_suggestions) * 100).toFixed(0)
                         : 0}%)
                     </Text>
                   }
@@ -250,22 +247,22 @@ const PromptAnalyticsDashboard: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col>
           <Space>
-            <Button 
-              icon={<ReloadOutlined />} 
+            <Button
+              icon={<ReloadOutlined />}
               onClick={loadData}
             >
               Обновить
             </Button>
-            <Button 
+            <Button
               type="primary"
-              icon={<ThunderboltOutlined />} 
+              icon={<ThunderboltOutlined />}
               onClick={runAnalysis}
               loading={runningAnalysis}
             >
               Запустить анализ
             </Button>
-            <Button 
-              icon={<EyeOutlined />} 
+            <Button
+              icon={<EyeOutlined />}
               onClick={() => setExampleModalVisible(true)}
             >
               Примеры корректировок ({editExamples.length})
@@ -276,15 +273,15 @@ const PromptAnalyticsDashboard: React.FC = () => {
 
       {/* Распределение по типам редактирования */}
       {data.current.edit_type_distribution && Object.keys(data.current.edit_type_distribution).length > 0 && (
-        <Card 
+        <Card
           title={<><EditOutlined /> Распределение корректировок</>}
           size="small"
           style={{ marginBottom: 16 }}
         >
           <Space wrap>
             {Object.entries(data.current.edit_type_distribution).map(([type, count]) => (
-              <Tag 
-                key={type} 
+              <Tag
+                key={type}
                 color={editTypeLabels[type]?.color || 'default'}
               >
                 {editTypeLabels[type]?.label || type}: {count}
@@ -296,7 +293,7 @@ const PromptAnalyticsDashboard: React.FC = () => {
 
       {/* Рекомендации AI */}
       {data.recommendations && (
-        <Card 
+        <Card
           title={<><BulbOutlined /> Рекомендации по улучшению промптов</>}
           style={{ marginBottom: 16 }}
         >
@@ -308,13 +305,13 @@ const PromptAnalyticsDashboard: React.FC = () => {
 
       {/* Pending рекомендации */}
       {improvements.length > 0 && (
-        <Card 
+        <Card
           title={<><WarningOutlined /> Требуют внимания ({improvements.length})</>}
           style={{ marginBottom: 16 }}
         >
           <Collapse>
             {improvements.map((imp: any) => (
-              <Panel 
+              <Panel
                 key={imp.id}
                 header={
                   <Space>
@@ -324,14 +321,14 @@ const PromptAnalyticsDashboard: React.FC = () => {
                 }
                 extra={
                   <Space onClick={e => e.stopPropagation()}>
-                    <Button 
-                      size="small" 
+                    <Button
+                      size="small"
                       type="primary"
                       onClick={() => handleImprovementAction(imp.id, 'applied')}
                     >
                       Применить
                     </Button>
-                    <Button 
+                    <Button
                       size="small"
                       onClick={() => handleImprovementAction(imp.id, 'rejected')}
                     >

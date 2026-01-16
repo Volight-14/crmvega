@@ -2,7 +2,6 @@ import React, { useState, useRef } from 'react';
 import {
     Tooltip,
     Avatar,
-    message as antMessage
 } from 'antd';
 import {
     PlayCircleOutlined,
@@ -200,7 +199,7 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
                     <div>
                         <img
                             src={msg.file_url}
-                            alt={'Image'}
+                            alt=""
                             style={{
                                 maxWidth: '100%',
                                 maxHeight: 300,
