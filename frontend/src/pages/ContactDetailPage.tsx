@@ -35,6 +35,8 @@ import { Contact, Order, Note, Message, NOTE_PRIORITIES, ORDER_STATUSES } from '
 import { contactsAPI, ordersAPI, notesAPI, contactMessagesAPI, orderMessagesAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { UnifiedMessageBubble } from '../components/UnifiedMessageBubble';
+import { ChatInput } from '../components/ChatInput';
+import { formatDate, isClientMessage } from '../utils/chatUtils';
 import io from 'socket.io-client';
 
 const { Title, Text } = Typography;
@@ -55,7 +57,6 @@ const ContactDetailPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('data');
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
-  const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [form] = Form.useForm();
   const [noteForm] = Form.useForm();
@@ -254,24 +255,37 @@ const ContactDetailPage: React.FC = () => {
     }
   };
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !id || !manager) return;
+  const handleSendText = async (text: string) => {
+    if (!id || !manager) return;
 
     setSending(true);
     try {
       // Отправляем сообщение напрямую контакту (API автоматически создаст/найдет заявку)
       const newMsg = await contactMessagesAPI.sendToContact(
         parseInt(id),
-        newMessage.trim(),
+        text,
         'manager'
       );
 
       // Добавляем сообщение в список для мгновенного отображения
       setMessages(prev => [...prev, newMsg]);
-      setNewMessage('');
     } catch (error: any) {
       console.error('Error sending message:', error);
       message.error(error.response?.data?.error || 'Ошибка отправки сообщения');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleSendVoice = async (voice: Blob, duration: number) => {
+    if (!id || !manager) return;
+    setSending(true);
+    try {
+      const newMsg = await contactMessagesAPI.sendVoice(parseInt(id), voice, duration);
+      setMessages(prev => [...prev, newMsg]);
+    } catch (error: any) {
+      console.error('Error sending voice:', error);
+      message.error('Ошибка отправки голосового');
     } finally {
       setSending(false);
     }
@@ -441,38 +455,52 @@ const ContactDetailPage: React.FC = () => {
               ),
               children: (
                 <>
-                  <div style={{ height: '500px', overflowY: 'auto', padding: '16px', background: '#fafafa', borderRadius: '8px', marginBottom: '16px' }}>
+                  <div style={{ height: '500px', overflowY: 'auto', padding: '16px', background: '#fff', borderRadius: '8px', border: '1px solid #f0f0f0', display: 'flex', flexDirection: 'column' }}>
                     {messages.length === 0 ? (
-                      <Empty description="Нет сообщений" />
+                      <Empty description="Нет сообщений" style={{ marginTop: 'auto', marginBottom: 'auto' }} />
                     ) : (
-                      messages.map((msg) => (
-                        <div key={msg.id || `${msg.created_at}-${Math.random()}`}>
-                          {(msg as any).order_id && (
-                            <div style={{ textAlign: 'center', margin: '8px 0', opacity: 0.6, fontSize: '11px' }}>
-                              <Tag>Заявка #{(msg as any).order_id} - {(msg as any).order_title}</Tag>
+                      (() => {
+                        const groupedMessages: { date: string, msgs: Message[] }[] = [];
+                        messages.forEach(msg => {
+                          const dateKey = formatDate(msg['Created Date'] || msg.created_at);
+                          const lastGroup = groupedMessages[groupedMessages.length - 1];
+                          if (lastGroup && lastGroup.date === dateKey) {
+                            lastGroup.msgs.push(msg);
+                          } else {
+                            groupedMessages.push({ date: dateKey, msgs: [msg] });
+                          }
+                        });
+
+                        return groupedMessages.map(group => (
+                          <div key={group.date}>
+                            <div style={{ textAlign: 'center', margin: '16px 0', opacity: 0.5, fontSize: 12 }}>
+                              <span style={{ background: '#f5f5f5', padding: '4px 12px', borderRadius: 12 }}>{group.date}</span>
                             </div>
-                          )}
-                          <UnifiedMessageBubble
-                            msg={msg}
-                            isOwn={(msg.author_type || msg.sender_type) === 'manager'}
-                            variant="client"
-                          />
-                        </div>
-                      ))
+                            {group.msgs.map(msg => (
+                              <div key={msg.id || `${msg.created_at}-${Math.random()}`}>
+                                {(msg as any).order_id && (
+                                  <div style={{ textAlign: 'center', margin: '8px 0', opacity: 0.6, fontSize: '11px' }}>
+                                    <Tag>Заявка #{(msg as any).order_id} - {(msg as any).order_title}</Tag>
+                                  </div>
+                                )}
+                                <UnifiedMessageBubble
+                                  msg={msg}
+                                  isOwn={(msg.author_type || msg.sender_type) === 'manager'}
+                                  variant="client"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        ));
+                      })()
                     )}
                     <div ref={messagesEndRef} />
                   </div>
-                  <Space.Compact style={{ width: '100%' }}>
-                    <Input
-                      placeholder="Напишите сообщение..."
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onPressEnter={handleSendMessage}
-                    />
-                    <Button type="primary" icon={<SendOutlined />} onClick={handleSendMessage} loading={sending}>
-                      Отправить
-                    </Button>
-                  </Space.Compact>
+                  <ChatInput
+                    onSendText={handleSendText}
+                    onSendVoice={handleSendVoice}
+                    sending={sending}
+                  />
                 </>
               ),
             },
