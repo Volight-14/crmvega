@@ -10,10 +10,9 @@ import {
   Input,
   Select,
   Switch,
-  Tag,
   message,
+
   Popconfirm,
-  Descriptions,
   Row,
   Col,
 } from 'antd';
@@ -21,8 +20,6 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  PlayCircleOutlined,
-  PauseCircleOutlined,
 } from '@ant-design/icons';
 import { Automation, TRIGGER_TYPES, ACTION_TYPES } from '../types';
 import { automationsAPI } from '../services/api';

@@ -17,7 +17,6 @@ import {
   Select,
   Table,
   Badge,
-  Divider,
   message,
   Empty,
 } from 'antd';
@@ -54,7 +53,7 @@ const ContactDetailPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(false);
+
   const [activeTab, setActiveTab] = useState('data');
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
@@ -77,6 +76,7 @@ const ContactDetailPage: React.FC = () => {
     return () => {
       socketRef.current?.disconnect();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {

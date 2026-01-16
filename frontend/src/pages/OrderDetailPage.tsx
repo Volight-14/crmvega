@@ -214,8 +214,8 @@ const OrderDetailPage: React.FC = () => {
     if (!cleaned) return null;
     return (
       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
-        <Text type="secondary" style={{ width: '45%' }}>{label}</Text>
-        <div style={{ width: '55%', textAlign: 'right', wordBreak: 'break-word' }}>
+        <Text type="secondary" style={{ width: '40%', paddingRight: 8 }}>{label}</Text>
+        <div style={{ width: '60%', textAlign: 'right', wordBreak: 'break-word' }}>
           {isCurrency ? (
             <Text strong>{value}</Text>
           ) : (
@@ -454,11 +454,11 @@ const OrderDetailPage: React.FC = () => {
       }}>
         {/* Left Sidebar - Order Info */}
         <div style={{
-          width: isMobile ? '100%' : 400,
+          width: isMobile ? '100%' : 450,
           flexShrink: 0,
           display: 'flex',
           flexDirection: 'column',
-          overflowY: isMobile ? 'visible' : 'auto',
+          overflowY: isMobile ? 'visible' : 'hidden',
           height: isMobile ? 'auto' : '100%',
         }}>
           {isMobile ? (
@@ -569,7 +569,7 @@ const OrderDetailPage: React.FC = () => {
               <Tabs
                 activeKey={activeInfoTab}
                 onChange={(key) => setActiveInfoTab(key as 'info' | 'notes')}
-                style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
                 tabBarStyle={{ padding: '0 16px', margin: 0 }}
                 items={[
                   {
@@ -579,7 +579,11 @@ const OrderDetailPage: React.FC = () => {
                         <InfoCircleOutlined /> Информация
                       </span>
                     ),
-                    children: <OrderInfoTab />,
+                    children: (
+                      <div style={{ overflowY: 'auto', height: '100%' }}>
+                        <OrderInfoTab />
+                      </div>
+                    ),
                   },
                   {
                     key: 'notes',

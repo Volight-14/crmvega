@@ -80,6 +80,7 @@ const AnalyticsPage: React.FC = () => {
   useEffect(() => {
     fetchAnalytics();
     fetchContactsAnalytics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateRange]);
 
   const fetchAnalytics = async () => {

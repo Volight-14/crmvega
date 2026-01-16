@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
-import { useAuth } from '../contexts/AuthContext';
+
 import { contactsAPI, contactMessagesAPI } from '../services/api';
 import { InboxContact, Message } from '../types';
 import { Link, useSearchParams } from 'react-router-dom';
