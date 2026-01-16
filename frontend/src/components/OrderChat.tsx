@@ -10,7 +10,7 @@ import {
   UserOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
-import { Message, InternalMessage, Manager } from '../types';
+import { Message, InternalMessage } from '../types';
 import { orderMessagesAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import io from 'socket.io-client';
@@ -162,6 +162,7 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
 
   useEffect(() => {
     scrollToBottom();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientMessages.length, internalMessages.length, activeTab]);
 
   useEffect(() => {
@@ -362,7 +363,7 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
               {replyTo.content || 'Вложение'}
             </div>
           </div>
-          <a onClick={() => setReplyTo(null)}>Отмена</a>
+          <button onClick={() => setReplyTo(null)} style={{ background: 'none', border: 'none', color: '#1890ff', cursor: 'pointer', padding: 0 }}>Отмена</button>
         </div>
       )}
 

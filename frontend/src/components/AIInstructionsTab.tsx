@@ -21,7 +21,6 @@ import {
   Col,
   Spin,
   Empty,
-  Divider,
   Statistic,
 } from 'antd';
 import {
@@ -31,23 +30,22 @@ import {
   LockOutlined,
   StarOutlined,
   FileTextOutlined,
-  InfoCircleOutlined,
   EyeOutlined,
   ReloadOutlined,
   CheckCircleOutlined,
   StopOutlined,
 } from '@ant-design/icons';
 import { aiAPI } from '../services/api';
-import { 
-  AIInstruction, 
-  InstructionLevel, 
+import {
+  AIInstruction,
+  InstructionLevel,
   INSTRUCTION_LEVELS,
   INSTRUCTION_LEVEL_COLORS,
   INSTRUCTION_LEVEL_ICONS
 } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
-const { Title, Text, Paragraph } = Typography;
+const { Text, Paragraph } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
 const { Panel } = Collapse;
@@ -63,7 +61,7 @@ const LevelIcon: React.FC<{ level: InstructionLevel }> = ({ level }) => {
 };
 
 const AIInstructionsTab: React.FC = () => {
-  const { manager } = useAuth();
+  useAuth();
   const [loading, setLoading] = useState(false);
   const [instructions, setInstructions] = useState<AIInstruction[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -78,15 +76,16 @@ const AIInstructionsTab: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterLevel, filterActive]);
 
   const loadData = async () => {
     setLoading(true);
     try {
       const [instructionsRes, categoriesRes] = await Promise.all([
-        aiAPI.getInstructions({ 
-          level: filterLevel, 
-          is_active: filterActive 
+        aiAPI.getInstructions({
+          level: filterLevel,
+          is_active: filterActive
         }),
         aiAPI.getInstructionCategories(),
       ]);
@@ -159,10 +158,7 @@ const AIInstructionsTab: React.FC = () => {
     setModalVisible(true);
   };
 
-  const canCreate = (level: InstructionLevel) => {
-    if (userRole === 'admin') return true;
-    return level === 3;
-  };
+
 
   const isAdmin = userRole === 'admin';
 
@@ -286,21 +282,21 @@ const AIInstructionsTab: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col>
           <Space>
-            <Button 
-              type="primary" 
-              icon={<PlusOutlined />} 
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
               onClick={() => openModal()}
             >
               Добавить инструкцию
             </Button>
-            <Button 
-              icon={<EyeOutlined />} 
+            <Button
+              icon={<EyeOutlined />}
               onClick={loadPromptPreview}
             >
               Превью промпта
             </Button>
-            <Button 
-              icon={<ReloadOutlined />} 
+            <Button
+              icon={<ReloadOutlined />}
               onClick={loadData}
             >
               Обновить
@@ -343,8 +339,8 @@ const AIInstructionsTab: React.FC = () => {
       ) : (
         <Collapse defaultActiveKey={['1', '2', '3']}>
           {/* Законы */}
-          <Panel 
-            key="1" 
+          <Panel
+            key="1"
             header={
               <Space>
                 <LockOutlined style={{ color: '#ff4d4f' }} />
@@ -374,8 +370,8 @@ const AIInstructionsTab: React.FC = () => {
           </Panel>
 
           {/* Приоритетные */}
-          <Panel 
-            key="2" 
+          <Panel
+            key="2"
             header={
               <Space>
                 <StarOutlined style={{ color: '#fa8c16' }} />
@@ -405,8 +401,8 @@ const AIInstructionsTab: React.FC = () => {
           </Panel>
 
           {/* Обычные */}
-          <Panel 
-            key="3" 
+          <Panel
+            key="3"
             header={
               <Space>
                 <FileTextOutlined style={{ color: '#1890ff' }} />
@@ -467,7 +463,7 @@ const AIInstructionsTab: React.FC = () => {
               </Text>
             }
           >
-            <Select 
+            <Select
               disabled={!!editingInstruction}
               onChange={() => form.validateFields(['level'])}
             >
@@ -573,17 +569,17 @@ const AIInstructionsTab: React.FC = () => {
             <Row gutter={16} style={{ marginBottom: 16 }}>
               <Col span={8}>
                 <Card size="small">
-                  <Statistic 
-                    title="Законов" 
-                    value={promptPreview.counts.laws} 
+                  <Statistic
+                    title="Законов"
+                    value={promptPreview.counts.laws}
                     prefix={<LockOutlined style={{ color: '#ff4d4f' }} />}
                   />
                 </Card>
               </Col>
               <Col span={8}>
                 <Card size="small">
-                  <Statistic 
-                    title="Приоритетных" 
+                  <Statistic
+                    title="Приоритетных"
                     value={promptPreview.counts.priority}
                     prefix={<StarOutlined style={{ color: '#fa8c16' }} />}
                   />
@@ -591,21 +587,21 @@ const AIInstructionsTab: React.FC = () => {
               </Col>
               <Col span={8}>
                 <Card size="small">
-                  <Statistic 
-                    title="Обычных" 
+                  <Statistic
+                    title="Обычных"
                     value={promptPreview.counts.normal}
                     prefix={<FileTextOutlined style={{ color: '#1890ff' }} />}
                   />
                 </Card>
               </Col>
             </Row>
-            <Card 
-              title="Текст инструкций для системного промпта" 
+            <Card
+              title="Текст инструкций для системного промпта"
               size="small"
               style={{ maxHeight: 400, overflow: 'auto' }}
             >
-              <pre style={{ 
-                whiteSpace: 'pre-wrap', 
+              <pre style={{
+                whiteSpace: 'pre-wrap',
                 fontFamily: 'monospace',
                 fontSize: 12,
                 margin: 0,
