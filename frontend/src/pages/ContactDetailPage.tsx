@@ -22,8 +22,6 @@ import {
 } from 'antd';
 import {
   UserOutlined,
-  PhoneOutlined,
-  MailOutlined,
   EditOutlined,
   PlusOutlined,
   DeleteOutlined,
@@ -579,7 +577,26 @@ const ContactDetailPage: React.FC = () => {
                       <List.Item>
                         <List.Item.Meta
                           avatar={<Avatar icon={item.icon} style={{ backgroundColor: '#1890ff' }} />}
-                          title={item.link ? <a onClick={() => navigate(item.link || '')}>{item.label}</a> : item.label}
+                          title={
+                            item.link ? (
+                              <button
+                                onClick={() => navigate(item.link || '')}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  padding: 0,
+                                  color: '#1890ff',
+                                  cursor: 'pointer',
+                                  textDecoration: 'none',
+                                  fontSize: 'inherit'
+                                }}
+                              >
+                                {item.label}
+                              </button>
+                            ) : (
+                              item.label
+                            )
+                          }
                           description={new Date(item.date).toLocaleString('ru-RU')}
                         />
                       </List.Item>
