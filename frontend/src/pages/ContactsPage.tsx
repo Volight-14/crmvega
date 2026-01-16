@@ -11,7 +11,7 @@ import {
   Card,
   Row,
   Col,
-  Badge,
+  // Badge,
   Modal,
   Form,
   message,
@@ -65,6 +65,7 @@ const ContactsPage: React.FC = () => {
 
   useEffect(() => {
     fetchContacts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchText, statusFilter]);
 
   const handleCreate = () => {

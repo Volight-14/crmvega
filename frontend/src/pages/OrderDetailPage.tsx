@@ -6,13 +6,11 @@ import {
   Button,
   Tag,
   Avatar,
-  Divider,
   List,
   Input,
   Form,
   Modal,
   Select,
-  Descriptions,
   message,
   Empty,
   Row,
@@ -26,7 +24,7 @@ import {
   PhoneOutlined,
   MailOutlined,
   DollarOutlined,
-  CalendarOutlined,
+  // CalendarOutlined,
   EditOutlined,
   PlusOutlined,
   MessageOutlined,
@@ -54,6 +52,7 @@ const OrderDetailPage: React.FC = () => {
   const { manager } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
@@ -81,6 +80,7 @@ const OrderDetailPage: React.FC = () => {
     return () => {
       socketRef.current?.disconnect();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const setupSocket = () => {

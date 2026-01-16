@@ -1,6 +1,6 @@
 import axios from 'axios';
 import {
-  Manager, Message, Contact, InboxContact, Order, Note, Automation, ApiResponse,
+  Manager, Message, Contact, InboxContact, Order, Note, Automation,
   AISettings, AISettingsRaw, OperatorStyle, KnowledgeArticle, AnswerScript,
   WebsiteContent, AISuggestion, SuccessfulResponse, AIAnalytics, AIModel,
   AIInstruction, InstructionLevel, InstructionLevelInfo, InternalMessage, Tag

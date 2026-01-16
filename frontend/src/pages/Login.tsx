@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Card, message, Tabs, Modal, Alert, Typography, Space, Divider } from 'antd';
-import { UserOutlined, LockOutlined, MailOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { Form, Input, Button, Card, message, Modal, Alert, Typography, Space, Divider } from 'antd';
+import { LockOutlined, MailOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authAPI } from '../services/api';
 
-const { TabPane } = Tabs;
+
 const { Text, Title } = Typography;
 
 const Login: React.FC = () => {
@@ -16,7 +16,7 @@ const Login: React.FC = () => {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [resetForm] = Form.useForm();
-  const { login, register } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -73,21 +73,7 @@ const Login: React.FC = () => {
     }
   };
 
-  const onRegister = async (values: { email: string; password: string; name: string }) => {
-    setLoading(true);
-    setLoginError(null);
-    try {
-      await register(values.email, values.password, values.name);
-      message.success('Регистрация выполнена! Добро пожаловать!');
-      navigate('/orders');
-    } catch (error: any) {
-      const errorMsg = getErrorMessage(error);
-      setLoginError(errorMsg);
-      message.error(errorMsg);
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   const handleResetPassword = async (values: { email: string }) => {
     setResetLoading(true);

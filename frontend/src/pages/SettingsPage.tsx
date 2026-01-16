@@ -38,7 +38,6 @@ import { Manager } from '../types';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
-const { TextArea } = Input;
 
 const SettingsPage: React.FC = () => {
   const { manager } = useAuth();
@@ -93,6 +92,7 @@ const SettingsPage: React.FC = () => {
     if (activeTab === 'users' && manager?.role === 'admin') {
       fetchManagers();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, manager]);
 
   const handleSaveUser = async (values: any) => {

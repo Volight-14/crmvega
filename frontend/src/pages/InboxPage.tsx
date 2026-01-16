@@ -38,7 +38,7 @@ interface ExtendedInboxContact extends InboxContact {
 }
 
 const InboxPage: React.FC = () => {
-    const { manager } = useAuth();
+    // const { manager } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
     const [contacts, setContacts] = useState<ExtendedInboxContact[]>([]);
     const [selectedContact, setSelectedContact] = useState<ExtendedInboxContact | null>(null);
@@ -68,6 +68,7 @@ const InboxPage: React.FC = () => {
         return () => {
             socketRef.current?.disconnect();
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Listen for new messages
@@ -114,6 +115,7 @@ const InboxPage: React.FC = () => {
                 selectContact(contact);
             }
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams, contacts]);
 
     const fetchContacts = async () => {

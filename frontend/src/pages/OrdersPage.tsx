@@ -8,20 +8,20 @@ import {
   Select,
   Tag,
   Avatar,
-  Badge,
+  // Badge,
   Modal,
   Form,
   message,
-  Empty,
-  Tooltip,
+  // Empty,
+  // Tooltip,
 } from 'antd';
 import {
   PlusOutlined,
   SearchOutlined,
   UserOutlined,
-  DollarOutlined,
-  CalendarOutlined,
-  EuroOutlined,
+  // DollarOutlined,
+  // CalendarOutlined,
+  // EuroOutlined,
   EditOutlined,
   DeleteOutlined,
   ExclamationCircleOutlined,
@@ -441,6 +441,7 @@ const OrdersPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [allTags, setAllTags] = useState<TagData[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
@@ -485,6 +486,7 @@ const OrdersPage: React.FC = () => {
     return () => {
       socketRef.current?.disconnect();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   const fetchContacts = async () => {
@@ -582,7 +584,7 @@ const OrdersPage: React.FC = () => {
     } else {
       // Брошено на другую карточку - найдем статус этой карточки
       // dnd-kit might return string or number, try to match loosely or convert
-      const targetOrder = orders.find(d => d.id == over.id);
+      const targetOrder = orders.find(d => String(d.id) === String(over.id));
       if (targetOrder) {
         newStatus = targetOrder.status;
       }

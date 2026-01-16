@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Card, message, Alert, Typography, Result, Spin } from 'antd';
+import { Form, Input, Button, Card, message, Typography, Result, Spin } from 'antd';
 import { LockOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authAPI } from '../services/api';
@@ -26,6 +26,7 @@ const ResetPassword: React.FC = () => {
     }
 
     verifyToken();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const verifyToken = async () => {
@@ -46,7 +47,7 @@ const ResetPassword: React.FC = () => {
 
   const onSubmit = async (values: { password: string }) => {
     if (!token) return;
-    
+
     setLoading(true);
     try {
       await authAPI.resetPassword(token, values.password);
