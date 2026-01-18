@@ -213,6 +213,16 @@ export const contactMessagesAPI = {
     if (duration) formData.append('duration', duration.toString());
 
     const response = await api.post(`/messages/contact/${contactId}/voice`, formData, {
+    });
+    return response.data;
+  },
+
+  sendFile: async (contactId: number, file: File, caption?: string): Promise<Message> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (caption) formData.append('caption', caption);
+
+    const response = await api.post(`/messages/contact/${contactId}/file`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;

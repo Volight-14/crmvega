@@ -311,6 +311,19 @@ const ContactDetailPage: React.FC = () => {
     }
   };
 
+  const handleSendFile = async (file: File) => {
+    if (!id || !manager) return;
+    setSending(true);
+    try {
+      await contactMessagesAPI.sendFile(parseInt(id), file);
+    } catch (error: any) {
+      console.error('Error sending file:', error);
+      message.error(error.response?.data?.error || 'Ошибка отправки файла');
+    } finally {
+      setSending(false);
+    }
+  };
+
   if (!contact) {
     return <div>Загрузка...</div>;
   }
@@ -526,6 +539,7 @@ const ContactDetailPage: React.FC = () => {
                   <ChatInput
                     onSendText={handleSendText}
                     onSendVoice={handleSendVoice}
+                    onSendFile={handleSendFile}
                     sending={sending}
                   />
                 </>

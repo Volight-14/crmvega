@@ -5,6 +5,7 @@ import {
     AudioOutlined,
     DeleteOutlined,
     PauseCircleOutlined,
+    PaperClipOutlined,
 } from '@ant-design/icons';
 import { formatDuration } from '../utils/chatUtils';
 
@@ -16,10 +17,12 @@ interface ChatInputProps {
     onSendVoice: (voice: Blob, duration: number) => Promise<void> | void;
     sending: boolean;
     onTyping?: () => void;
+    onSendFile?: (file: File) => Promise<void> | void;
 }
 
-export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, sending, onTyping }) => {
+export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, sending, onTyping, onSendFile }) => {
     const [messageInput, setMessageInput] = useState('');
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Voice Recording State
     const [isRecording, setIsRecording] = useState(false);
@@ -101,6 +104,23 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
         if (recordingTimerRef.current) {
             clearInterval(recordingTimerRef.current);
             recordingTimerRef.current = null;
+        }
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !onSendFile) return;
+
+        // Reset input value to allow selecting same file again
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+
+        try {
+            await onSendFile(file);
+        } catch (error) {
+            console.error('Failed to send file:', error);
+            antMessage.error('Ошибка отправки файла');
         }
     };
 
@@ -200,6 +220,23 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
                         }}
                         style={{ borderRadius: 12, resize: 'none', flex: 1 }}
                     />
+
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        style={{ display: 'none' }}
+                        onChange={handleFileChange}
+                    />
+
+                    {onSendFile && (
+                        <Button
+                            icon={<PaperClipOutlined />}
+                            shape="circle"
+                            size="large"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={sending}
+                        />
+                    )}
 
                     <Button
                         icon={<AudioOutlined />}

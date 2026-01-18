@@ -452,6 +452,147 @@ router.post('/contact/:contactId/voice', auth, upload.single('voice'), async (re
   }
 });
 
+// Отправить файл контакту
+router.post('/contact/:contactId/file', auth, upload.single('file'), async (req, res) => {
+  try {
+    const { contactId } = req.params;
+    const { caption } = req.body;
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'Файл не найден' });
+    }
+
+    console.log(`[FileContact] Processing file for contact ${contactId}`);
+
+    // 1. Находим активную заявку контакта или создаем новую
+    const { data: activeOrder } = await supabase
+      .from('orders')
+      .select('id, main_id')
+      .eq('contact_id', contactId)
+      .in('status', ['unsorted', 'new', 'negotiation', 'waiting', 'ready_to_close'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    let orderId = activeOrder?.id;
+    let leadId = activeOrder?.main_id;
+
+    if (!orderId) {
+      const { data: newOrder, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          contact_id: parseInt(contactId),
+          title: `Сообщение от ${new Date().toLocaleDateString('ru-RU')}`,
+          status: 'new',
+          type: 'inquiry',
+          manager_id: req.manager.id,
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+      orderId = newOrder.id;
+    }
+
+    if (!leadId) {
+      leadId = parseInt(`${Date.now()}${Math.floor(Math.random() * 1000)}`);
+      await supabase.from('orders').update({ main_id: leadId }).eq('id', orderId);
+    }
+
+    // 2. Upload to Supabase
+    const fileExt = req.file.originalname.split('.').pop();
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const filePath = `order_files/${orderId}/${fileName}`;
+
+    // Helper to determine content type
+    let contentType = req.file.mimetype;
+    // Fix for some common types if needed, but req.file.mimetype is usually good
+
+    await supabase.storage
+      .from('attachments')
+      .upload(filePath, req.file.buffer, { contentType });
+
+    const { data: urlData } = supabase.storage
+      .from('attachments')
+      .getPublicUrl(filePath);
+
+    const fileUrl = urlData?.publicUrl;
+
+    // 3. Send to Telegram
+    let telegramMessageId = null;
+    const { data: contact } = await supabase.from('contacts').select('telegram_user_id').eq('id', contactId).single();
+
+    if (contact && contact.telegram_user_id && process.env.TELEGRAM_BOT_TOKEN) {
+      const form = new FormData();
+      form.append('chat_id', contact.telegram_user_id);
+
+      const isImage = contentType.startsWith('image/');
+      const endpoint = isImage ? 'sendPhoto' : 'sendDocument';
+      const fieldName = isImage ? 'photo' : 'document';
+
+      form.append(fieldName, req.file.buffer, { filename: req.file.originalname, contentType });
+      if (caption) form.append('caption', caption);
+
+      try {
+        const tgResponse = await axios.post(
+          `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/${endpoint}`,
+          form,
+          { headers: form.getHeaders() }
+        );
+        telegramMessageId = tgResponse.data?.result?.message_id;
+      } catch (tgError) {
+        console.error('[FileContact] Telegram Error:', tgError.response?.data || tgError.message);
+      }
+    }
+
+    // 4. Save to DB
+    const isImage = contentType.startsWith('image/');
+    const { data: message, error: messageError } = await supabase
+      .from('messages')
+      .insert({
+        main_id: leadId,
+        content: caption || (isImage ? 'Картинка' : 'Файл'),
+        author_type: 'Оператор', // Or 'Менеджер'
+        message_type: isImage ? 'image' : 'file',
+        message_id_tg: telegramMessageId,
+        file_url: fileUrl,
+        file_name: req.file.originalname,
+        caption: caption,
+        'Created Date': new Date().toISOString(),
+        is_outgoing: true
+      })
+      .select()
+      .single();
+
+    if (messageError) throw messageError;
+
+    // Связываем с заявкой
+    await supabase
+      .from('order_messages')
+      .upsert({
+        order_id: orderId,
+        message_id: message.id,
+      }, { onConflict: 'order_id,message_id' });
+
+    // Update contact last message
+    await supabase.from('contacts').update({ last_message_at: new Date().toISOString() }).eq('id', contactId);
+
+    // Socket Emit
+    const io = req.app.get('io');
+    if (io) {
+      if (leadId) io.to(`lead_${leadId}`).emit('new_message', message);
+      io.to(`order_${orderId}`).emit('new_message', message);
+      io.emit('contact_message', { contact_id: contactId, message });
+    }
+
+    res.json(message);
+
+  } catch (error) {
+    console.error('[FileContact] Error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // REMOVED: Generic POST /messages/ endpoint - not used in frontend
 // Use /messages/contact/:contactId or /order-messages/:orderId/client instead
 

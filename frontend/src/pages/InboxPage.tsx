@@ -218,6 +218,21 @@ const InboxPage: React.FC = () => {
         }
     };
 
+    const handleSendFile = async (file: File) => {
+        if (!selectedContact || sending) return;
+        setSending(true);
+        try {
+            await contactMessagesAPI.sendFile(selectedContact.id, file);
+            fetchContacts();
+            scrollToBottom();
+        } catch (error: any) {
+            const errMsg = error.response?.data?.error || 'Ошибка отправки файла';
+            antMessage.error(errMsg);
+        } finally {
+            setSending(false);
+        }
+    };
+
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
     useEffect(() => {
@@ -404,6 +419,7 @@ const InboxPage: React.FC = () => {
                             <ChatInput
                                 onSendText={handleSendMessage}
                                 onSendVoice={handleSendVoice}
+                                onSendFile={handleSendFile}
                                 sending={sending}
                             />
                         </>
