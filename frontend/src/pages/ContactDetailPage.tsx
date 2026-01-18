@@ -283,17 +283,12 @@ const ContactDetailPage: React.FC = () => {
     setSending(true);
     try {
       // Отправляем сообщение напрямую контакту (API автоматически создаст/найдет заявку)
-      const newMsg = await contactMessagesAPI.sendToContact(
+      await contactMessagesAPI.sendToContact(
         parseInt(id),
         text,
         'manager'
       );
-
-      // Добавляем сообщение в список для мгновенного отображения (с проверкой на дубликаты)
-      setMessages(prev => {
-        if (prev.some(m => m.id === newMsg.id)) return prev;
-        return [...prev, newMsg];
-      });
+      // Removed optimistic update to prevent duplicates (socket handles it)
     } catch (error: any) {
       console.error('Error sending message:', error);
       message.error(error.response?.data?.error || 'Ошибка отправки сообщения');
@@ -306,11 +301,8 @@ const ContactDetailPage: React.FC = () => {
     if (!id || !manager) return;
     setSending(true);
     try {
-      const newMsg = await contactMessagesAPI.sendVoice(parseInt(id), voice, duration);
-      setMessages(prev => {
-        if (prev.some(m => m.id === newMsg.id)) return prev;
-        return [...prev, newMsg];
-      });
+      await contactMessagesAPI.sendVoice(parseInt(id), voice, duration);
+      // Removed optimistic update to prevent duplicates (socket handles it)
     } catch (error: any) {
       console.error('Error sending voice:', error);
       message.error('Ошибка отправки голосового');

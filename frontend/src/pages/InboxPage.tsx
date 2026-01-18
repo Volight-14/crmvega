@@ -192,11 +192,7 @@ const InboxPage: React.FC = () => {
         if (!selectedContact || sending) return;
         setSending(true);
         try {
-            const newMessage = await contactMessagesAPI.sendToContact(selectedContact.id, text, 'manager');
-            setMessages(prev => {
-                if (prev.some(m => m.id === newMessage.id)) return prev;
-                return [...prev, newMessage];
-            });
+            await contactMessagesAPI.sendToContact(selectedContact.id, text, 'manager');
             fetchContacts();
             scrollToBottom();
         } catch (error) {
@@ -211,11 +207,7 @@ const InboxPage: React.FC = () => {
         if (!selectedContact || sending) return;
         setSending(true);
         try {
-            const newMessage = await contactMessagesAPI.sendVoice(selectedContact.id, voice, duration);
-            setMessages(prev => {
-                if (prev.some(m => m.id === newMessage.id)) return prev;
-                return [...prev, newMessage];
-            });
+            await contactMessagesAPI.sendVoice(selectedContact.id, voice, duration);
             fetchContacts();
             scrollToBottom();
         } catch (error: any) {
