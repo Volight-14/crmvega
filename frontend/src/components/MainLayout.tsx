@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import io from 'socket.io-client';
 import { Layout, Menu, Avatar, Dropdown, Badge, Space, Drawer, Grid } from 'antd';
 import {
   DashboardOutlined,
@@ -112,6 +113,88 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const selectedKey = `/${location.pathname.split('/')[1]}`;
   const selectedKeys = [selectedKey === '/' ? '/orders' : selectedKey];
 
+  // Notifications Logic
+  const socketRef = React.useRef<any>(null);
+  const [unreadTotal, setUnreadTotal] = useState(0);
+
+  // Sound function using Web Audio API
+  const playAlertSound = () => {
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.type = 'sine'; // Beep tone
+      osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
+      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.5); // Drop to A4
+
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+
+      osc.start();
+      osc.stop(ctx.currentTime + 0.5);
+    } catch (e) {
+      console.error('Audio play error:', e);
+    }
+  };
+
+  useEffect(() => {
+    // Restore count? maybe not needed persistent for session
+    document.title = unreadTotal > 0 ? `(${unreadTotal}) CRM` : 'CRM';
+  }, [unreadTotal]);
+
+  useEffect(() => {
+    const socketUrl = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
+
+    socketRef.current = io(socketUrl, {
+      transports: ['websocket', 'polling'],
+    });
+
+    socketRef.current.on('connect', () => {
+      // console.log('Global socket connected');
+    });
+
+    socketRef.current.on('new_message_global', (msg: any) => {
+      // Logic for alerts
+      if (!manager) return;
+
+      const stored = localStorage.getItem(`crm_notification_settings_${manager.id}`);
+      let settings = { all_active: true, statuses: [] as string[] };
+      if (stored) {
+        try { settings = JSON.parse(stored); } catch (e) { }
+      }
+
+      let shouldNotify = false;
+
+      // 1. Check if "Only my notifications" (statuses) is active
+      if (settings.statuses && settings.statuses.length > 0) {
+        // Strict filtering by status
+        if (msg.order_status && settings.statuses.includes(msg.order_status)) {
+          shouldNotify = true;
+        }
+      }
+      // 2. If no specific statuses, check "All notifications"
+      else if (settings.all_active) {
+        shouldNotify = true;
+      }
+
+      if (shouldNotify) {
+        playAlertSound();
+        setUnreadTotal(prev => prev + 1);
+      }
+    });
+
+    return () => {
+      socketRef.current?.disconnect();
+    };
+  }, [manager]);
+
   const MenuContent = (
     <>
       <div style={{
@@ -194,8 +277,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             })}
           </Space>
           <Space size={isMobile ? "middle" : "large"}>
-            <Badge count={5}>
-              <BellOutlined style={{ fontSize: 18, cursor: 'pointer' }} />
+            <Badge count={unreadTotal}>
+              <BellOutlined style={{ fontSize: 18, cursor: 'pointer' }} onClick={() => setUnreadTotal(0)} />
             </Badge>
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
               <Space style={{ cursor: 'pointer' }}>

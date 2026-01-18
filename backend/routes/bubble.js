@@ -105,7 +105,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
         const terminalStatuses = ['completed', 'scammer', 'client_rejected', 'lost'];
         const { data: activeOrder } = await supabase
           .from('orders')
-          .select('id, main_id')
+          .select('id, main_id, status')
           .eq('contact_id', contact.id)
           .not('status', 'in', `(${terminalStatuses.join(',')})`)
           .order('created_at', { ascending: false })
@@ -115,6 +115,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
         if (activeOrder && activeOrder.main_id) {
           finalMainId = activeOrder.main_id;
           finalOrderId = activeOrder.id; // Save ID
+          orderStatusFromDb = activeOrder.status;
           console.log(`[Bubble Webhook] Found active order ${activeOrder.id} with main_id ${finalMainId}`);
         } else {
           // 3. Create New Order (Fallback)
@@ -139,6 +140,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
           if (!createOrderError && newOrder) {
             finalMainId = newMainId;
             finalOrderId = newOrder.id; // Save ID
+            orderStatusFromDb = newOrder.status;
             console.log(`[Bubble Webhook] Created new fallback order ${newOrder.id} with main_id ${finalMainId}`);
 
             const io = req.app.get('io');
@@ -154,13 +156,14 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       // If we HAD a main_id passed, find the order ID associated with it
       const { data: existingOrds } = await supabase
         .from('orders')
-        .select('id')
+        .select('id, status')
         .eq('main_id', finalMainId)
         .order('created_at', { ascending: false })
         .limit(1);
 
       if (existingOrds && existingOrds.length > 0) {
         finalOrderId = existingOrds[0].id;
+        orderStatusFromDb = existingOrds[0].status;
         console.log(`[Bubble Webhook] Resolved Order ID ${finalOrderId} from main_id ${finalMainId}`);
       } else {
         console.warn(`[Bubble Webhook] No order found for main_id ${finalMainId}`);
@@ -265,7 +268,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       user: user || null,
       reply_to_mess_id_tg: reply_to_mess_id_tg || null,
       caption: (caption && String(caption) !== 'null') ? caption : null,
-      order_status: order_status || null,
+      order_status: order_status || orderStatusFromDb || null,
       file_url: finalFileUrl,
       file_name: finalFileName,
       reactions: finalReactions,
@@ -323,6 +326,11 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
         });
       }
 
+      const socketPayload = {
+        ...result,
+        order_status: order_status || orderStatusFromDb || 'unsorted'
+      };
+
       const io = req.app.get('io');
       if (io) {
         if (lead_id) {
@@ -331,7 +339,8 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
           if (finalOrderId) io.to(`order_${finalOrderId}`).emit('new_client_message', result);
         }
         io.emit('new_message_bubble', result);
-        io.emit('new_message_global', result);
+        // GLOBAL ALERT EMISSION
+        io.emit('new_message_global', socketPayload);
       }
 
       runAutomations('message_received', result, { io }).catch(err => {

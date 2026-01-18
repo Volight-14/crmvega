@@ -34,7 +34,7 @@ import {
 } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
 import { managersAPI } from '../services/api';
-import { Manager } from '../types';
+import { Manager, ORDER_STATUSES } from '../types';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -163,13 +163,36 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const notificationSettings = [
-    { key: 'email_notifications', label: 'Email уведомления', default: true },
-    { key: 'deal_updates', label: 'Обновления сделок', default: true },
-    { key: 'new_messages', label: 'Новые сообщения', default: true },
-    { key: 'contact_updates', label: 'Обновления контактов', default: false },
-    { key: 'daily_report', label: 'Ежедневный отчет', default: false },
-  ];
+  // Notifications State
+  const [notificationSettings, setNotificationSettings] = useState({
+    all_active: true,
+    contact_updates: false,
+    daily_report: false,
+    statuses: [] as string[]
+  });
+
+  useEffect(() => {
+    if (manager?.id) {
+      const stored = localStorage.getItem(`crm_notification_settings_${manager.id}`);
+      if (stored) {
+        try {
+          setNotificationSettings(JSON.parse(stored));
+        } catch (e) {
+          console.error("Failed to parse settings", e);
+        }
+      }
+    }
+  }, [manager]);
+
+  const handleNotificationChange = (key: string, value: any) => {
+    setNotificationSettings(prev => {
+      const newSettings = { ...prev, [key]: value };
+      if (manager?.id) {
+        localStorage.setItem(`crm_notification_settings_${manager.id}`, JSON.stringify(newSettings));
+      }
+      return newSettings;
+    });
+  };
 
   return (
     <div>
@@ -260,18 +283,65 @@ const SettingsPage: React.FC = () => {
                 <div>
                   <Title level={4}>Настройки уведомлений</Title>
                   <Space direction="vertical" style={{ width: '100%' }}>
-                    {notificationSettings.map((setting) => (
-                      <Card key={setting.key} size="small">
-                        <Row justify="space-between" align="middle">
-                          <Col>
-                            <Text>{setting.label}</Text>
-                          </Col>
-                          <Col>
-                            <Switch defaultChecked={setting.default} />
-                          </Col>
-                        </Row>
-                      </Card>
-                    ))}
+                    <Card size="small">
+                      <Row justify="space-between" align="middle">
+                        <Col>
+                          <Text><b>Все уведомления</b> (Звук + Индикатор для всех входящих)</Text>
+                        </Col>
+                        <Col>
+                          <Switch
+                            checked={notificationSettings.all_active}
+                            onChange={(checked) => handleNotificationChange('all_active', checked)}
+                          />
+                        </Col>
+                      </Row>
+                    </Card>
+
+                    <Card size="small" style={{ opacity: notificationSettings.all_active ? 0.5 : 1, pointerEvents: notificationSettings.all_active ? 'none' : 'auto' }}>
+                      <Space direction="vertical" style={{ width: '100%' }}>
+                        <Text><b>Только мои уведомления</b> (Выберите этапы заявок для уведомлений)</Text>
+                        <Select
+                          mode="multiple"
+                          style={{ width: '100%' }}
+                          placeholder="Выберите статусы..."
+                          value={notificationSettings.statuses}
+                          onChange={(vals) => handleNotificationChange('statuses', vals)}
+                          options={Object.entries(ORDER_STATUSES).map(([key, val]) => ({
+                            label: `${val.icon} ${val.label}`,
+                            value: key
+                          }))}
+                          disabled={notificationSettings.all_active}
+                        />
+                      </Space>
+                    </Card>
+
+                    <Card size="small">
+                      <Row justify="space-between" align="middle">
+                        <Col>
+                          <Text>Обновления контактов</Text>
+                        </Col>
+                        <Col>
+                          <Switch
+                            checked={notificationSettings.contact_updates}
+                            onChange={(checked) => handleNotificationChange('contact_updates', checked)}
+                          />
+                        </Col>
+                      </Row>
+                    </Card>
+
+                    <Card size="small">
+                      <Row justify="space-between" align="middle">
+                        <Col>
+                          <Text>Ежедневный отчет</Text>
+                        </Col>
+                        <Col>
+                          <Switch
+                            checked={notificationSettings.daily_report}
+                            onChange={(checked) => handleNotificationChange('daily_report', checked)}
+                          />
+                        </Col>
+                      </Row>
+                    </Card>
                   </Space>
                 </div>
               ),
