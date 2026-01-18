@@ -87,6 +87,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
     let finalMainId = main_ID;
     let finalContactId = null;
     let finalOrderId = null; // Store Order ID for linking
+    let orderStatusFromDb = null;
 
     if (!finalMainId && telegram_user_id) {
       console.log(`[Bubble Webhook] main_ID missing, attempting resolution for TG ID: ${telegram_user_id}`);

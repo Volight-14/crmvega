@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
-import { Layout, Menu, Avatar, Dropdown, Badge, Space, Drawer, Grid } from 'antd';
+import { Layout, Menu, Avatar, Dropdown, Badge, Space, Drawer, Grid, notification } from 'antd';
 import {
   DashboardOutlined,
   TeamOutlined,
@@ -157,10 +157,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     });
 
     socketRef.current.on('connect', () => {
-      // console.log('Global socket connected');
+      console.log('✅ Global socket connected for notifications');
     });
 
     socketRef.current.on('new_message_global', (msg: any) => {
+      console.log('📨 Global message received:', msg);
+
       // Logic for alerts
       if (!manager) return;
 
@@ -169,6 +171,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       if (stored) {
         try { settings = JSON.parse(stored); } catch (e) { }
       }
+
+      console.log('🔧 Notification Settings:', settings);
+      console.log('Message Order Status:', msg.order_status);
 
       let shouldNotify = false;
 
@@ -185,8 +190,17 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       }
 
       if (shouldNotify) {
+        console.log('🔔 Triggering notification!');
         playAlertSound();
         setUnreadTotal(prev => prev + 1);
+
+        notification.open({
+          message: 'Новое сообщение',
+          description: `От: ${msg.author_type || 'Клиента'}. Статус: ${msg.order_status}`,
+          duration: 3,
+        });
+      } else {
+        console.log('🔕 Notification filtered out based on settings.');
       }
     });
 
