@@ -84,7 +84,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
     } = req.body;
 
     // --- Fallback Logic for missing main_ID ---
-    let finalMainId = main_ID;
+    let finalMainId = (main_ID === 'null' || !main_ID) ? null : main_ID;
     let finalContactId = null;
     let finalOrderId = null; // Store Order ID for linking
     let orderStatusFromDb = null;
