@@ -253,9 +253,12 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       });
     }
 
+    // Helper to clean "null" strings to actual null
+    const cleanNull = (val) => (val === 'null' || !val) ? null : val;
+
     const messageData = {
-      lead_id: lead_id ? String(lead_id).trim() : (finalMainId ? String(finalMainId).trim() : null),
-      main_id: finalMainId ? String(finalMainId).trim() : null,
+      lead_id: cleanNull(lead_id) || (finalMainId ? String(finalMainId).trim() : null),
+      main_id: cleanNull(finalMainId),
       content: (finalContent === 'null' || !finalContent) ? '' : finalContent,
       'Created Date': createdDate || new Date().toISOString(),
       author_type: normalizedAuthorType,
@@ -264,11 +267,11 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       timestamp: timestamp || null,
       'Modified Date': modifiedDate || new Date().toISOString(),
       'Created By': createdBy || null,
-      author_amojo_id: (author_amojo_id && String(author_amojo_id) !== 'null') ? author_amojo_id : null,
-      message_id_amo: (message_id_amo && String(message_id_amo) !== 'null') ? message_id_amo : null,
+      author_amojo_id: cleanNull(author_amojo_id),
+      message_id_amo: cleanNull(message_id_amo),
       user: user || null,
       reply_to_mess_id_tg: reply_to_mess_id_tg || null,
-      caption: (caption && String(caption) !== 'null') ? caption : null,
+      caption: cleanNull(caption),
       order_status: order_status || orderStatusFromDb || null,
       file_url: finalFileUrl,
       file_name: finalFileName,
