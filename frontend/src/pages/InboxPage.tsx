@@ -138,6 +138,7 @@ const InboxPage: React.FC = () => {
             socketRef.current?.io.off("reconnect", handleReconnect);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedContact]);
 
     // Handle URL param selection
