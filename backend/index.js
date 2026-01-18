@@ -83,11 +83,11 @@ app.use((req, res, next) => {
           .replace(/("\s*:\s*)no\b/g, '$1false')
           .replace(/("\s*:\s*)yes\b/g, '$1true');
 
-        // Attempt to quote unquoted alphanumerics that are likely IDs or strings
-        // Look for: : value (where value is not quoted, not true/false/null/number)
-        // This regex captures: (: whitespace) (value) (whitespace , or })
-        // It excludes: true, false, null, numbers (starting with digit or -), quoted strings
-        // Known issue: might break complex nested structures if not careful, but works for simple Bubble payloads
+        // Fix missing commas between properties (lines ending without comma)
+        // Look for: non-comma/brace/bracket, optional whitespace, newline, optional whitespace, quote (next key)
+        fixed = fixed.replace(/([^,\{\[])\s*\n\s*"/g, '$1,\n"');
+
+        // Quote unquoted alphanumerics that are likely IDs or strings (prev fix)
         fixed = fixed.replace(/(:\s*)(?!true|false|null|\-?[\d\.]+|"[^"]*"|\[|\{)([a-zA-Z0-9_\-\.\/]+)(\s*[,}])/g, '$1"$2"$3');
 
         req.body = JSON.parse(fixed);
@@ -95,6 +95,7 @@ app.use((req, res, next) => {
       } catch (err2) {
         // If still invalid, pass the error but LOG IT
         console.error('JSON Parse Error Final:', err2.message);
+        console.error('JSON Fix Attempted result:', fixed || 'N/A'); // Log what we tried to parse
         console.error('Failed Body:', req.body);
         return next(err2);
       }
