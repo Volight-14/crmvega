@@ -218,6 +218,59 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
                 );
             }
 
+            // PDF Preview
+            const isPdf = msg.file_url.match(/\.pdf$/i);
+            if (isPdf) {
+                return (
+                    <div
+                        style={{ marginTop: 8, cursor: 'pointer' }}
+                        onClick={() => window.open(msg.file_url, '_blank')}
+                    >
+                        <div style={{
+                            width: '240px',
+                            height: '160px',
+                            border: '1px solid rgba(0,0,0,0.1)',
+                            borderRadius: 8,
+                            overflow: 'hidden',
+                            position: 'relative',
+                            backgroundColor: '#f5f5f5'
+                        }}>
+                            <iframe
+                                src={`${msg.file_url}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`}
+                                style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }}
+                                title="PDF Preview"
+                            />
+                            {/* Overlay to ensure clickability */}
+                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1 }} />
+
+                            <div style={{
+                                position: 'absolute',
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                background: 'rgba(0,0,0,0.6)',
+                                backdropFilter: 'blur(4px)',
+                                color: 'white',
+                                padding: '6px 12px',
+                                fontSize: '12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                zIndex: 2
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <FileOutlined />
+                                    <span style={{ maxWidth: 140, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {msg.file_name || 'Документ PDF'}
+                                    </span>
+                                </div>
+                                <DownloadOutlined />
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
             // Generic File
             return (
                 <a
@@ -318,6 +371,19 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
                         minWidth: 120,
                     }}
                 >
+                    {/* Sender Name/Role Header for Manager Messages */}
+                    {isOwn && variant !== 'internal' && (
+                        <div style={{
+                            fontSize: 11,
+                            fontWeight: 'bold',
+                            marginBottom: 4,
+                            opacity: 0.9,
+                            color: styles.color === 'white' ? 'white' : 'inherit'
+                        }}>
+                            {msg.sender?.name || msg['Created By'] || msg.author_type}
+                        </div>
+                    )}
+
                     {/* Reply Context */}
                     {replyMessage && (
                         <div

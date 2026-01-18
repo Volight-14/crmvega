@@ -79,7 +79,7 @@ router.get('/summary', auth, async (req, res) => {
 
     let query = supabase
       .from('contacts')
-      .select('id, name, phone, telegram_user_id, telegram_username, first_name, last_name, last_message_at')
+      .select('id, name, phone, telegram_user_id, telegram_username, first_name, last_name, last_message_at, avatar_url')
       .order('last_message_at', { ascending: false, nullsFirst: false })
       .range(offsetNum, offsetNum + limitNum - 1);
 
@@ -94,7 +94,7 @@ router.get('/summary', auth, async (req, res) => {
       // Fallback to basic fields if extended query fails
       const fallbackQuery = supabase
         .from('contacts')
-        .select('id, name, phone, telegram_user_id, last_message_at')
+        .select('id, name, phone, telegram_user_id, last_message_at, avatar_url')
         .order('last_message_at', { ascending: false, nullsFirst: false })
         .range(offsetNum, offsetNum + limitNum - 1);
 

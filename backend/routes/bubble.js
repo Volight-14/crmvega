@@ -2,6 +2,7 @@ const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 const { runAutomations } = require('../services/automationRunner');
 const { mapStatus } = require('../utils/statusMapping');
+const { uploadAvatarFromUrl } = require('../utils/storage');
 
 const router = express.Router();
 const supabase = createClient(
@@ -637,7 +638,11 @@ router.post('/contact', verifyWebhookToken, async (req, res) => {
       comment,
       status,
       rating,
-      manager_id
+      manager_id,
+      avatar_url,
+      photo,
+      photo_url,
+      profile_picture
     } = data;
 
     // Resolve Telegram ID from tg_amo if not provided directly
@@ -700,6 +705,19 @@ router.post('/contact', verifyWebhookToken, async (req, res) => {
       }
     }
 
+    // Process Avatar if provided
+    let finalAvatarUrl = avatar_url || photo || photo_url || profile_picture || null;
+
+    if (finalAvatarUrl && finalAvatarUrl.startsWith('http')) {
+      // Check if it's already a supabase URL to avoid re-uploading loops if logic changes (optional safety)
+      if (!finalAvatarUrl.includes('supabase.co')) {
+        const uploadedUrl = await uploadAvatarFromUrl(finalAvatarUrl, telegramId ? `tg_${telegramId}` : null);
+        if (uploadedUrl) {
+          finalAvatarUrl = uploadedUrl;
+        }
+      }
+    }
+
     // Prepare contact data (only fields that exist in Supabase)
     const contactData = {
       name: name || existingContact?.name || `User ${telegramId || 'Unknown'}`,
@@ -717,6 +735,7 @@ router.post('/contact', verifyWebhookToken, async (req, res) => {
       status: status || 'active',
       rating: rating ? parseInt(rating) : null,
       manager_id: manager_id ? parseInt(manager_id) : null,
+      avatar_url: finalAvatarUrl,
     };
 
     let result;

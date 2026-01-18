@@ -87,6 +87,9 @@ const ContactDetailPage: React.FC = () => {
     const socketUrl = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
     socketRef.current = io(socketUrl, {
       transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
     });
 
     socketRef.current.on('connect', () => {
@@ -109,8 +112,28 @@ const ContactDetailPage: React.FC = () => {
       }
     });
 
+    const handleReconnect = () => {
+      console.log('Socket reconnected, refreshing messages...');
+      fetchAllMessages();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('Tab became visible, refreshing messages...');
+        fetchAllMessages();
+        if (socketRef.current && !socketRef.current.connected) {
+          socketRef.current.connect();
+        }
+      }
+    };
+
+    socketRef.current.on('connect', handleReconnect);
+    socketRef.current.io.on("reconnect", handleReconnect);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       socketRef.current?.disconnect();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   };
 
@@ -266,8 +289,11 @@ const ContactDetailPage: React.FC = () => {
         'manager'
       );
 
-      // Добавляем сообщение в список для мгновенного отображения
-      setMessages(prev => [...prev, newMsg]);
+      // Добавляем сообщение в список для мгновенного отображения (с проверкой на дубликаты)
+      setMessages(prev => {
+        if (prev.some(m => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg];
+      });
     } catch (error: any) {
       console.error('Error sending message:', error);
       message.error(error.response?.data?.error || 'Ошибка отправки сообщения');
@@ -281,7 +307,10 @@ const ContactDetailPage: React.FC = () => {
     setSending(true);
     try {
       const newMsg = await contactMessagesAPI.sendVoice(parseInt(id), voice, duration);
-      setMessages(prev => [...prev, newMsg]);
+      setMessages(prev => {
+        if (prev.some(m => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg];
+      });
     } catch (error: any) {
       console.error('Error sending voice:', error);
       message.error('Ошибка отправки голосового');
@@ -350,7 +379,7 @@ const ContactDetailPage: React.FC = () => {
             <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/contacts')}>
               Назад
             </Button>
-            <Avatar size={64} icon={<UserOutlined />} />
+            <Avatar size={64} icon={<UserOutlined />} src={contact.avatar_url} />
             <div>
               <Title level={2} style={{ margin: 0 }}>
                 {contact.name}

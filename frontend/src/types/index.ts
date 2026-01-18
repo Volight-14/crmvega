@@ -141,6 +141,7 @@ export interface Contact {
   Loyality?: number;
   TotalSumExchanges?: number;
   WhoInvite?: string;
+  avatar_url?: string;
 }
 
 export interface InboxContact extends Contact {

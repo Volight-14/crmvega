@@ -59,6 +59,9 @@ const InboxPage: React.FC = () => {
         const socketUrl = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
         socketRef.current = io(socketUrl, {
             transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: 10,
+            reconnectionDelay: 1000,
         });
 
         socketRef.current.on('connect', () => {
@@ -99,10 +102,41 @@ const InboxPage: React.FC = () => {
             }
         };
 
+        const handleReconnect = () => {
+            console.log('Socket reconnected, refreshing data...');
+            fetchContacts();
+            if (selectedContact) {
+                fetchMessages(selectedContact.id);
+            }
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                console.log('Tab became visible, refreshing data...');
+                fetchContacts();
+                if (selectedContact) {
+                    fetchMessages(selectedContact.id);
+                }
+                // Optional: ensure socket is connected
+                if (socketRef.current && !socketRef.current.connected) {
+                    socketRef.current.connect();
+                }
+            }
+        };
+
+        socketRef.current.on('connect', handleReconnect);
+        // Also listen for explicit reconnect event
+        socketRef.current.io.on("reconnect", handleReconnect);
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
         socketRef.current.on('contact_message', handleNewMessage);
 
         return () => {
             socketRef.current?.off('contact_message', handleNewMessage);
+            socketRef.current?.off('connect', handleReconnect);
+            socketRef.current?.io.off("reconnect", handleReconnect);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
     }, [selectedContact]);
 
@@ -158,7 +192,10 @@ const InboxPage: React.FC = () => {
         setSending(true);
         try {
             const newMessage = await contactMessagesAPI.sendToContact(selectedContact.id, text, 'manager');
-            setMessages(prev => [...prev, newMessage]);
+            setMessages(prev => {
+                if (prev.some(m => m.id === newMessage.id)) return prev;
+                return [...prev, newMessage];
+            });
             fetchContacts();
             scrollToBottom();
         } catch (error) {
@@ -174,7 +211,10 @@ const InboxPage: React.FC = () => {
         setSending(true);
         try {
             const newMessage = await contactMessagesAPI.sendVoice(selectedContact.id, voice, duration);
-            setMessages(prev => [...prev, newMessage]);
+            setMessages(prev => {
+                if (prev.some(m => m.id === newMessage.id)) return prev;
+                return [...prev, newMessage];
+            });
             fetchContacts();
             scrollToBottom();
         } catch (error: any) {
