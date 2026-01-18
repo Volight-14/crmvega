@@ -217,6 +217,30 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
     }
   };
 
+  const handleSendFile = async (file: File) => {
+    if (sending) return;
+    setSending(true);
+    try {
+      if (activeTab === 'client') {
+        const replyId = replyTo && 'message_id_tg' in replyTo ? replyTo.message_id_tg as number : undefined;
+        // Caption currently undefined
+        const newMsg = await orderMessagesAPI.sendClientFile(orderId, file, undefined, replyId);
+        setClientMessages(prev => [...prev, newMsg]);
+      } else {
+        const replyId = replyTo ? replyTo.id : undefined;
+        const newMsg = await orderMessagesAPI.sendInternalFile(orderId, file, replyId);
+        setInternalMessages(prev => [...prev, newMsg]);
+      }
+      setReplyTo(null);
+      scrollToBottom();
+    } catch (error) {
+      console.error('Error sending file:', error);
+      antMessage.error('Ошибка отправки файла');
+    } finally {
+      setSending(false);
+    }
+  };
+
   // Rendering
   const items = [
     {
@@ -370,6 +394,7 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
       <ChatInput
         onSendText={handleSendText}
         onSendVoice={handleSendVoice}
+        onSendFile={handleSendFile}
         sending={sending}
       />
     </div>
