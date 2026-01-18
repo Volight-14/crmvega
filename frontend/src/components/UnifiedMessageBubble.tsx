@@ -418,9 +418,9 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
                     )}
 
                     {/* Text Content (if not just an attachment) */}
-                    {msg.content && !['image', 'video', 'video_note', 'voice'].includes(msg.message_type || '') && (
+                    {(!['image', 'video', 'video_note', 'voice'].includes(msg.message_type || '')) && (
                         <div className="message-content" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                            {linkifyText(msg.content)}
+                            {msg.content ? linkifyText(msg.content) : <span style={{ opacity: 0.5, fontStyle: 'italic' }}>(Пустое сообщение)</span>}
                         </div>
                     )}
 
