@@ -62,6 +62,9 @@ router.get('/', (req, res) => {
 // Webhook для создания сообщения из Bubble
 router.post('/message', verifyWebhookToken, async (req, res) => {
   try {
+    console.log('[Bubble Webhook] POST /message - Payload Keys:', Object.keys(req.body));
+    console.log('[Bubble Webhook] POST /message - Full Body:', JSON.stringify(req.body, null, 2));
+
     const {
       lead_id,
       content,
