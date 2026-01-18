@@ -73,16 +73,30 @@ app.use((req, res, next) => {
       // Try standard parsing first
       req.body = JSON.parse(req.body);
     } catch (err) {
+      console.error('Initial JSON Parse Failed. Attempting auto-fix...');
+      console.error('Error snippet:', req.body.substring(0, 500)); // Log the bad body to debug
+
       // Attempt to fix unquoted keys/values from Bubble
       try {
-        const fixed = req.body
+        let fixed = req.body
+          // Fix unquoted yes/no
           .replace(/("\s*:\s*)no\b/g, '$1false')
           .replace(/("\s*:\s*)yes\b/g, '$1true');
+
+        // Attempt to quote unquoted alphanumerics that are likely IDs or strings
+        // Look for: : value (where value is not quoted, not true/false/null/number)
+        // This regex captures: (: whitespace) (value) (whitespace , or })
+        // It excludes: true, false, null, numbers (starting with digit or -), quoted strings
+        // Known issue: might break complex nested structures if not careful, but works for simple Bubble payloads
+        fixed = fixed.replace(/(:\s*)(?!true|false|null|\-?[\d\.]+|"[^"]*"|\[|\{)([a-zA-Z0-9_\-\.\/]+)(\s*[,}])/g, '$1"$2"$3');
+
         req.body = JSON.parse(fixed);
+        console.log('JSON accepted after auto-fix.');
       } catch (err2) {
-        // If still invalid, pass the error
-        console.error('JSON Parse Error:', err.message);
-        return next(err);
+        // If still invalid, pass the error but LOG IT
+        console.error('JSON Parse Error Final:', err2.message);
+        console.error('Failed Body:', req.body);
+        return next(err2);
       }
     }
   }
