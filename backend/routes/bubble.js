@@ -182,8 +182,6 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       });
     }
 
-    const allowedAuthorTypes = ['Админ', 'Менеджер', 'Оператор', 'Служба заботы', 'Бот', 'Клиент'];
-
     if (!author_type || typeof author_type !== 'string') {
       return res.status(400).json({
         success: false,
@@ -194,13 +192,8 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
 
     const normalizedAuthorType = author_type.trim();
 
-    if (!allowedAuthorTypes.includes(normalizedAuthorType)) {
-      return res.status(400).json({
-        success: false,
-        error: `Invalid author_type`,
-        received: author_type
-      });
-    }
+    // Removed restriction on author_type values.
+    // Any string is now allowed and saved as-is.
 
     // Нормализация и подготовка данных для вставки
 
