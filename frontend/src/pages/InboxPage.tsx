@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 
 import { contactsAPI, contactMessagesAPI, orderMessagesAPI, ordersAPI } from '../services/api';
-import { InboxContact, Message, Order } from '../types';
+import { InboxContact, Message, Order, ORDER_STATUSES } from '../types';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
     Layout,
@@ -16,7 +16,8 @@ import {
     Tag,
     Badge,
     Space,
-    message as antMessage
+    message as antMessage,
+    Grid
 } from 'antd';
 import {
     SearchOutlined,
@@ -275,12 +276,15 @@ const InboxPage: React.FC = () => {
         }
     };
 
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const screens = Grid.useBreakpoint();
+    const isMobile = !screens.md; // Tablet (768px) is not mobile in this context, but we handle responsive width
+
+    // Legacy generic isMobile variable mapping if needed, or just use !screens.md directly
+    // const [isMobile, setIsMobile] = useState(window.innerWidth < 768); 
+    // replacing the above with derived value
 
     useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth < 768);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        // No manual resize listener needed
     }, []);
 
     const scrollToBottom = () => {
@@ -296,7 +300,7 @@ const InboxPage: React.FC = () => {
         <Layout style={{ height: 'calc(100vh - 100px)', background: '#fff', border: '1px solid #f0f0f0', borderRadius: 8 }}>
             {showList && (
                 <Sider
-                    width={isMobile ? '100%' : 350}
+                    width={isMobile ? '100%' : screens.xl ? 350 : 280}
                     theme="light"
                     style={{ borderRight: isMobile ? 'none' : '1px solid #f0f0f0' }}
                 >
@@ -346,11 +350,26 @@ const InboxPage: React.FC = () => {
                                                 </div>
                                             }
                                             description={
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                    <Text type="secondary" style={{ width: 180 }} ellipsis>
-                                                        {contact.last_message?.content || 'Нет сообщений'}
-                                                    </Text>
-                                                    {contact.telegram_user_id && <Tag color="blue" style={{ margin: 0, fontSize: 10 }}>TG</Tag>}
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <Text type="secondary" style={{ maxWidth: 180 }} ellipsis>
+                                                            {contact.last_message?.content || 'Нет сообщений'}
+                                                        </Text>
+                                                        {contact.telegram_user_id && <Tag color="blue" style={{ margin: 0, fontSize: 10 }}>TG</Tag>}
+                                                    </div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                        {contact.last_order_status && ORDER_STATUSES[contact.last_order_status as keyof typeof ORDER_STATUSES] && (
+                                                            <Tag color={ORDER_STATUSES[contact.last_order_status as keyof typeof ORDER_STATUSES].color || 'default'} style={{ margin: 0, fontSize: 10, lineHeight: '16px', padding: '0 4px' }}>
+                                                                {ORDER_STATUSES[contact.last_order_status as keyof typeof ORDER_STATUSES].label}
+                                                            </Tag>
+                                                        )}
+                                                        {contact.responsible_person && (
+                                                            <Text type="secondary" style={{ fontSize: 11 }}>
+                                                                <UserOutlined style={{ marginRight: 4 }} />
+                                                                {contact.responsible_person}
+                                                            </Text>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             }
                                         />

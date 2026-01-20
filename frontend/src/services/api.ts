@@ -95,6 +95,11 @@ export const messagesAPI = {
     const response = await api.get(`/messages/lead/${leadId}`, { params });
     return response.data;
   },
+
+  addReaction: async (messageId: number, emoji: string): Promise<Message> => {
+    const response = await api.post(`/messages/${messageId}/reactions`, { emoji });
+    return response.data;
+  },
   // REMOVED: send() method - backend endpoint deleted
   // Use contactMessagesAPI.sendToContact() or orderMessagesAPI.sendClientMessage() instead
 };

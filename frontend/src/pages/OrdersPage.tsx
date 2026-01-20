@@ -8,7 +8,7 @@ import {
   Select,
   Tag,
   Avatar,
-  // Badge,
+  Badge,
   Modal,
   Form,
   message,
@@ -227,22 +227,24 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onClick, onStatusChange, o
         }}>
           {/* Last Message */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            {order.last_message && (
-              <div style={{
-                background: '#f0f5ff',
-                borderRadius: '8px 8px 8px 0',
-                padding: '6px 10px',
-                display: 'inline-block',
-                maxWidth: '100%'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Avatar size={16} src={order.contact?.name ? undefined : undefined} style={{ backgroundColor: '#87d068', flexShrink: 0 }} icon={<UserOutlined style={{ fontSize: 10 }} />} />
-                  <Text style={{ fontSize: 12, color: '#262626' }} ellipsis>
-                    {order.last_message.content}
-                  </Text>
+            <Badge count={order.unread_count} offset={[10, 0]} size="small">
+              {order.last_message && (
+                <div style={{
+                  background: '#f0f5ff',
+                  borderRadius: '8px 8px 8px 0',
+                  padding: '6px 10px',
+                  display: 'inline-block',
+                  maxWidth: '100%'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Avatar size={16} src={order.contact?.name ? undefined : undefined} style={{ backgroundColor: '#87d068', flexShrink: 0 }} icon={<UserOutlined style={{ fontSize: 10 }} />} />
+                    <Text style={{ fontSize: 12, color: '#262626' }} ellipsis>
+                      {order.last_message.content}
+                    </Text>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </Badge>
           </div>
 
           {/* Status dropdown trigger as Tag */}
@@ -284,7 +286,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onClick, onStatusChange, o
                 <Option key={opt.value} value={opt.value}>
                   <Space size={4}>
                     <span style={{ color: opt.color }}>●</span>
-                    <span style={{ fontSize: 12 }}>{opt.label}</span>
+                    <span style={{ fontSize: 14 }}>{opt.label}</span>
                   </Space>
                 </Option>
               ))}

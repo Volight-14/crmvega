@@ -12,7 +12,7 @@ export interface Message {
   id: number;
   lead_id: string; // Keep lead_id as it maps to main_id or legacy
   main_id?: string;
-  author_type: 'manager' | 'user' | 'Клиент' | 'Оператор' | 'Бот' | 'Админ' | 'Менеджер' | 'Служба заботы';
+  author_type: 'manager' | 'user' | 'customer' | 'Клиент' | 'Оператор' | 'Бот' | 'Админ' | 'Менеджер' | 'Служба заботы';
   content: string;
   message_type?: 'text' | 'image' | 'file' | 'voice' | 'video' | 'video_note' | 'sticker';
   message_id_tg?: number | string;
@@ -149,6 +149,8 @@ export interface InboxContact extends Contact {
   last_active?: string;
   unread_count?: number;
   latest_order_id?: number;
+  last_order_status?: string;
+  responsible_person?: string;
 }
 
 export interface Order { // Renamed from Deal
@@ -232,6 +234,7 @@ export interface Order { // Renamed from Deal
   UndoStep?: string;
   OnlineExchInfo?: string;
   last_message?: Message;
+  unread_count?: number;
 }
 
 export interface Note {

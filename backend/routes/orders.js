@@ -94,24 +94,37 @@ router.get('/', auth, async (req, res) => {
           // For now, fetching all and filtering in-memory is vastly faster than 500 requests.
           const { data: allMessages } = await supabase
             .from('messages')
-            .select('main_id, content, "Created Date", author_type')
-            .in('main_id', mainIds.map(String)) // Ensure strings
-            .in('author_type', ['user', 'Клиент', 'Client'])
+            .select('main_id, content, "Created Date", author_type, status, is_read')
+            .in('main_id', mainIds.map(String))
+            .in('author_type', ['user', 'Клиент', 'Client', 'customer'])
             .order('"Created Date"', { ascending: false });
 
           if (allMessages) {
             // Group and pick latest
             const lastMessagesMap = {};
+            const unreadCountMap = {};
+
             for (const msg of allMessages) {
-              // Since we ordered by Date DESC, the first one we encounter for a main_id is the latest
-              if (!lastMessagesMap[msg.main_id]) {
-                lastMessagesMap[msg.main_id] = msg;
+              const mId = String(msg.main_id);
+
+              // Latest message
+              if (!lastMessagesMap[mId]) {
+                lastMessagesMap[mId] = msg;
+              }
+
+              // Count unread
+              // Assuming 'status' != 'read' means unread for client messages
+              // Or check is_read (which might be used for internal read status? client messages usually use status='delivered')
+              // Let's check both: if status is NOT read AND is_read is falsy (if applicable)
+              if (msg.status !== 'read' && msg.status !== 'blocked' && msg.status !== 'deleted_chat') {
+                unreadCountMap[mId] = (unreadCountMap[mId] || 0) + 1;
               }
             }
 
             orders = orders.map(order => ({
               ...order,
-              last_message: order.main_id ? lastMessagesMap[String(order.main_id)] : null
+              last_message: order.main_id ? lastMessagesMap[String(order.main_id)] : null,
+              unread_count: order.main_id ? (unreadCountMap[String(order.main_id)] || 0) : 0
             }));
           }
         }

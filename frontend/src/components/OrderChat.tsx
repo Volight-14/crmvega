@@ -11,7 +11,7 @@ import {
   TeamOutlined,
 } from '@ant-design/icons';
 import { Message, InternalMessage } from '../types';
-import { orderMessagesAPI } from '../services/api';
+import { orderMessagesAPI, messagesAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import io from 'socket.io-client';
 import { UnifiedMessageBubble } from './UnifiedMessageBubble';
@@ -235,6 +235,16 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName, isMobile = 
     }
   };
 
+  const handleAddReaction = async (msg: Message, emoji: string) => {
+    try {
+      await messagesAPI.addReaction(msg.id, emoji);
+      // Socket 'message_updated' will update the UI
+    } catch (error) {
+      console.error('Error adding reaction:', error);
+      antMessage.error('Ошибка добавления реакции');
+    }
+  };
+
   // Rendering
   const items = [
     {
@@ -294,6 +304,7 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName, isMobile = 
                 msg={msg}
                 isOwn={isOwn}
                 onReply={(m) => setReplyTo(m)}
+                onAddReaction={handleAddReaction}
                 replyMessage={replyCtx}
                 variant="client"
               // alignment defaults: Client=Left, Team=Right

@@ -490,7 +490,7 @@ const OrderDetailPage: React.FC = () => {
       }}>
         {/* Left Sidebar - Order Info */}
         <div style={{
-          width: isMobile ? '100%' : 450,
+          width: isMobile ? '100%' : screens.xl ? 450 : 320,
           flexShrink: 0,
           display: 'flex',
           flexDirection: 'column',

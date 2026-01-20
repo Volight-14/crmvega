@@ -590,4 +590,59 @@ router.post('/contact/:contactId/file', auth, upload.single('file'), async (req,
 // REMOVED: Generic POST /messages/ endpoint - not used in frontend
 // Use /messages/contact/:contactId or /order-messages/:orderId/client instead
 
+// Добавить реакцию к сообщению
+router.post('/:id/reactions', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { emoji } = req.body;
+
+    // 1. Получаем текущие реакции
+    const { data: message, error: fetchError } = await supabase
+      .from('messages')
+      .select('id, reactions, main_id')
+      .eq('id', id)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    // 2. Добавляем новую реакцию
+    const currentReactions = message.reactions || [];
+    // Проверяем, есть ли уже такая реакция от этого пользователя (если нужно toggle)
+    // Пока просто добавляем
+    const newReaction = {
+      emoji,
+      author: req.manager.name,
+      author_id: req.manager.id,
+      created_at: new Date().toISOString()
+    };
+
+    const updatedReactions = [...currentReactions, newReaction];
+
+    // 3. Обновляем БД
+    const { data: updatedMessage, error: updateError } = await supabase
+      .from('messages')
+      .update({ reactions: updatedReactions })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    // 4. Socket Emit
+    const io = req.app.get('io');
+    if (io) {
+      if (message.main_id) io.to(`lead_${message.main_id}`).emit('message_updated', updatedMessage);
+      // Также ищем Order ID чтобы отправить в order_room? 
+      // Обычно клиент слушает lead room или order room.
+      // Для упрощения отправляем везде, где можем, но у нас нет orderId здесь напрямую без join.
+      // Front слушает lead_XYZ, так что должно хватить.
+    }
+
+    res.json(updatedMessage);
+  } catch (error) {
+    console.error('Error adding reaction:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
 module.exports = router;

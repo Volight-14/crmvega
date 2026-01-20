@@ -113,7 +113,7 @@ router.get('/summary', auth, async (req, res) => {
     const contactIds = contacts.map(c => c.id);
     const { data: allOrders } = await supabase
       .from('orders')
-      .select('id, contact_id, main_id, created_at')
+      .select('id, contact_id, main_id, created_at, status, manager:managers(name)')
       .in('contact_id', contactIds)
       .order('created_at', { ascending: false });
 
@@ -182,7 +182,9 @@ router.get('/summary', auth, async (req, res) => {
         name: displayName,
         last_message: lastMessage,
         last_active: contact.last_message_at || lastMessage?.['Created Date'],
-        latest_order_id: latestOrder?.id || null // Используем реальный order.id, НЕ main_id!
+        latest_order_id: latestOrder?.id || null, // Используем реальный order.id, НЕ main_id!
+        last_order_status: latestOrder?.status,
+        responsible_person: latestOrder?.manager?.name
       };
     });
 
