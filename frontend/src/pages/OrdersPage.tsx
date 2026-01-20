@@ -97,8 +97,13 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onClick, onStatusChange, o
     const date = new Date(dateString);
     return date.toLocaleDateString('ru-RU', {
       day: 'numeric',
-      month: 'short'
-    }).replace('.', '') + ', ' + date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+      month: 'short',
+      timeZone: 'Europe/Madrid'
+    }).replace('.', '') + ', ' + date.toLocaleTimeString('ru-RU', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Europe/Madrid'
+    });
   };
 
   // Helper to clean values (remove 'null' strings)
