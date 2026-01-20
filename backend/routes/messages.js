@@ -119,7 +119,7 @@ router.get('/contact/:contactId', auth, async (req, res) => {
 
     if (contactError) throw contactError;
 
-    console.log(`[GET /contact/${contactId}] Found ${contact?.orders?.length || 0} orders`);
+
 
     // Собираем все main_id в Set для уникальности
     const leadIds = new Set();
@@ -127,7 +127,7 @@ router.get('/contact/:contactId', auth, async (req, res) => {
     // Добавляем telegram_user_id контакта
     if (contact?.telegram_user_id) {
       const tgId = String(contact.telegram_user_id);
-      console.log(`[GET /contact/${contactId}] Adding TG ID:`, tgId);
+
       leadIds.add(tgId);
     }
 
@@ -139,7 +139,7 @@ router.get('/contact/:contactId', auth, async (req, res) => {
     });
 
     const leadIdsArray = Array.from(leadIds);
-    console.log(`[GET /contact/${contactId}] Final leadIds to search:`, leadIdsArray);
+
 
     // Получаем сообщения одним запросом
     let allMessages = [];
@@ -184,11 +184,9 @@ router.post('/contact/:contactId', auth, async (req, res) => {
 
     let orderId = activeOrder?.id;
     let leadId = activeOrder?.main_id;
-    console.log(`[POST /contact/${contactId}] Initial: orderId=${orderId}, leadId=${leadId}`);
 
     // Если нет активной заявки, создаем новую
     if (!orderId) {
-      console.log(`[POST /contact/${contactId}] No active order. Creating new.`);
       const { data: newOrder, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -203,22 +201,18 @@ router.post('/contact/:contactId', auth, async (req, res) => {
 
       if (orderError) throw orderError;
       orderId = newOrder.id;
-      console.log(`[POST /contact/${contactId}] Created new order:`, newOrder.id);
     }
 
     // Генерируем leadId (thread ID) если нет
     if (!leadId) {
       // Если у заявки нет ID чата, генерируем новый NUMERIC ID
       leadId = parseInt(`${Date.now()}${Math.floor(Math.random() * 1000)}`);
-      console.log(`[POST /contact/${contactId}] Generated new leadId:`, leadId);
 
       await supabase
         .from('orders')
         .update({ main_id: leadId }) // Обновляем только main_id
         .eq('id', orderId);
     }
-
-    console.log(`[POST /contact/${contactId}] Final leadId for message:`, leadId);
 
     // Если сообщение от менеджера, отправляем через Telegram бота (если есть telegram_user_id)
     let telegramMessageId = null;
@@ -324,7 +318,7 @@ router.post('/contact/:contactId/voice', auth, upload.single('voice'), async (re
       return res.status(400).json({ error: 'Файл не найден' });
     }
 
-    console.log(`[VoiceContact] Processing for contact ${contactId}, duration=${duration}`);
+
 
     // 1. Находим активную заявку контакта или создаем новую (Logic duplicated from text message route)
     const { data: activeOrder } = await supabase
@@ -462,7 +456,7 @@ router.post('/contact/:contactId/file', auth, upload.single('file'), async (req,
       return res.status(400).json({ error: 'Файл не найден' });
     }
 
-    console.log(`[FileContact] Processing file for contact ${contactId}`);
+
 
     // 1. Находим активную заявку контакта или создаем новую
     const { data: activeOrder } = await supabase

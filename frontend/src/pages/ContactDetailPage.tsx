@@ -276,13 +276,19 @@ const ContactDetailPage: React.FC = () => {
 
     setSending(true);
     try {
-      // Отправляем сообщение напрямую контакту (API автоматически создаст/найдет заявку)
-      await contactMessagesAPI.sendToContact(
-        parseInt(id),
-        text,
-        'manager'
-      );
-      // Removed optimistic update to prevent duplicates (socket handles it)
+      // Находим активную заявку (как в OrderChat)
+      const activeOrder = orders.find(o =>
+        !['completed', 'scammer', 'client_rejected', 'lost'].includes(o.status)
+      ) || orders[0]; // Берём последнюю если нет активной
+
+      if (!activeOrder) {
+        message.error('Нет заявок для отправки сообщения');
+        return;
+      }
+
+      // Отправляем через рабочий API из OrderChat
+      await orderMessagesAPI.sendClientMessage(activeOrder.id, text);
+      // Socket обновит сообщения
     } catch (error: any) {
       console.error('Error sending message:', error);
       message.error(error.response?.data?.error || 'Ошибка отправки сообщения');
@@ -295,8 +301,16 @@ const ContactDetailPage: React.FC = () => {
     if (!id || !manager) return;
     setSending(true);
     try {
-      await contactMessagesAPI.sendVoice(parseInt(id), voice, duration);
-      // Removed optimistic update to prevent duplicates (socket handles it)
+      const activeOrder = orders.find(o =>
+        !['completed', 'scammer', 'client_rejected', 'lost'].includes(o.status)
+      ) || orders[0];
+
+      if (!activeOrder) {
+        message.error('Нет заявок для отправки сообщения');
+        return;
+      }
+
+      await orderMessagesAPI.sendClientVoice(activeOrder.id, voice, duration);
     } catch (error: any) {
       console.error('Error sending voice:', error);
       message.error('Ошибка отправки голосового');
@@ -309,7 +323,16 @@ const ContactDetailPage: React.FC = () => {
     if (!id || !manager) return;
     setSending(true);
     try {
-      await contactMessagesAPI.sendFile(parseInt(id), file);
+      const activeOrder = orders.find(o =>
+        !['completed', 'scammer', 'client_rejected', 'lost'].includes(o.status)
+      ) || orders[0];
+
+      if (!activeOrder) {
+        message.error('Нет заявок для отправки сообщения');
+        return;
+      }
+
+      await orderMessagesAPI.sendClientFile(activeOrder.id, file);
     } catch (error: any) {
       console.error('Error sending file:', error);
       message.error(error.response?.data?.error || 'Ошибка отправки файла');
