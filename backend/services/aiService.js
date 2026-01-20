@@ -335,8 +335,36 @@ const aiService = {
   // WEBSITE CONTENT
   // ============================================
 
+  // ============================================
+  // WEBSITE CONTENT
+  // ============================================
+
   async getWebsiteContent({ section, search }) {
-    let query = supabase
+    // SEPARATION: chat_templates live in public.chat_templates
+    // Everything else lives in Dataset.website_content
+
+    if (section === 'chat_templates') {
+      let query = supabase
+        .from('chat_templates')
+        .select('id, title, content, created_at')
+        .order('created_at', { ascending: false });
+
+      if (search) {
+        const safeSearch = sanitizeSearch(search);
+        if (safeSearch) {
+          query = query.or(`title.ilike.%${safeSearch}%,content.ilike.%${safeSearch}%`);
+        }
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      // Map to expected format (add section field for compatibility)
+      const mapped = data.map(item => ({ ...item, section: 'chat_templates' }));
+      return { content: mapped };
+    }
+
+    // Default: AI Content in Dataset
+    let query = dataset()
       .from('website_content')
       .select('id, title, content, section, created_at')
       .order('created_at', { ascending: false });
@@ -346,7 +374,6 @@ const aiService = {
     }
 
     if (search) {
-      // SECURITY FIX: sanitize search input
       const safeSearch = sanitizeSearch(search);
       if (safeSearch) {
         query = query.or(`title.ilike.%${safeSearch}%,content.ilike.%${safeSearch}%`);
@@ -359,18 +386,47 @@ const aiService = {
   },
 
   async getWebsiteContentItem(id) {
-    const { data, error } = await supabase
+    // Try public first (most likely for user interactions)
+    // Actually, ID collision might be an issue if we just guess.
+    // But since we separated them, we need to know WHERE to look.
+    // The Frontend calls this with just ID.
+    // Strategy: Try chat_templates first. If not found, try Dataset.
+
+    let { data, error } = await supabase
+      .from('chat_templates')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (!error && data) {
+      return { ...data, section: 'chat_templates' };
+    }
+
+    // Fallback to Dataset
+    const { data: aiData, error: aiError } = await dataset()
       .from('website_content')
       .select('*')
       .eq('id', id)
       .single();
-    if (error) throw error;
-    return data;
+
+    if (aiError) throw aiError;
+    return aiData;
   },
 
   async createWebsiteContent(contentData) {
     const { title, content, section } = contentData;
-    const { data, error } = await supabase
+
+    if (section === 'chat_templates') {
+      const { data, error } = await supabase
+        .from('chat_templates')
+        .insert({ title, content })
+        .select()
+        .single();
+      if (error) throw error;
+      return { ...data, section: 'chat_templates' };
+    }
+
+    const { data, error } = await dataset()
       .from('website_content')
       .insert({ title, content, section })
       .select()
@@ -380,7 +436,30 @@ const aiService = {
   },
 
   async updateWebsiteContent(id, contentData) {
-    const { data, error } = await supabase
+    // First, check if it exists in chat_templates
+    const { data: existing, error: checkError } = await supabase
+      .from('chat_templates')
+      .select('id')
+      .eq('id', id)
+      .maybeSingle(); // Don't throw if not found
+
+    if (existing) {
+      const { data, error } = await supabase
+        .from('chat_templates')
+        .update({
+          title: contentData.title,
+          content: contentData.content
+          // ignore section update for this table
+        })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return { ...data, section: 'chat_templates' };
+    }
+
+    // Otherwise update in Dataset
+    const { data, error } = await dataset()
       .from('website_content')
       .update(contentData)
       .eq('id', id)
@@ -391,22 +470,50 @@ const aiService = {
   },
 
   async deleteWebsiteContent(id) {
-    const { error } = await supabase
+    // Try delete from chat_templates
+    const { error: chatError, count } = await supabase
+      .from('chat_templates')
+      .delete()
+      .eq('id', id); // delete doesn't return count by default in simple syntax unless we ask, but here we just check error.
+
+    // If we assume IDs are unique enough or we just try both?
+    // Safer to try both or check existence.
+    // Let's try Dataset too if no error (or even if error?).
+
+    // Actually, if we successfully deleted from chat_templates, we are done?
+    // Supabase delete returns status 204.
+
+    // Let's just try to delete from BOTH to be sure.
+
+    await supabase.from('chat_templates').delete().eq('id', id);
+
+    const { error } = await dataset()
       .from('website_content')
       .delete()
       .eq('id', id);
+
+    // If it was in one of them, success. 
+    // We can ignore 'not found' error if Supabase throws it, but usually delete just returns 0 rows affected.
+
     if (error) throw error;
     return { success: true };
   },
 
   async getWebsiteSections() {
-    const { data, error } = await supabase
+    // Get sections from Dataset
+    const { data, error } = await dataset()
       .from('website_content')
       .select('section')
       .not('section', 'is', null);
 
     if (error) throw error;
     const sections = [...new Set(data.map(d => d.section))].filter(Boolean);
+
+    // Add 'chat_templates' manually as it's now special
+    if (!sections.includes('chat_templates')) {
+      sections.push('chat_templates');
+    }
+
     return { sections };
   },
 
