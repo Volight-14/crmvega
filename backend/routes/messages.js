@@ -597,13 +597,18 @@ router.post('/:id/reactions', auth, async (req, res) => {
     const { emoji } = req.body;
 
     // 1. Получаем текущие реакции и message_id_tg
+    console.log('[Reaction] Request for msg:', id, 'emoji:', emoji);
     const { data: message, error: fetchError } = await supabase
       .from('messages')
       .select('id, reactions, main_id, message_id_tg')
       .eq('id', id)
       .single();
 
-    if (fetchError) throw fetchError;
+    if (fetchError) {
+      console.error('[Reaction] Fetch error:', fetchError);
+      throw fetchError;
+    }
+    console.log('[Reaction] Fetched message:', message);
 
     // 2. Добавляем новую реакцию
     const currentReactions = message.reactions || [];
@@ -624,39 +629,65 @@ router.post('/:id/reactions', auth, async (req, res) => {
       .select()
       .single();
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      console.error('[Reaction] Update error:', updateError);
+      throw updateError;
+    }
 
     // 4. Отправляем реакцию в Telegram
     if (message.message_id_tg && process.env.TELEGRAM_BOT_TOKEN) {
+      console.log('[Reaction] Attempting to send to TG. MsgId:', message.message_id_tg);
       try {
         // Находим telegram_user_id через main_id (связь с orders -> contacts)
-        const { data: orderData } = await supabase
+        // Simplified query to avoid join issues if any
+        const { data: orderData, error: orderError } = await supabase
           .from('orders')
-          .select('contact:contacts(telegram_user_id)')
+          .select('contact_id')
           .eq('main_id', message.main_id)
-          .not('contact', 'is', null)
           .limit(1)
           .single();
 
-        const telegramUserId = orderData?.contact?.telegram_user_id;
+        if (orderError) console.error('[Reaction] Order fetch error:', orderError);
 
-        if (telegramUserId) {
-          await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/setMessageReaction`, {
-            chat_id: telegramUserId,
-            message_id: message.message_id_tg,
-            reaction: [{ type: 'emoji', emoji: emoji }]
-          });
+        if (orderData?.contact_id) {
+          const { data: contactData, error: contactError } = await supabase
+            .from('contacts')
+            .select('telegram_user_id')
+            .eq('id', orderData.contact_id)
+            .single();
+
+          if (contactError) console.error('[Reaction] Contact fetch error:', contactError);
+
+          const telegramUserId = contactData?.telegram_user_id;
+          console.log('[Reaction] TG User ID:', telegramUserId);
+
+          if (telegramUserId) {
+            const tgRes = await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/setMessageReaction`, {
+              chat_id: telegramUserId,
+              message_id: message.message_id_tg,
+              reaction: [{ type: 'emoji', emoji: emoji }]
+            });
+            console.log('[Reaction] TG Response success:', tgRes.data);
+          } else {
+            console.log('[Reaction] No TG User ID found');
+          }
+        } else {
+          console.log('[Reaction] No Order/Contact found for main_id:', message.main_id);
         }
       } catch (tgError) {
-        console.error('Error sending reaction to Telegram:', tgError.response?.data || tgError.message);
-        // Не блокируем ответ клиенту, если ошибка в телеграм
+        console.error('[Reaction] TG Error:', tgError.response?.data || tgError.message);
       }
+    } else {
+      console.log('[Reaction] Skip TG. ID exists:', !!message.message_id_tg, 'Token exists:', !!process.env.TELEGRAM_BOT_TOKEN);
     }
 
     // 5. Socket Emit
     const io = req.app.get('io');
     if (io) {
-      if (message.main_id) io.to(`lead_${message.main_id}`).emit('message_updated', updatedMessage);
+      if (message.main_id) {
+        console.log('[Reaction] Emitting socket to lead_', message.main_id);
+        io.to(`lead_${message.main_id}`).emit('message_updated', updatedMessage);
+      }
     }
 
     res.json(updatedMessage);
