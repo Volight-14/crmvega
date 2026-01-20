@@ -180,7 +180,7 @@ router.post('/contact/:contactId', auth, async (req, res) => {
       .in('status', ['unsorted', 'new', 'negotiation', 'waiting', 'ready_to_close'])
       .order('created_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     let orderId = activeOrder?.id;
     let leadId = activeOrder?.main_id;
@@ -334,7 +334,7 @@ router.post('/contact/:contactId/voice', auth, upload.single('voice'), async (re
       .in('status', ['unsorted', 'new', 'negotiation', 'waiting', 'ready_to_close'])
       .order('created_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     let orderId = activeOrder?.id;
     let leadId = activeOrder?.main_id;
@@ -472,7 +472,7 @@ router.post('/contact/:contactId/file', auth, upload.single('file'), async (req,
       .in('status', ['unsorted', 'new', 'negotiation', 'waiting', 'ready_to_close'])
       .order('created_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     let orderId = activeOrder?.id;
     let leadId = activeOrder?.main_id;
