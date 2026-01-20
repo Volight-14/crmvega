@@ -214,6 +214,14 @@ const InboxPage: React.FC = () => {
             const newMsg = await orderMessagesAPI.sendClientMessage(activeOrder.id, text);
             // Оптимистичное обновление
             setMessages(prev => [...prev, newMsg]);
+
+            // Обновляем последнее сообщение в списке контактов
+            setContacts(prev => prev.map(c =>
+                c.id === selectedContact.id
+                    ? { ...c, last_message: newMsg, last_message_at: newMsg.created_at || newMsg['Created Date'] }
+                    : c
+            ).sort((a, b) => new Date(b.last_message_at || 0).getTime() - new Date(a.last_message_at || 0).getTime()));
+
             scrollToBottom();
         } catch (error) {
             console.error('Error sending message:', error);
@@ -233,6 +241,11 @@ const InboxPage: React.FC = () => {
             }
             const newMsg = await orderMessagesAPI.sendClientVoice(activeOrder.id, voice, duration);
             setMessages(prev => [...prev, newMsg]);
+            setContacts(prev => prev.map(c =>
+                c.id === selectedContact.id
+                    ? { ...c, last_message: newMsg, last_message_at: newMsg.created_at || newMsg['Created Date'] }
+                    : c
+            ).sort((a, b) => new Date(b.last_message_at || 0).getTime() - new Date(a.last_message_at || 0).getTime()));
             scrollToBottom();
         } catch (error: any) {
             const errMsg = error.response?.data?.error || 'Ошибка отправки голосового';
@@ -252,6 +265,11 @@ const InboxPage: React.FC = () => {
             }
             const newMsg = await orderMessagesAPI.sendClientFile(activeOrder.id, file);
             setMessages(prev => [...prev, newMsg]);
+            setContacts(prev => prev.map(c =>
+                c.id === selectedContact.id
+                    ? { ...c, last_message: newMsg, last_message_at: newMsg.created_at || newMsg['Created Date'] }
+                    : c
+            ).sort((a, b) => new Date(b.last_message_at || 0).getTime() - new Date(a.last_message_at || 0).getTime()));
             scrollToBottom();
         } catch (error: any) {
             const errMsg = error.response?.data?.error || 'Ошибка отправки файла';
