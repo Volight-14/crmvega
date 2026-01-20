@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 
-import { contactsAPI, contactMessagesAPI, orderMessagesAPI, ordersAPI } from '../services/api';
+import { contactsAPI, contactMessagesAPI, orderMessagesAPI, ordersAPI, messagesAPI } from '../services/api';
 import { InboxContact, Message, Order, ORDER_STATUSES } from '../types';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
@@ -96,7 +96,16 @@ const InboxPage: React.FC = () => {
             }).sort((a, b) => new Date(b.last_message_at || 0).getTime() - new Date(a.last_message_at || 0).getTime()));
 
             // Update current chat if open
-            if (selectedContact?.id === data.contact_id) {
+            if (activeOrder && String(data.message.main_id) === String(activeOrder.main_id)) {
+                // Already handled by specific listeners below? 
+                // contact_message is generic. let's deduplicate via ID check.
+                setMessages(prev => {
+                    if (prev.some(m => m.id === data.message.id)) return prev;
+                    return [...prev, data.message];
+                });
+                scrollToBottom();
+            } else if (selectedContact?.id === data.contact_id) {
+                // Fallback if main_id mismatch or not present
                 setMessages(prev => {
                     if (prev.some(m => m.id === data.message.id)) return prev;
                     return [...prev, data.message];
@@ -105,17 +114,23 @@ const InboxPage: React.FC = () => {
             }
         };
 
+        const handleMessageUpdated = (msg: Message) => {
+            setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, ...msg } : m));
+        };
+
         const handleReconnect = () => {
             console.log('Socket reconnected, refreshing data...');
             fetchContacts();
             if (selectedContact) {
                 fetchMessages(selectedContact.id);
             }
+            if (activeOrder?.main_id) {
+                socketRef.current?.emit('join_lead', activeOrder.main_id);
+            }
         };
 
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
-                // Только проверяем соединение, не перезагружаем все данные
                 if (socketRef.current && !socketRef.current.connected) {
                     socketRef.current.connect();
                 }
@@ -123,21 +138,26 @@ const InboxPage: React.FC = () => {
         };
 
         socketRef.current.on('connect', handleReconnect);
-        // Also listen for explicit reconnect event
         socketRef.current.io.on("reconnect", handleReconnect);
-
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
         socketRef.current.on('contact_message', handleNewMessage);
+        socketRef.current.on('message_updated', handleMessageUpdated); // Listen for reaction updates
+
+        // Join active lead room
+        if (activeOrder?.main_id) {
+            socketRef.current.emit('join_lead', activeOrder.main_id);
+        }
 
         return () => {
             socketRef.current?.off('contact_message', handleNewMessage);
+            socketRef.current?.off('message_updated', handleMessageUpdated);
             socketRef.current?.off('connect', handleReconnect);
             socketRef.current?.io.off("reconnect", handleReconnect);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedContact]);
+    }, [selectedContact, activeOrder]); // Re-run when activeOrder changes to join new room
 
     // Handle URL param selection
     useEffect(() => {
@@ -195,6 +215,33 @@ const InboxPage: React.FC = () => {
         } catch (error) {
             console.error('Error fetching contact orders:', error);
             setActiveOrder(null);
+        }
+    };
+
+
+
+    const handleAddReaction = async (msg: Message, emoji: string) => {
+        // Optimistic update
+        setMessages(prev => prev.map(m => {
+            if (m.id === msg.id) {
+                const currentReactions = m.reactions || [];
+                return {
+                    ...m,
+                    reactions: [...currentReactions, {
+                        emoji,
+                        author: 'Me', // Placeholder
+                        created_at: new Date().toISOString()
+                    }]
+                };
+            }
+            return m;
+        }));
+
+        try {
+            await messagesAPI.addReaction(msg.id, emoji); // Use shared API method
+        } catch (error) {
+            console.error('Error adding reaction:', error);
+            antMessage.error('Не удалось добавить реакцию');
         }
     };
 
@@ -466,6 +513,7 @@ const InboxPage: React.FC = () => {
                                                             key={msg.id}
                                                             msg={msg}
                                                             isOwn={isOwn}
+                                                            onAddReaction={handleAddReaction}
                                                         // Reply logic can be added here if we implement onReply/replyTo state
                                                         />
                                                     );

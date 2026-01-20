@@ -636,46 +636,75 @@ router.post('/:id/reactions', auth, async (req, res) => {
 
     // 4. Отправляем реакцию в Telegram
     if (message.message_id_tg && process.env.TELEGRAM_BOT_TOKEN) {
-      console.log('[Reaction] Attempting to send to TG. MsgId:', message.message_id_tg);
+      console.log('[Reaction] Attempting to send to TG. MsgId:', message.message_id_tg, 'MainId:', message.main_id);
       try {
-        // Находим telegram_user_id через main_id (связь с orders -> contacts)
-        // Simplified query to avoid join issues if any
-        const { data: orderData, error: orderError } = await supabase
-          .from('orders')
-          .select('contact_id')
-          .eq('main_id', message.main_id)
-          .limit(1)
-          .single();
+        let telegramUserId = null;
 
-        if (orderError) console.error('[Reaction] Order fetch error:', orderError);
-
-        if (orderData?.contact_id) {
-          const { data: contactData, error: contactError } = await supabase
-            .from('contacts')
-            .select('telegram_user_id')
-            .eq('id', orderData.contact_id)
+        // Strategy 1: Find via main_id (Orders)
+        if (message.main_id) {
+          const { data: orderData } = await supabase
+            .from('orders')
+            .select('contact_id')
+            .eq('main_id', message.main_id)
+            .limit(1)
             .single();
 
-          if (contactError) console.error('[Reaction] Contact fetch error:', contactError);
+          if (orderData?.contact_id) {
+            const { data: contactData } = await supabase
+              .from('contacts')
+              .select('telegram_user_id')
+              .eq('id', orderData.contact_id)
+              .single();
+            telegramUserId = contactData?.telegram_user_id;
+          }
+        }
 
-          const telegramUserId = contactData?.telegram_user_id;
-          console.log('[Reaction] TG User ID:', telegramUserId);
+        // Strategy 2: Find via order_messages junction (if Strategy 1 failed)
+        if (!telegramUserId) {
+          console.log('[Reaction] Strategy 1 failed, trying Strategy 2 (order_messages)...');
+          const { data: orderMsgData } = await supabase
+            .from('order_messages')
+            .select('order_id')
+            .eq('message_id', id)
+            .limit(1)
+            .single();
 
-          if (telegramUserId) {
+          if (orderMsgData?.order_id) {
+            const { data: orderData } = await supabase
+              .from('orders')
+              .select('contact_id')
+              .eq('id', orderMsgData.order_id)
+              .single();
+
+            if (orderData?.contact_id) {
+              const { data: contactData } = await supabase
+                .from('contacts')
+                .select('telegram_user_id')
+                .eq('id', orderData.contact_id)
+                .single();
+              telegramUserId = contactData?.telegram_user_id;
+            }
+          }
+        }
+
+        console.log('[Reaction] Final TG User ID:', telegramUserId);
+
+        if (telegramUserId) {
+          try {
             const tgRes = await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/setMessageReaction`, {
               chat_id: telegramUserId,
               message_id: message.message_id_tg,
               reaction: [{ type: 'emoji', emoji: emoji }]
             });
-            console.log('[Reaction] TG Response success:', tgRes.data);
-          } else {
-            console.log('[Reaction] No TG User ID found');
+            console.log('[Reaction] TG Response success:', tgRes.data?.ok);
+          } catch (axiosError) {
+            console.error('[Reaction] TG Request Error:', axiosError.response?.data || axiosError.message);
           }
         } else {
-          console.log('[Reaction] No Order/Contact found for main_id:', message.main_id);
+          console.log('[Reaction] No TG User ID found after all strategies');
         }
       } catch (tgError) {
-        console.error('[Reaction] TG Error:', tgError.response?.data || tgError.message);
+        console.error('[Reaction] General Error:', tgError);
       }
     } else {
       console.log('[Reaction] Skip TG. ID exists:', !!message.message_id_tg, 'Token exists:', !!process.env.TELEGRAM_BOT_TOKEN);
