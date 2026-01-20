@@ -287,8 +287,10 @@ const ContactDetailPage: React.FC = () => {
       }
 
       // Отправляем через рабочий API из OrderChat
-      await orderMessagesAPI.sendClientMessage(activeOrder.id, text);
-      // Socket обновит сообщения
+      const newMsg = await orderMessagesAPI.sendClientMessage(activeOrder.id, text);
+      // Оптимистичное обновление как в OrderChat
+      setMessages(prev => [...prev, newMsg]);
+      scrollToBottom();
     } catch (error: any) {
       console.error('Error sending message:', error);
       message.error(error.response?.data?.error || 'Ошибка отправки сообщения');
@@ -310,7 +312,9 @@ const ContactDetailPage: React.FC = () => {
         return;
       }
 
-      await orderMessagesAPI.sendClientVoice(activeOrder.id, voice, duration);
+      const newMsg = await orderMessagesAPI.sendClientVoice(activeOrder.id, voice, duration);
+      setMessages(prev => [...prev, newMsg]);
+      scrollToBottom();
     } catch (error: any) {
       console.error('Error sending voice:', error);
       message.error('Ошибка отправки голосового');
@@ -332,7 +336,9 @@ const ContactDetailPage: React.FC = () => {
         return;
       }
 
-      await orderMessagesAPI.sendClientFile(activeOrder.id, file);
+      const newMsg = await orderMessagesAPI.sendClientFile(activeOrder.id, file);
+      setMessages(prev => [...prev, newMsg]);
+      scrollToBottom();
     } catch (error: any) {
       console.error('Error sending file:', error);
       message.error(error.response?.data?.error || 'Ошибка отправки файла');
