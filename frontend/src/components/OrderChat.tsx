@@ -112,7 +112,13 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName, isMobile = 
 
     socketRef.current.on('connect', () => {
       socketRef.current?.emit('join_order', orderId.toString());
+      if (mainId) socketRef.current?.emit('join_lead', mainId);
     });
+
+    // Also join if mainId becomes available later (and socket is already open)
+    if (socketRef.current.connected && mainId) {
+      socketRef.current.emit('join_lead', mainId);
+    }
 
     socketRef.current.on('new_client_message', (msg: Message) => {
       setClientMessages(prev => {
@@ -236,12 +242,31 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName, isMobile = 
   };
 
   const handleAddReaction = async (msg: Message, emoji: string) => {
+    // Optimistic update
+    setClientMessages(prev => prev.map(m => {
+      if (m.id === msg.id) {
+        const currentReactions = m.reactions || [];
+        // prevent duplicate reactions from same user if needed, or just append
+        // simple append for optimistic UI:
+        return {
+          ...m,
+          reactions: [...currentReactions, {
+            emoji,
+            author: manager?.name || 'Me',
+            created_at: new Date().toISOString()
+          }]
+        };
+      }
+      return m;
+    }));
+
     try {
       await messagesAPI.addReaction(msg.id, emoji);
-      // Socket 'message_updated' will update the UI
+      // Socket 'message_updated' will confirm the state
     } catch (error) {
       console.error('Error adding reaction:', error);
       antMessage.error('Ошибка добавления реакции');
+      // Revert optimistic update here if needed, but let's assume success or socket will fix it
     }
   };
 
