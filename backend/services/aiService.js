@@ -4,7 +4,7 @@ require('dotenv').config();
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
 );
 
 // Helper for Dataset schema
@@ -27,7 +27,7 @@ const aiService = {
   async getSettings() {
     const { data, error } = await supabase.rpc('get_agent_config');
     if (error) throw error;
-    
+
     const config = data || {};
     return {
       settings: {
@@ -233,11 +233,11 @@ const aiService = {
       updated_at: new Date().toISOString()
     };
     const { data, error } = await dataset()
-        .from('knowledge_base')
-        .update(updateData)
-        .eq('id', id)
-        .select()
-        .single();
+      .from('knowledge_base')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
 
     if (error) throw error;
     return data;
@@ -443,11 +443,11 @@ const aiService = {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
-      
-      const dayCount = suggestions.filter(s => 
+
+      const dayCount = suggestions.filter(s =>
         s.created_at && s.created_at.startsWith(dateStr)
       ).length;
-      
+
       dailyStats.push({ date: dateStr, count: dayCount });
     }
 
@@ -513,7 +513,7 @@ const aiService = {
         .select('operator_name, style_data')
         .eq('telegram_user_id', operator_id)
         .single();
-      
+
       if (styleData) {
         const s = styleData.style_data || {};
         styleInfo = `\n\nСтиль оператора ${styleData.operator_name}:\nТон: ${s.tone || 'профессиональный'}\nПаттерны: ${s.patterns || ''}\nФразы: ${s.phrases || ''}`;
@@ -626,7 +626,7 @@ const aiService = {
   },
 
   async updateInstruction(id, updateData) {
-     const { data, error } = await dataset()
+    const { data, error } = await dataset()
       .from('ai_instructions')
       .update(updateData)
       .eq('id', id)
@@ -691,7 +691,7 @@ const aiService = {
   async updatePromptImprovement(id, status, userId) {
     const updateData = {
       status,
-      ...(status === 'applied' && { 
+      ...(status === 'applied' && {
         applied_at: new Date().toISOString(),
         applied_by: userId
       })
