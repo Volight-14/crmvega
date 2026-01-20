@@ -218,7 +218,7 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
                 );
             }
 
-            // PDF Preview
+            // PDF Preview (Static Card to prevent auto-download)
             const isPdf = msg.file_url.match(/\.pdf$/i);
             if (isPdf) {
                 return (
@@ -228,44 +228,45 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
                     >
                         <div style={{
                             width: '240px',
-                            height: '160px',
+                            height: '80px', // Reduced height since no preview
                             border: '1px solid rgba(0,0,0,0.1)',
                             borderRadius: 8,
-                            overflow: 'hidden',
-                            position: 'relative',
-                            backgroundColor: '#f5f5f5'
+                            backgroundColor: '#f5f5f5',
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '12px',
+                            gap: 12
                         }}>
-                            <iframe
-                                src={`${msg.file_url}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`}
-                                style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }}
-                                title="PDF Preview"
-                            />
-                            {/* Overlay to ensure clickability */}
-                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1 }} />
-
                             <div style={{
-                                position: 'absolute',
-                                bottom: 0,
-                                left: 0,
-                                right: 0,
-                                background: 'rgba(0,0,0,0.6)',
-                                backdropFilter: 'blur(4px)',
-                                color: 'white',
-                                padding: '6px 12px',
-                                fontSize: '12px',
+                                width: 40,
+                                height: 40,
+                                borderRadius: 8,
+                                background: '#ff4d4f',
                                 display: 'flex',
                                 alignItems: 'center',
-                                justifyContent: 'space-between',
-                                zIndex: 2
+                                justifyContent: 'center',
+                                color: 'white'
                             }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <FileOutlined />
-                                    <span style={{ maxWidth: 140, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                        {msg.file_name || 'Документ PDF'}
-                                    </span>
-                                </div>
-                                <DownloadOutlined />
+                                <FileOutlined style={{ fontSize: 20 }} />
                             </div>
+
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{
+                                    fontWeight: 500,
+                                    fontSize: 13,
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    marginBottom: 2
+                                }}>
+                                    {msg.file_name || 'Документ PDF'}
+                                </div>
+                                <div style={{ fontSize: 11, color: '#8c8c8c' }}>
+                                    Нажмите для просмотра
+                                </div>
+                            </div>
+
+                            <DownloadOutlined style={{ color: '#8c8c8c' }} />
                         </div>
                     </div>
                 );

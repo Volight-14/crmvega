@@ -448,8 +448,11 @@ const OrdersPage: React.FC = () => {
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [editContactForm] = Form.useForm();
 
+  const [activeMobileColumn, setActiveMobileColumn] = useState<OrderStatus>('unsorted');
   const socketRef = useRef<Socket | null>(null);
   const kanbanRef = useRef<HTMLDivElement>(null);
+  // Refs for each column to scroll to them accurately
+  const columnRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -735,6 +738,16 @@ const OrdersPage: React.FC = () => {
       .map(([key]) => key as OrderStatus);
   }, []);
 
+  const scrollToColumn = (status: OrderStatus) => {
+    setActiveMobileColumn(status);
+    const colElement = columnRefs.current[status];
+    if (colElement) {
+      // Scroll container to this element
+      // We use scrollIntoView or manual calculation relative to container
+      colElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  };
+
   return (
     <div style={{
       height: '100vh',
@@ -818,6 +831,29 @@ const OrdersPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Mobile Status Navigator */}
+      <div className="mobile-only" style={{ padding: '8px 16px', background: '#fff', borderBottom: '1px solid #f0f0f0' }}>
+        <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 4 }}>Быстрый переход к этапу:</div>
+        <Select
+          value={activeMobileColumn}
+          onChange={scrollToColumn}
+          style={{ width: '100%' }}
+          size="large"
+        >
+          {sortedStatuses.map(status => (
+            <Option key={status} value={status}>
+              <Space>
+                {ORDER_STATUSES[status].icon}
+                {ORDER_STATUSES[status].label}
+                <span style={{ color: '#bfbfbf', fontSize: 11 }}>
+                  ({ordersByStatus[status]?.length || 0})
+                </span>
+              </Space>
+            </Option>
+          ))}
+        </Select>
+      </div>
+
       {/* Kanban Board */}
       <DndContext
         sensors={sensors}
@@ -831,15 +867,20 @@ const OrdersPage: React.FC = () => {
         >
           <div className="kanban-track">
             {sortedStatuses.map((status) => (
-              <KanbanColumn
+              <div
                 key={status}
-                status={status}
-                orders={ordersByStatus[status] || []}
-                onOrderClick={(order) => navigate(`/order/${order.main_id || order.id}`)}
-                onAddOrder={() => openCreateModal(status)}
-                onStatusChange={handleStatusChange}
-                onEditContact={handleEditContact}
-              />
+                ref={el => { columnRefs.current[status] = el; }}
+                className="kanban-column-wrapper" // Wrapper for ref
+              >
+                <KanbanColumn
+                  status={status}
+                  orders={ordersByStatus[status] || []}
+                  onOrderClick={(order) => navigate(`/order/${order.main_id || order.id}`)}
+                  onAddOrder={() => openCreateModal(status)}
+                  onStatusChange={handleStatusChange}
+                  onEditContact={handleEditContact}
+                />
+              </div>
             ))}
           </div>
         </div>

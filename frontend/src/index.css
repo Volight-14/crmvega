@@ -139,23 +139,33 @@ code {
   }
 
   .kanban-track {
-    gap: 0;
+    gap: 12px;
+    /* Add gap back */
     min-width: 100%;
+    padding: 0 12px;
+    /* Side padding so first/last cards assume center correctly with snap */
   }
 
   .kanban-column {
-    width: 100vw;
-    min-width: 100vw;
+    width: 88vw;
+    /* Slightly less than full screen to see neighbors */
+    min-width: 88vw;
     scroll-snap-align: center;
     scroll-snap-stop: always;
-    padding: 12px;
+    padding: 12px 0;
+    /* Remove horizontal padding from column itself, move to container/gap */
     box-sizing: border-box;
+    /* Ensure card background doesn't touch edges if nested */
   }
 
   /* Make status dropdown larger on mobile */
   .status-tag {
-    height: 32px !important; /* Larger touch target */
+    height: 32px !important;
     font-size: 13px !important;
     padding: 0 12px !important;
   }
+
+  /* Hide the header status select on mobile to save space if needed, 
+     but user wants a navigation dropdown instead. 
+     We'll add a specific class for the navigation dropdown later. */
 }
