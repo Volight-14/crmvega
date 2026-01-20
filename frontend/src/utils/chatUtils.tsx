@@ -24,10 +24,20 @@ export const getAvatarColor = (authorType?: string): string => {
     return colors[authorType] || '#8c8c8c';
 };
 
+// Helper to safely parse date to UTC if needed
+const parseDate = (date: string | number): Date => {
+    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?$/.test(date)) {
+        // If ISO string has no timezone, assume UTC (common backend issue)
+        return new Date(date + 'Z');
+    }
+    return new Date(date);
+};
+
 // Format time
 export const formatTime = (date?: string | number): string => {
     if (!date) return '';
-    const d = new Date(date);
+    const d = parseDate(date);
+    // Force Europe/Madrid
     return d.toLocaleTimeString('ru-RU', {
         hour: '2-digit',
         minute: '2-digit',
@@ -38,10 +48,9 @@ export const formatTime = (date?: string | number): string => {
 // Format date
 export const formatDate = (date?: string | number): string => {
     if (!date) return '';
-    const d = new Date(date);
+    const d = parseDate(date);
     const now = new Date();
 
-    // Convert both to Madrid date strings to compare "Today" / "Yesterday" accurately
     const madridOptions: Intl.DateTimeFormatOptions = {
         timeZone: 'Europe/Madrid',
         year: 'numeric',
@@ -52,18 +61,16 @@ export const formatDate = (date?: string | number): string => {
     const dString = d.toLocaleDateString('ru-RU', madridOptions);
     const nowString = now.toLocaleDateString('ru-RU', madridOptions);
 
-    // Check Yesterday (approximate logic is usually fine for chat, but strict timezone is better)
-    // To check yesterday strictly in a timezone is tricky without libraries like date-fns-tz.
-    // Let's use a simpler heuristic: if the date string matches today -> Today.
-    // If not, just return the date. "Yesterday" is nice but strict timezone math without lib is verbose.
-    // I will try to implement a basic yesterday check by subtracting 24h from 'now' and checking string.
-
     if (dString === nowString) {
         return 'Сегодня';
     }
 
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
+    // Check Yesterday: Create a date that is "Now in Madrid" minus 24h
+    // Since we can't easily manipulate "Madrid Time" directly without a lib, 
+    // we approximate by checking if the date string matches yesterday's date string in Madrid.
+    // 86400000 ms = 1 day.
+    const yesterdayTime = now.getTime() - 86400000;
+    const yesterday = new Date(yesterdayTime);
     const yesterdayString = yesterday.toLocaleDateString('ru-RU', madridOptions);
 
     if (dString === yesterdayString) {

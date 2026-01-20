@@ -801,9 +801,7 @@ const OrdersPage: React.FC = () => {
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', justifyContent: 'flex-end', flex: '1 1 auto' }}>
-          <Text style={{ color: '#8c8c8c', whiteSpace: 'nowrap' }}>
-            {filteredOrders.length} заявок: €{Math.round(totalOrdersAmount).toLocaleString('ru-RU')}
-          </Text>
+
 
           {manager?.role === 'admin' && (
             <Button
@@ -826,7 +824,7 @@ const OrdersPage: React.FC = () => {
               borderRadius: 8,
             }}
           >
-            + НОВАЯ ЗАЯВКА
+            НОВАЯ ЗАЯВКА
           </Button>
         </div>
       </div>
