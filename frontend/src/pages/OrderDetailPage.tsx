@@ -348,15 +348,67 @@ const OrderDetailPage: React.FC = () => {
       background: '#f0f2f5',
     }}>
       {/* Header */}
-      <div style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        padding: isMobile ? '12px 16px' : '16px 24px',
-        color: 'white',
-        boxShadow: '0 2px 8px rgba(102, 126, 234, 0.4)',
-      }}>
-        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: 12 }}>
-          <Space size="middle" direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: '100%', alignItems: isMobile ? 'flex-start' : 'center' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+      {isMobile ? (
+        // Mobile Messenger-style Header
+        <div style={{
+          background: '#fff',
+          padding: '8px 12px',
+          borderBottom: '1px solid #f0f0f0',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+          zIndex: 100,
+          position: 'sticky',
+          top: 0
+        }}>
+          <Button
+            type="text"
+            icon={<ArrowLeftOutlined style={{ fontSize: 18, color: '#262626' }} />}
+            onClick={() => navigate('/orders')}
+            style={{ padding: 4, height: 32, width: 32 }}
+          />
+
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Title level={5} style={{ margin: 0, fontSize: 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {order.title}
+              </Title>
+              {order.amount > 0 && (
+                <div style={{
+                  background: '#e6f7ff',
+                  color: '#1890ff',
+                  fontSize: 11,
+                  padding: '2px 6px',
+                  borderRadius: 4,
+                  fontWeight: 600
+                }}>
+                  {order.amount.toLocaleString('ru-RU')}
+                </div>
+              )}
+            </div>
+            <div style={{ fontSize: 12, color: '#8c8c8c', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span>{ORDER_STATUSES[order.status]?.label}</span>
+            </div>
+          </div>
+
+          <Button
+            type="text"
+            icon={<EditOutlined style={{ fontSize: 18, color: '#262626' }} />}
+            onClick={() => setIsEditModalVisible(true)}
+            style={{ padding: 4, height: 32, width: 32 }}
+          />
+        </div>
+      ) : (
+        // Desktop Header
+        <div style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          padding: '16px 24px',
+          color: 'white',
+          boxShadow: '0 2px 8px rgba(102, 126, 234, 0.4)',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <Space size="middle" style={{ width: '100%' }}>
               <Button
                 ghost
                 icon={<ArrowLeftOutlined />}
@@ -365,67 +417,51 @@ const OrderDetailPage: React.FC = () => {
               >
                 Назад
               </Button>
-              {isMobile && (
-                <Button
-                  type="primary"
-                  icon={<EditOutlined />}
-                  onClick={() => setIsEditModalVisible(true)}
-                  style={{
-                    background: 'rgba(255,255,255,0.2)',
-                    border: 'none',
-                    borderRadius: 8,
-                  }}
-                >
-                  Редактировать
-                </Button>
-              )}
-            </div>
 
-            <div style={{ width: '100%' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                <Title level={3} style={{ margin: 0, color: 'white', fontSize: isMobile ? 20 : 24 }}>
-                  {order.title}
-                </Title>
-                <OrderTags
-                  orderId={order.id}
-                  initialTags={order.tags}
-                  onTagsChange={(newTags) => setOrder(prev => prev ? { ...prev, tags: newTags } : null)}
-                />
+              <div style={{ width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <Title level={3} style={{ margin: 0, color: 'white' }}>
+                    {order.title}
+                  </Title>
+                  <OrderTags
+                    orderId={order.id}
+                    initialTags={order.tags}
+                    onTagsChange={(newTags) => setOrder(prev => prev ? { ...prev, tags: newTags } : null)}
+                  />
+                </div>
+                <Space style={{ marginTop: 4, flexWrap: 'wrap' }}>
+                  <Select
+                    value={order.status}
+                    onChange={handleStatusChange}
+                    style={{ width: 180, minWidth: 160 }}
+                    className="status-select-header"
+                    popupMatchSelectWidth={false}
+                  >
+                    {sortedStatusOptions.map((opt) => (
+                      <Option key={opt.value} value={opt.value}>
+                        <Space>
+                          <span>{opt.icon}</span>
+                          <span>{opt.label}</span>
+                        </Space>
+                      </Option>
+                    ))}
+                  </Select>
+                  {order.amount > 0 && (
+                    <span style={{
+                      background: 'rgba(255,255,255,0.2)',
+                      padding: '4px 12px',
+                      borderRadius: 12,
+                      fontSize: 14,
+                      fontWeight: 600,
+                      whiteSpace: 'nowrap',
+                    }}>
+                      <DollarOutlined /> {order.amount.toLocaleString('ru-RU')} {order.currency || 'RUB'}
+                    </span>
+                  )}
+                </Space>
               </div>
-              <Space style={{ marginTop: 4, flexWrap: 'wrap' }}>
-                <Select
-                  value={order.status}
-                  onChange={handleStatusChange}
-                  style={{ width: isMobile ? '100%' : 180, minWidth: 160 }}
-                  className="status-select-header"
-                  popupMatchSelectWidth={false}
-                >
-                  {sortedStatusOptions.map((opt) => (
-                    <Option key={opt.value} value={opt.value}>
-                      <Space>
-                        <span>{opt.icon}</span>
-                        <span>{opt.label}</span>
-                      </Space>
-                    </Option>
-                  ))}
-                </Select>
-                {order.amount > 0 && (
-                  <span style={{
-                    background: 'rgba(255,255,255,0.2)',
-                    padding: '4px 12px',
-                    borderRadius: 12,
-                    fontSize: 14,
-                    fontWeight: 600,
-                    whiteSpace: 'nowrap',
-                  }}>
-                    <DollarOutlined /> {order.amount.toLocaleString('ru-RU')} {order.currency || 'RUB'}
-                  </span>
-                )}
-              </Space>
-            </div>
-          </Space>
+            </Space>
 
-          {!isMobile && (
             <Button
               type="primary"
               icon={<EditOutlined />}
@@ -438,18 +474,18 @@ const OrderDetailPage: React.FC = () => {
             >
               Редактировать
             </Button>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Main Content */}
       <div style={{
         display: 'flex',
         flexDirection: isMobile ? 'column' : 'row',
         flex: 1,
-        padding: isMobile ? 8 : 16,
+        padding: isMobile ? 0 : 16,
         gap: 16,
-        overflow: 'hidden',
+        overflow: 'hidden', // prevent double scrollbars
         minHeight: 0,
       }}>
         {/* Left Sidebar - Order Info */}
@@ -537,11 +573,12 @@ const OrderDetailPage: React.FC = () => {
                   key: 'chat',
                   label: <span><MessageOutlined /> Чат</span>,
                   children: (
-                    <div style={{ height: 'calc(100vh - 250px)', background: '#fff' }}>
+                    <div style={{ height: 'calc(100vh - 120px)', background: '#fff' }}>
                       {order.contact_id || order.main_id || order.external_id ? (
                         <OrderChat
                           orderId={order.id}
                           contactName={order.contact?.name}
+                          isMobile={true}
                         />
                       ) : (
                         <Empty description="Нет чата" />

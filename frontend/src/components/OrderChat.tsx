@@ -21,6 +21,7 @@ import { formatDate, isClientMessage } from '../utils/chatUtils';
 interface OrderChatProps {
   orderId: number;
   contactName?: string;
+  isMobile?: boolean;
 }
 
 type ChatTab = 'client' | 'internal';
@@ -41,7 +42,7 @@ const adaptInternalToMessage = (im: InternalMessage): Message => {
   } as Message;
 };
 
-const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
+const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName, isMobile = false }) => {
   const { manager } = useAuth();
   const [activeTab, setActiveTab] = useState<ChatTab>('client');
   const [clientMessages, setClientMessages] = useState<Message[]>([]);
@@ -347,8 +348,15 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', borderRadius: 8, border: '1px solid #f0f0f0' }}>
-      <div style={{ padding: '0 16px', borderBottom: '1px solid #f0f0f0' }}>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100%',
+      background: '#fff',
+      borderRadius: isMobile ? 0 : 8,
+      border: isMobile ? 'none' : '1px solid #f0f0f0',
+    }}>
+      <div style={{ padding: isMobile ? '0 8px' : '0 16px', borderBottom: '1px solid #f0f0f0' }}>
         <Tabs
           activeKey={activeTab}
           onChange={(key) => {
@@ -359,7 +367,7 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
         />
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '8px 4px' : 16 }}>
         {renderMessages()}
         <div ref={messagesEndRef} />
       </div>
