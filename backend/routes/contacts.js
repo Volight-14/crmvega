@@ -109,48 +109,64 @@ router.get('/summary', auth, async (req, res) => {
       contacts = fallbackContacts;
     }
 
-    // Для каждого контакта получаем последнее сообщение
-    // Оптимизация: можно было бы делать это одним запросом join, но пока так
-    const contactsWithMessages = await Promise.all(contacts.map(async (contact) => {
-      // Find latest message linked to this contact via orders or direct link?
-      // Logic from messages.js: get all orders, then messages.
-      // Simplified: Search messages by lead_id (main_id) of active orders OR direct link if we implemented it.
-      // CURRENT DATA MODEL: messages usually link to lead_id (which is correct main_id of an order).
-      // Contact -> Orders -> main_id -> Messages.
+    // ОПТИМИЗАЦИЯ: Получаем все заявки для всех контактов ОДНИМ запросом
+    const contactIds = contacts.map(c => c.id);
+    const { data: allOrders } = await supabase
+      .from('orders')
+      .select('id, contact_id, main_id, created_at')
+      .in('contact_id', contactIds)
+      .order('created_at', { ascending: false });
 
-      // Fast path: Just get latest message created_at?
-      // We already have last_message_at on contact (if maintained).
-      // Let's assume we need to fetch the actual content snippet.
-
-      // 1. Get all orders for this contact (to find messages and latest order)
-      const { data: orders } = await supabase
-        .from('orders')
-        .select('id, main_id, created_at')
-        .eq('contact_id', contact.id)
-        .order('created_at', { ascending: false });
-
-      const leadIds = orders?.map(o => String(o.main_id)).filter(Boolean) || [];
-      const latestOrder = orders?.[0]; // The first one is the latest due to sorting
-
-      let lastMessage = null;
-      if (leadIds.length > 0) {
-        const { data: msg } = await supabase
-          .from('messages')
-          .select('content, "Created Date", author_type')
-          .in('main_id', leadIds)
-          .order('"Created Date"', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        lastMessage = msg;
+    // Группируем заявки по contact_id
+    const ordersByContact = {};
+    allOrders?.forEach(order => {
+      if (!ordersByContact[order.contact_id]) {
+        ordersByContact[order.contact_id] = [];
       }
+      ordersByContact[order.contact_id].push(order);
+    });
 
-      // Generate display name with proper fallback chain:
-      // 1. first_name + last_name (if available)
-      // 2. telegram_username (if available)
-      // 3. name field (existing)
-      // 4. "User {telegram_user_id}" as last resort
+    // Собираем все main_id для получения сообщений
+    const allMainIds = [...new Set(allOrders?.map(o => String(o.main_id)).filter(Boolean) || [])];
+
+    // ОПТИМИЗАЦИЯ: Получаем последние сообщения для всех main_id ОДНИМ запросом
+    const { data: allMessages } = await supabase
+      .from('messages')
+      .select('main_id, content, "Created Date", author_type')
+      .in('main_id', allMainIds)
+      .order('\"Created Date\"', { ascending: false });
+
+    // Группируем сообщения по main_id (берём только последнее для каждого)
+    const lastMessageByMainId = {};
+    allMessages?.forEach(msg => {
+      const mainId = String(msg.main_id);
+      if (!lastMessageByMainId[mainId]) {
+        lastMessageByMainId[mainId] = msg;
+      }
+    });
+
+    // Собираем данные для каждого контакта
+    const contactsWithMessages = contacts.map(contact => {
+      const orders = ordersByContact[contact.id] || [];
+      const latestOrder = orders[0]; // Уже отсортированы по created_at desc
+
+      // Находим последнее сообщение среди всех заявок контакта
+      let lastMessage = null;
+      let lastMessageTime = null;
+
+      orders.forEach(order => {
+        const msg = lastMessageByMainId[String(order.main_id)];
+        if (msg) {
+          const msgTime = new Date(msg['Created Date']).getTime();
+          if (!lastMessageTime || msgTime > lastMessageTime) {
+            lastMessage = msg;
+            lastMessageTime = msgTime;
+          }
+        }
+      });
+
+      // Генерируем отображаемое имя
       let displayName = null;
-
       if (contact.first_name || contact.last_name) {
         displayName = [contact.first_name, contact.last_name].filter(Boolean).join(' ');
       } else if (contact.telegram_username) {
@@ -163,15 +179,14 @@ router.get('/summary', auth, async (req, res) => {
 
       return {
         ...contact,
-        name: displayName, // Override with better display name
+        name: displayName,
         last_message: lastMessage,
-        // Fallback if last_message_at was not populated yet
         last_active: contact.last_message_at || lastMessage?.['Created Date'],
-        latest_order_id: latestOrder ? (latestOrder.main_id || latestOrder.id) : null
+        latest_order_id: latestOrder?.id || null // Используем реальный order.id, НЕ main_id!
       };
-    }));
+    });
 
-    // Sort again just in case (if we used values from messages)
+    // Сортируем по последней активности
     const sorted = contactsWithMessages.sort((a, b) => {
       const tA = new Date(a.last_active || 0).getTime();
       const tB = new Date(b.last_active || 0).getTime();
