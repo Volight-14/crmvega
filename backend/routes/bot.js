@@ -452,21 +452,36 @@ router.post('/webhook', async (req, res) => {
       // Находим сообщение в базе по ID сообщения в Telegram
       const { data: messageData, error: findError } = await supabase
         .from('messages')
-        .select('id, lead_id, content')
+        .select('id, lead_id, content, reactions')
         .eq('message_id_tg', tgMessageId)
         .maybeSingle();
 
       if (messageData) {
+        // Merge reactions to prevent overwriting Manager's reactions
+        const currentReactions = messageData.reactions || [];
+        const otherReactions = Array.isArray(currentReactions)
+          ? currentReactions.filter(r => r.author && r.author !== 'Client' && r.author !== 'Клиент')
+          : [];
+
+        const clientReactions = newReactions.map(r => ({
+          emoji: r.emoji,
+          type: r.type,
+          author: 'Client',
+          created_at: new Date().toISOString()
+        }));
+
+        const mergedReactions = [...otherReactions, ...clientReactions];
+
         // Обновляем реакции в базе
         const { data: updatedMessage, error: updateError } = await supabase
           .from('messages')
-          .update({ reactions: newReactions })
+          .update({ reactions: mergedReactions })
           .eq('id', messageData.id)
           .select()
           .single();
 
         if (!updateError) {
-          console.log(`[bot.js] Updated reactions for message ${messageData.id}:`, newReactions);
+          console.log(`[bot.js] Updated reactions for message ${messageData.id}:`, mergedReactions);
 
           const io = req.app.get('io');
           if (io) {
