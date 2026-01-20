@@ -263,17 +263,14 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onClick, onStatusChange, o
               labelRender={(props) => {
                 const statusConfig = ORDER_STATUSES[props.value as OrderStatus];
                 return (
-                  <div style={{
-                    backgroundColor: statusConfig?.color === 'default' ? '#f0f0f0' : `${statusConfig?.color}15`, // Light bg
+                  <div className="status-tag" style={{
+                    backgroundColor: statusConfig?.color === 'default' ? '#f0f0f0' : `${statusConfig?.color}15`,
                     color: statusConfig?.color || '#595959',
                     border: `1px solid ${statusConfig?.color || '#d9d9d9'}`,
                     borderRadius: 4,
-                    padding: '0 8px',
-                    height: 22,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 11,
                     fontWeight: 500,
                     cursor: 'pointer',
                     whiteSpace: 'nowrap'
@@ -330,16 +327,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClic
   }, [orders]);
 
   return (
-    <div
-      style={{
-        width: 280,
-        minWidth: 280,
-        flexShrink: 0,
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
+    <div className="kanban-column">
       {/* Заголовок колонки */}
       <div style={{
         background: '#fff',
@@ -839,19 +827,9 @@ const OrdersPage: React.FC = () => {
       >
         <div
           ref={kanbanRef}
-          style={{
-            flex: 1,
-            overflowX: 'auto',
-            overflowY: 'hidden',
-            padding: '16px',
-          }}
+          className="kanban-scroll-view"
         >
-          <div style={{
-            display: 'flex',
-            gap: 12,
-            height: '100%',
-            minWidth: 'max-content',
-          }}>
+          <div className="kanban-track">
             {sortedStatuses.map((status) => (
               <KanbanColumn
                 key={status}
