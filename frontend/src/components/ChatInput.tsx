@@ -8,6 +8,8 @@ import {
     PaperClipOutlined,
 } from '@ant-design/icons';
 import { formatDuration } from '../utils/chatUtils';
+import { templatesAPI } from '../services/api';
+import { WebsiteContent } from '../types';
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -36,6 +38,74 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
     const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Template State
+    const [templates, setTemplates] = useState<WebsiteContent[]>([]);
+    const [showTemplates, setShowTemplates] = useState(false);
+    const [filteredTemplates, setFilteredTemplates] = useState<WebsiteContent[]>([]);
+
+    useEffect(() => {
+        templatesAPI.getAll().then(setTemplates).catch(console.error);
+    }, []);
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const val = e.target.value;
+        setMessageInput(val);
+        if (onTyping) onTyping();
+
+        const slashIndex = val.lastIndexOf('/');
+        if (slashIndex !== -1) {
+            const query = val.slice(slashIndex + 1).toLowerCase();
+            // Trigger if query has no spaces (simple check to avoid triggering on old slashes)
+            if (!query.includes(' ')) {
+                const matches = templates.filter(t => t.title?.toLowerCase().includes(query));
+                setFilteredTemplates(matches);
+                setShowTemplates(matches.length > 0);
+                return;
+            }
+        }
+        setShowTemplates(false);
+    };
+
+    const handleTemplateSelect = async (template: WebsiteContent) => {
+        const slashIndex = messageInput.lastIndexOf('/');
+        const prefix = messageInput.slice(0, slashIndex);
+
+        let contentText = '';
+        let attachments: any[] = [];
+
+        try {
+            const parsed = JSON.parse(template.content || '{}');
+            if (parsed.text !== undefined || parsed.attachments !== undefined) {
+                contentText = parsed.text || '';
+                attachments = parsed.attachments || [];
+            } else {
+                contentText = template.content || '';
+            }
+        } catch {
+            contentText = template.content || '';
+        }
+
+        setMessageInput(prefix + contentText);
+
+        if (attachments.length > 0) {
+            const att = attachments[0];
+            if (att.url) {
+                try {
+                    // Fetch via proxy/cors safe way or just standard fetch if public
+                    const res = await fetch(att.url);
+                    const blob = await res.blob();
+                    const file = new File([blob], att.name || 'image.png', { type: blob.type });
+                    handleFileSelect(file);
+                } catch (e) {
+                    console.error('Failed to load template attachment', e);
+                    antMessage.warning('Не удалось загрузить вложение шаблона');
+                }
+            }
+        }
+
+        setShowTemplates(false);
+    };
 
     useEffect(() => {
         return () => {
@@ -186,7 +256,46 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
             borderTop: '1px solid #f0f0f0',
             display: 'flex',
             flexDirection: 'column',
+            position: 'relative'
         }}>
+            {/* Templates Popup */}
+            {showTemplates && (
+                <div style={{
+                    position: 'absolute',
+                    bottom: '100%',
+                    left: 16,
+                    width: 300,
+                    maxHeight: 200,
+                    overflowY: 'auto',
+                    background: '#fff',
+                    boxShadow: '0 -2px 10px rgba(0,0,0,0.1)',
+                    borderRadius: '8px 8px 0 0',
+                    zIndex: 1000,
+                    border: '1px solid #f0f0f0'
+                }}>
+                    {filteredTemplates.map(t => (
+                        <div
+                            key={t.id}
+                            style={{
+                                padding: '8px 12px',
+                                cursor: 'pointer',
+                                borderBottom: '1px solid #f0f0f0',
+                                display: 'flex',
+                                flexDirection: 'column'
+                            }}
+                            className="template-item"
+                            onClick={() => handleTemplateSelect(t)}
+                            onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
+                        >
+                            <div style={{ fontWeight: 500 }}>{t.title}</div>
+                            <div style={{ fontSize: 11, color: '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {t.content?.slice(0, 50)}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
             {/* File Preview Area */}
             {selectedFile && (
                 <div style={{
@@ -296,10 +405,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
                             autoSize={{ minRows: 1, maxRows: 4 }}
                             placeholder={selectedFile ? "Добавить описание..." : "Нашите сообщение..."} // TODO: description support later
                             value={messageInput}
-                            onChange={(e) => {
-                                setMessageInput(e.target.value);
-                                if (onTyping) onTyping();
-                            }}
+                            onChange={handleInputChange}
                             onPaste={handlePaste}
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter' && !e.shiftKey) {

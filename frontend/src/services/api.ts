@@ -672,4 +672,37 @@ export const aiAPI = {
   },
 };
 
+// Messaging Templates API
+export const templatesAPI = {
+  // We reuse WebsiteContent table with section 'chat_templates'
+  getAll: async (search?: string): Promise<WebsiteContent[]> => {
+    const response = await aiAPI.getWebsiteContent({ section: 'chat_templates', search });
+    return response.content;
+  },
+
+  create: async (data: { title: string; content: string }): Promise<WebsiteContent> => {
+    return aiAPI.createWebsiteContent({ ...data, section: 'chat_templates' });
+  },
+
+  update: async (id: number, data: { title?: string; content?: string }): Promise<WebsiteContent> => {
+    return aiAPI.updateWebsiteContent(id, data);
+  },
+
+  delete: async (id: number): Promise<void> => {
+    return aiAPI.deleteWebsiteContent(id);
+  },
+};
+
+// Generic Upload API
+export const uploadAPI = {
+  uploadFile: async (file: File): Promise<{ url: string; filename: string }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+};
+
 export default api;

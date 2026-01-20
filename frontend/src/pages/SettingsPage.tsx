@@ -31,10 +31,12 @@ import {
   PlusOutlined,
   DeleteOutlined,
   EditOutlined,
+  FileTextOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
 import { managersAPI } from '../services/api';
 import { Manager, ORDER_STATUSES } from '../types';
+import TemplatesSettings from './settings/TemplatesSettings';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -528,6 +530,15 @@ const SettingsPage: React.FC = () => {
                   </Modal>
                 </div>
               ),
+            },
+            {
+              key: 'templates',
+              label: (
+                <span>
+                  <FileTextOutlined /> Шаблоны
+                </span>
+              ),
+              children: <TemplatesSettings />
             },
             {
               key: 'export',
