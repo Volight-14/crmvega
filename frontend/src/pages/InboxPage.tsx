@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 
-import { contactsAPI, contactMessagesAPI } from '../services/api';
+import { contactsAPI, contactMessagesAPI, orderMessagesAPI } from '../services/api';
 import { InboxContact, Message } from '../types';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
@@ -192,8 +192,15 @@ const InboxPage: React.FC = () => {
         if (!selectedContact || sending) return;
         setSending(true);
         try {
-            await contactMessagesAPI.sendToContact(selectedContact.id, text, 'manager');
-            fetchContacts();
+            // Используем latest_order_id из контакта для отправки через рабочий API
+            if (!selectedContact.latest_order_id) {
+                antMessage.error('Нет активной заявки для отправки сообщения');
+                return;
+            }
+
+            const newMsg = await orderMessagesAPI.sendClientMessage(selectedContact.latest_order_id, text);
+            // Оптимистичное обновление
+            setMessages(prev => [...prev, newMsg]);
             scrollToBottom();
         } catch (error) {
             console.error('Error sending message:', error);
@@ -207,8 +214,12 @@ const InboxPage: React.FC = () => {
         if (!selectedContact || sending) return;
         setSending(true);
         try {
-            await contactMessagesAPI.sendVoice(selectedContact.id, voice, duration);
-            fetchContacts();
+            if (!selectedContact.latest_order_id) {
+                antMessage.error('Нет активной заявки для отправки сообщения');
+                return;
+            }
+            const newMsg = await orderMessagesAPI.sendClientVoice(selectedContact.latest_order_id, voice, duration);
+            setMessages(prev => [...prev, newMsg]);
             scrollToBottom();
         } catch (error: any) {
             const errMsg = error.response?.data?.error || 'Ошибка отправки голосового';
@@ -222,8 +233,12 @@ const InboxPage: React.FC = () => {
         if (!selectedContact || sending) return;
         setSending(true);
         try {
-            await contactMessagesAPI.sendFile(selectedContact.id, file);
-            fetchContacts();
+            if (!selectedContact.latest_order_id) {
+                antMessage.error('Нет активной заявки для отправки сообщения');
+                return;
+            }
+            const newMsg = await orderMessagesAPI.sendClientFile(selectedContact.latest_order_id, file);
+            setMessages(prev => [...prev, newMsg]);
             scrollToBottom();
         } catch (error: any) {
             const errMsg = error.response?.data?.error || 'Ошибка отправки файла';
