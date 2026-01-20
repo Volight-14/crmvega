@@ -96,13 +96,7 @@ const ContactDetailPage: React.FC = () => {
       socketRef.current?.emit('join_contact', id);
     });
 
-    socketRef.current.on('new_message', (newMessage: Message) => {
-      setMessages(prev => {
-        if (prev.some(msg => msg.id === newMessage.id)) return prev;
-        return [...prev, newMessage];
-      });
-    });
-
+    // Listen for messages specifically for this contact
     socketRef.current.on('contact_message', (data: { contact_id: number; message: Message }) => {
       if (data.contact_id === parseInt(id || '0')) {
         setMessages(prev => {

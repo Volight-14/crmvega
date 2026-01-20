@@ -267,6 +267,8 @@ async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null
         io.to(`lead_${linkId}`).emit('new_message', savedMessage);
         // Global emit for Inbox
         io.emit('new_message_global', savedMessage);
+        // Emit for specific contact
+        io.emit('contact_message', { contact_id: contactId, message: savedMessage });
       }
     }
 
