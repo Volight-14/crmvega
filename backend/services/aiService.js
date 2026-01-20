@@ -336,7 +336,7 @@ const aiService = {
   // ============================================
 
   async getWebsiteContent({ section, search }) {
-    let query = dataset()
+    let query = supabase
       .from('website_content')
       .select('id, title, content, section, created_at')
       .order('created_at', { ascending: false });
@@ -359,7 +359,7 @@ const aiService = {
   },
 
   async getWebsiteContentItem(id) {
-    const { data, error } = await dataset()
+    const { data, error } = await supabase
       .from('website_content')
       .select('*')
       .eq('id', id)
@@ -370,7 +370,7 @@ const aiService = {
 
   async createWebsiteContent(contentData) {
     const { title, content, section } = contentData;
-    const { data, error } = await dataset()
+    const { data, error } = await supabase
       .from('website_content')
       .insert({ title, content, section })
       .select()
@@ -380,7 +380,7 @@ const aiService = {
   },
 
   async updateWebsiteContent(id, contentData) {
-    const { data, error } = await dataset()
+    const { data, error } = await supabase
       .from('website_content')
       .update(contentData)
       .eq('id', id)
@@ -391,7 +391,7 @@ const aiService = {
   },
 
   async deleteWebsiteContent(id) {
-    const { error } = await dataset()
+    const { error } = await supabase
       .from('website_content')
       .delete()
       .eq('id', id);
@@ -400,7 +400,7 @@ const aiService = {
   },
 
   async getWebsiteSections() {
-    const { data, error } = await dataset()
+    const { data, error } = await supabase
       .from('website_content')
       .select('section')
       .not('section', 'is', null);
