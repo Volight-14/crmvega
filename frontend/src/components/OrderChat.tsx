@@ -177,12 +177,12 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
     try {
       if (activeTab === 'client') {
         const replyId = replyTo && 'message_id_tg' in replyTo ? replyTo.message_id_tg as number : undefined;
-        const newMsg = await orderMessagesAPI.sendClientMessage(orderId, text, replyId);
-        setClientMessages(prev => [...prev, newMsg]);
+        await orderMessagesAPI.sendClientMessage(orderId, text, replyId);
+        // Socket обработчики уже добавят сообщение (new_client_message, new_message_bubble)
       } else {
         const replyId = replyTo ? replyTo.id : undefined;
-        const newMsg = await orderMessagesAPI.sendInternalMessage(orderId, text, replyId);
-        setInternalMessages(prev => [...prev, newMsg]);
+        await orderMessagesAPI.sendInternalMessage(orderId, text, replyId);
+        // Socket обработчик new_internal_message добавит сообщение
       }
       setReplyTo(null);
       scrollToBottom();
@@ -199,13 +199,9 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
     setSending(true);
     try {
       if (activeTab === 'client') {
-        // Client Chat Voice
-        const newMsg = await orderMessagesAPI.sendClientVoice(orderId, voice, duration);
-        setClientMessages(prev => [...prev, newMsg]);
+        await orderMessagesAPI.sendClientVoice(orderId, voice, duration);
       } else {
-        // Internal Chat Voice
-        const newMsg = await orderMessagesAPI.sendInternalVoice(orderId, voice, duration);
-        setInternalMessages(prev => [...prev, newMsg]);
+        await orderMessagesAPI.sendInternalVoice(orderId, voice, duration);
       }
       setReplyTo(null);
       scrollToBottom();
@@ -223,13 +219,10 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName }) => {
     try {
       if (activeTab === 'client') {
         const replyId = replyTo && 'message_id_tg' in replyTo ? replyTo.message_id_tg as number : undefined;
-        // Caption currently undefined
-        const newMsg = await orderMessagesAPI.sendClientFile(orderId, file, undefined, replyId);
-        setClientMessages(prev => [...prev, newMsg]);
+        await orderMessagesAPI.sendClientFile(orderId, file, undefined, replyId);
       } else {
         const replyId = replyTo ? replyTo.id : undefined;
-        const newMsg = await orderMessagesAPI.sendInternalFile(orderId, file, replyId);
-        setInternalMessages(prev => [...prev, newMsg]);
+        await orderMessagesAPI.sendInternalFile(orderId, file, replyId);
       }
       setReplyTo(null);
       scrollToBottom();
