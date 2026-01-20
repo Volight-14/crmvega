@@ -9,14 +9,12 @@ import {
     Space,
     Popconfirm,
     Upload,
-    Image as AntImage,
     Typography
 } from 'antd';
 import {
     PlusOutlined,
     EditOutlined,
     DeleteOutlined,
-    UploadOutlined,
     FileImageOutlined
 } from '@ant-design/icons';
 import { templatesAPI, uploadAPI } from '../../services/api';
