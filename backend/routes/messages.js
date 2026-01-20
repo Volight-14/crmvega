@@ -596,10 +596,10 @@ router.post('/:id/reactions', auth, async (req, res) => {
     const { id } = req.params;
     const { emoji } = req.body;
 
-    // 1. Получаем текущие реакции
+    // 1. Получаем текущие реакции и message_id_tg
     const { data: message, error: fetchError } = await supabase
       .from('messages')
-      .select('id, reactions, main_id')
+      .select('id, reactions, main_id, message_id_tg')
       .eq('id', id)
       .single();
 
@@ -607,8 +607,6 @@ router.post('/:id/reactions', auth, async (req, res) => {
 
     // 2. Добавляем новую реакцию
     const currentReactions = message.reactions || [];
-    // Проверяем, есть ли уже такая реакция от этого пользователя (если нужно toggle)
-    // Пока просто добавляем
     const newReaction = {
       emoji,
       author: req.manager.name,
@@ -628,14 +626,37 @@ router.post('/:id/reactions', auth, async (req, res) => {
 
     if (updateError) throw updateError;
 
-    // 4. Socket Emit
+    // 4. Отправляем реакцию в Telegram
+    if (message.message_id_tg && process.env.TELEGRAM_BOT_TOKEN) {
+      try {
+        // Находим telegram_user_id через main_id (связь с orders -> contacts)
+        const { data: orderData } = await supabase
+          .from('orders')
+          .select('contact:contacts(telegram_user_id)')
+          .eq('main_id', message.main_id)
+          .not('contact', 'is', null)
+          .limit(1)
+          .single();
+
+        const telegramUserId = orderData?.contact?.telegram_user_id;
+
+        if (telegramUserId) {
+          await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/setMessageReaction`, {
+            chat_id: telegramUserId,
+            message_id: message.message_id_tg,
+            reaction: [{ type: 'emoji', emoji: emoji }]
+          });
+        }
+      } catch (tgError) {
+        console.error('Error sending reaction to Telegram:', tgError.response?.data || tgError.message);
+        // Не блокируем ответ клиенту, если ошибка в телеграм
+      }
+    }
+
+    // 5. Socket Emit
     const io = req.app.get('io');
     if (io) {
       if (message.main_id) io.to(`lead_${message.main_id}`).emit('message_updated', updatedMessage);
-      // Также ищем Order ID чтобы отправить в order_room? 
-      // Обычно клиент слушает lead room или order room.
-      // Для упрощения отправляем везде, где можем, но у нас нет orderId здесь напрямую без join.
-      // Front слушает lead_XYZ, так что должно хватить.
     }
 
     res.json(updatedMessage);
