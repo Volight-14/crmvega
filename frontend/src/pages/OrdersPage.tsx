@@ -721,15 +721,7 @@ const OrdersPage: React.FC = () => {
     return grouped;
   }, [filteredOrders]);
 
-  // Считаем общую сумму всех заявок
-  const totalOrdersAmount = useMemo(() => {
-    return filteredOrders.reduce((sum, order) => {
-      let amount = order.amount || 0;
-      if (order.currency === 'RUB') amount = amount / 100;
-      if (order.currency === 'USD') amount = amount * 0.92;
-      return sum + amount;
-    }, 0);
-  }, [filteredOrders]);
+
 
   const draggedOrder = orders.find(d => d.id === activeId);
 

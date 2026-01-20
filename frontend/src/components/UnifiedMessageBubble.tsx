@@ -1,6 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
-    Tooltip,
     Avatar,
     Popover,
     message as antMessage
@@ -12,8 +11,7 @@ import {
     RollbackOutlined,
     FileOutlined,
     DownloadOutlined,
-    CopyOutlined,
-    SmileOutlined
+    CopyOutlined
 } from '@ant-design/icons';
 import { isClientMessage, getAvatarColor, formatTime, linkifyText } from '../utils/chatUtils';
 import { Message } from '../types';
