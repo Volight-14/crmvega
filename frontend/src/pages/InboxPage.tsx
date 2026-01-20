@@ -80,6 +80,7 @@ const InboxPage: React.FC = () => {
         if (!socketRef.current) return;
 
         const handleNewMessage = (data: { contact_id: number, message: Message }) => {
+            console.log('📨 InboxPage received socket message:', data);
             // Update last message in contacts list
             setContacts(prev => prev.map(c => {
                 if (c.id === data.contact_id) {
@@ -113,12 +114,7 @@ const InboxPage: React.FC = () => {
 
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
-                console.log('Tab became visible, refreshing data...');
-                fetchContacts();
-                if (selectedContact) {
-                    fetchMessages(selectedContact.id);
-                }
-                // Optional: ensure socket is connected
+                // Только проверяем соединение, не перезагружаем все данные
                 if (socketRef.current && !socketRef.current.connected) {
                     socketRef.current.connect();
                 }
