@@ -704,10 +704,16 @@ router.post('/:id/reactions', auth, async (req, res) => {
           console.log('[Reaction] No TG User ID found after all strategies');
         }
       } catch (tgError) {
-        console.error('[Reaction] General Error:', tgError);
+        console.error('[Reaction] General Error sending to TG:', tgError.message);
+        if (tgError.response) {
+          console.error('[Reaction] TG Response Data:', JSON.stringify(tgError.response.data, null, 2));
+          console.error('[Reaction] TG Response Status:', tgError.response.status);
+        }
       }
     } else {
-      console.log('[Reaction] Skip TG. ID exists:', !!message.message_id_tg, 'Token exists:', !!process.env.TELEGRAM_BOT_TOKEN);
+      console.log('[Reaction] Skip TG. Conditions not met:');
+      console.log('- has message_id_tg:', !!message.message_id_tg);
+      console.log('- has BOT_TOKEN:', !!process.env.TELEGRAM_BOT_TOKEN);
     }
 
     // 5. Socket Emit

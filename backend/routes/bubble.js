@@ -241,12 +241,16 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
     }
 
     // Process reactions
-    let finalReactions = reactions || [];
-    if (Array.isArray(finalReactions)) {
-      finalReactions = finalReactions.map(r => {
-        if (typeof r === 'string') return { emoji: r };
-        return r;
-      });
+    // Process reactions
+    let finalReactions = undefined;
+    if (reactions !== undefined) {
+      finalReactions = reactions || [];
+      if (Array.isArray(finalReactions)) {
+        finalReactions = finalReactions.map(r => {
+          if (typeof r === 'string') return { emoji: r };
+          return r;
+        });
+      }
     }
 
     // Helper to clean "null" strings to actual null
@@ -271,7 +275,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       order_status: order_status || orderStatusFromDb || null,
       file_url: finalFileUrl,
       file_name: finalFileName,
-      reactions: finalReactions,
+      ...(finalReactions !== undefined && { reactions: finalReactions }),
     };
 
     let existingMessage = null;
