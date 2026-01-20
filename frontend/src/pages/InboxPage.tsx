@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 
-import { contactsAPI, contactMessagesAPI, orderMessagesAPI } from '../services/api';
-import { InboxContact, Message } from '../types';
+import { contactsAPI, contactMessagesAPI, orderMessagesAPI, ordersAPI } from '../services/api';
+import { InboxContact, Message, Order } from '../types';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
     Layout,
@@ -42,6 +42,7 @@ const InboxPage: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const [contacts, setContacts] = useState<ExtendedInboxContact[]>([]);
     const [selectedContact, setSelectedContact] = useState<ExtendedInboxContact | null>(null);
+    const [activeOrder, setActiveOrder] = useState<Order | null>(null); // Активная заявка контакта
     const [messages, setMessages] = useState<Message[]>([]);
     const [isLoadingContacts, setIsLoadingContacts] = useState(false);
     const [isLoadingMessages, setIsLoadingMessages] = useState(false);
@@ -182,23 +183,35 @@ const InboxPage: React.FC = () => {
         }
     };
 
-    const selectContact = (contact: ExtendedInboxContact) => {
+    const selectContact = async (contact: ExtendedInboxContact) => {
         setSelectedContact(contact);
         setSearchParams({ contactId: String(contact.id) });
         fetchMessages(contact.id);
+
+        // Загружаем активную заявку контакта
+        try {
+            const { orders } = await ordersAPI.getAll({ contact_id: contact.id, limit: 1 });
+            const activeOrd = orders.find(o =>
+                !['completed', 'scammer', 'client_rejected', 'lost'].includes(o.status)
+            ) || orders[0];
+            setActiveOrder(activeOrd || null);
+        } catch (error) {
+            console.error('Error fetching contact orders:', error);
+            setActiveOrder(null);
+        }
     };
 
     const handleSendMessage = async (text: string) => {
         if (!selectedContact || sending) return;
         setSending(true);
         try {
-            // Используем latest_order_id из контакта для отправки через рабочий API
-            if (!selectedContact.latest_order_id) {
+            // Используем activeOrder.id вместо latest_order_id
+            if (!activeOrder) {
                 antMessage.error('Нет активной заявки для отправки сообщения');
                 return;
             }
 
-            const newMsg = await orderMessagesAPI.sendClientMessage(selectedContact.latest_order_id, text);
+            const newMsg = await orderMessagesAPI.sendClientMessage(activeOrder.id, text);
             // Оптимистичное обновление
             setMessages(prev => [...prev, newMsg]);
             scrollToBottom();
@@ -214,11 +227,11 @@ const InboxPage: React.FC = () => {
         if (!selectedContact || sending) return;
         setSending(true);
         try {
-            if (!selectedContact.latest_order_id) {
+            if (!activeOrder) {
                 antMessage.error('Нет активной заявки для отправки сообщения');
                 return;
             }
-            const newMsg = await orderMessagesAPI.sendClientVoice(selectedContact.latest_order_id, voice, duration);
+            const newMsg = await orderMessagesAPI.sendClientVoice(activeOrder.id, voice, duration);
             setMessages(prev => [...prev, newMsg]);
             scrollToBottom();
         } catch (error: any) {
@@ -233,11 +246,11 @@ const InboxPage: React.FC = () => {
         if (!selectedContact || sending) return;
         setSending(true);
         try {
-            if (!selectedContact.latest_order_id) {
+            if (!activeOrder) {
                 antMessage.error('Нет активной заявки для отправки сообщения');
                 return;
             }
-            const newMsg = await orderMessagesAPI.sendClientFile(selectedContact.latest_order_id, file);
+            const newMsg = await orderMessagesAPI.sendClientFile(activeOrder.id, file);
             setMessages(prev => [...prev, newMsg]);
             scrollToBottom();
         } catch (error: any) {
