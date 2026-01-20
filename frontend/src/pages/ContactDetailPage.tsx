@@ -31,7 +31,7 @@ import {
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Contact, Order, Note, Message, NOTE_PRIORITIES, ORDER_STATUSES } from '../types';
-import { contactsAPI, ordersAPI, notesAPI, contactMessagesAPI, orderMessagesAPI } from '../services/api';
+import { contactsAPI, ordersAPI, notesAPI, contactMessagesAPI, orderMessagesAPI, messagesAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { UnifiedMessageBubble } from '../components/UnifiedMessageBubble';
 import { ChatInput } from '../components/ChatInput';
@@ -104,6 +104,10 @@ const ContactDetailPage: React.FC = () => {
           return [...prev, data.message];
         });
       }
+    });
+
+    socketRef.current.on('message_updated', (msg: Message) => {
+      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, ...msg } : m));
     });
 
     const handleReconnect = () => {
@@ -268,6 +272,31 @@ const ContactDetailPage: React.FC = () => {
       fetchNotes();
     } catch (error: any) {
       message.error('Ошибка удаления заметки');
+    }
+  };
+
+  const handleAddReaction = async (msg: Message, emoji: string) => {
+    // Optimistic update
+    setMessages(prev => prev.map(m => {
+      if (m.id === msg.id) {
+        const currentReactions = m.reactions || [];
+        return {
+          ...m,
+          reactions: [...currentReactions, {
+            emoji,
+            author: 'Me', // Placeholder
+            created_at: new Date().toISOString()
+          }]
+        };
+      }
+      return m;
+    }));
+
+    try {
+      await messagesAPI.addReaction(msg.id, emoji);
+    } catch (error) {
+      console.error('Error adding reaction:', error);
+      message.error('Не удалось добавить реакцию');
     }
   };
 
@@ -549,6 +578,7 @@ const ContactDetailPage: React.FC = () => {
                                     msg={msg}
                                     isOwn={(msg.author_type || msg.sender_type) === 'manager'}
                                     variant="client"
+                                    onAddReaction={handleAddReaction}
                                   />
                                 </div>
                               );
