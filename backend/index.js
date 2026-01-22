@@ -77,8 +77,9 @@ app.use((req, res, next) => {
       console.error('Error snippet:', req.body.substring(0, 500)); // Log the bad body to debug
 
       // Attempt to fix unquoted keys/values from Bubble
+      let fixed;
       try {
-        let fixed = req.body
+        fixed = req.body
           // Fix unquoted yes/no
           .replace(/("\s*:\s*)no\b/g, '$1false')
           .replace(/("\s*:\s*)yes\b/g, '$1true');
