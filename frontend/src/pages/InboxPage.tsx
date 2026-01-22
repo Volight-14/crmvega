@@ -381,60 +381,69 @@ const InboxPage: React.FC = () => {
                             <List
                                 itemLayout="horizontal"
                                 dataSource={contacts}
-                                renderItem={(contact) => (
-                                    <List.Item
-                                        className={`contact-item ${selectedContact?.id === contact.id ? 'active' : ''}`}
-                                        onClick={() => selectContact(contact)}
-                                        style={{
-                                            cursor: 'pointer',
-                                            padding: '12px 16px',
-                                            background: selectedContact?.id === contact.id ? '#e6f7ff' : 'transparent',
-                                            borderBottom: '1px solid #f0f0f0',
-                                            transition: 'all 0.3s'
-                                        }}
-                                    >
-                                        <List.Item.Meta
-                                            avatar={
-                                                <Badge count={contact.unread_count} size="small">
-                                                    <Avatar size={48} icon={<UserOutlined />} src={contact.avatar_url} />
-                                                </Badge>
-                                            }
-                                            title={
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                    <Text strong style={{ maxWidth: 160 }} ellipsis>{contact.name}</Text>
-                                                    {contact.last_active && (
-                                                        <Text type="secondary" style={{ fontSize: 12 }}>
-                                                            {formatTime(contact.last_active)}
-                                                        </Text>
-                                                    )}
-                                                </div>
-                                            }
-                                            description={
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                renderItem={(contact) => {
+                                    const isClientLast = contact.last_message && isClientMessage(contact.last_message.author_type);
+                                    const isSelected = selectedContact?.id === contact.id;
+
+                                    return (
+                                        <List.Item
+                                            className={`contact-item ${isSelected ? 'active' : ''}`}
+                                            onClick={() => selectContact(contact)}
+                                            style={{
+                                                cursor: 'pointer',
+                                                padding: '12px 16px',
+                                                background: isSelected
+                                                    ? '#bae7ff' // Selected (Stronger Blue)
+                                                    : isClientLast
+                                                        ? '#e6f7ff' // Client last msg (Soft Blue)
+                                                        : 'transparent',
+                                                borderBottom: '1px solid #f0f0f0',
+                                                transition: 'all 0.3s'
+                                            }}
+                                        >
+                                            <List.Item.Meta
+                                                avatar={
+                                                    <Badge count={contact.unread_count} size="small">
+                                                        <Avatar size={48} icon={<UserOutlined />} src={contact.avatar_url} />
+                                                    </Badge>
+                                                }
+                                                title={
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                        <Text type="secondary" style={{ maxWidth: 180 }} ellipsis>
-                                                            {contact.last_message?.content || 'Нет сообщений'}
-                                                        </Text>
-                                                        {contact.telegram_user_id && <Tag color="blue" style={{ margin: 0, fontSize: 10 }}>TG</Tag>}
-                                                    </div>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                        {contact.last_order_status && ORDER_STATUSES[contact.last_order_status as keyof typeof ORDER_STATUSES] && (
-                                                            <Tag color={ORDER_STATUSES[contact.last_order_status as keyof typeof ORDER_STATUSES].color || 'default'} style={{ margin: 0, fontSize: 10, lineHeight: '16px', padding: '0 4px' }}>
-                                                                {ORDER_STATUSES[contact.last_order_status as keyof typeof ORDER_STATUSES].label}
-                                                            </Tag>
-                                                        )}
-                                                        {contact.responsible_person && (
-                                                            <Text type="secondary" style={{ fontSize: 11 }}>
-                                                                <UserOutlined style={{ marginRight: 4 }} />
-                                                                {contact.responsible_person}
+                                                        <Text strong style={{ maxWidth: 160 }} ellipsis>{contact.name}</Text>
+                                                        {contact.last_active && (
+                                                            <Text type="secondary" style={{ fontSize: 12 }}>
+                                                                {formatTime(contact.last_active)}
                                                             </Text>
                                                         )}
                                                     </div>
-                                                </div>
-                                            }
-                                        />
-                                    </List.Item>
-                                )}
+                                                }
+                                                description={
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                            <Text type="secondary" style={{ maxWidth: 180 }} ellipsis>
+                                                                {contact.last_message?.content || 'Нет сообщений'}
+                                                            </Text>
+                                                            {contact.telegram_user_id && <Tag color="blue" style={{ margin: 0, fontSize: 10 }}>TG</Tag>}
+                                                        </div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                            {contact.last_order_status && ORDER_STATUSES[contact.last_order_status as keyof typeof ORDER_STATUSES] && (
+                                                                <Tag color={ORDER_STATUSES[contact.last_order_status as keyof typeof ORDER_STATUSES].color || 'default'} style={{ margin: 0, fontSize: 10, lineHeight: '16px', padding: '0 4px' }}>
+                                                                    {ORDER_STATUSES[contact.last_order_status as keyof typeof ORDER_STATUSES].label}
+                                                                </Tag>
+                                                            )}
+                                                            {contact.responsible_person && (
+                                                                <Text type="secondary" style={{ fontSize: 11 }}>
+                                                                    <UserOutlined style={{ marginRight: 4 }} />
+                                                                    {contact.responsible_person}
+                                                                </Text>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                }
+                                            />
+                                        </List.Item>
+                                    );
+                                }}
                             />
                         )}
                     </div>
