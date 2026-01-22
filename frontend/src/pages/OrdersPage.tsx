@@ -631,7 +631,7 @@ const OrdersPage: React.FC = () => {
 
   const handleCreateOrder = async (values: any) => {
     try {
-      await ordersAPI.create({ ...values, status: createStatus });
+      await ordersAPI.create({ ...values, status: values.status || createStatus });
       message.success('Заявка создана');
       setIsCreateModalVisible(false);
       form.resetFields();
@@ -932,13 +932,16 @@ const OrdersPage: React.FC = () => {
             <Select
               placeholder="Выберите контакт"
               showSearch
-              optionFilterProp="children"
               filterOption={(input, option) =>
-                (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+                ((option?.['data-label'] as string) || '').toLowerCase().includes(input.toLowerCase())
               }
             >
               {contacts.map((contact) => (
-                <Option key={contact.id} value={contact.id}>
+                <Option
+                  key={contact.id}
+                  value={contact.id}
+                  data-label={`${contact.name || ''} ${contact.phone || ''}`}
+                >
                   {contact.name} {contact.phone ? `(${contact.phone})` : ''}
                 </Option>
               ))}
