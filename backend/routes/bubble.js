@@ -862,6 +862,14 @@ router.post('/status', verifyWebhookToken, async (req, res) => {
         continue;
       }
 
+      // FIX: Обновляем last_message_at у контакта, чтобы статус поднимал его в Inbox
+      if (updatedOrder.contact_id) {
+        await supabase
+          .from('contacts')
+          .update({ last_message_at: new Date().toISOString() })
+          .eq('id', updatedOrder.contact_id);
+      }
+
       // 5. Запускаем ВНУТРЕННИЕ автоматизации и уведомления
       // ВАЖНО: Мы НЕ вызываем sendBubbleStatusWebhook, чтобы избежать цикла!
       const io = req.app.get('io');
