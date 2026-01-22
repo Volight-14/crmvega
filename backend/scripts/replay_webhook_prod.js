@@ -8,7 +8,7 @@ const supabase = createClient(
 );
 
 // URL for the actual server
-const WEBHOOK_URL = 'https://crmvega.onrender.com/api/webhook/bubble/order';
+const WEBHOOK_URL = 'https://crmvega-g766.onrender.com/api/webhook/bubble/order';
 const TOKEN = 'b7ea74a3fcf7b7f9ac64df1d9b00e1cc';
 
 const mainId = '1768499030099'; // New unique NUMERIC ID for testing

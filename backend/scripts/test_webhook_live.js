@@ -5,7 +5,7 @@ require('dotenv').config({ path: './.env' });
 // Since I can't reach localhost easily if no tunnel, I'll assume prod or use render URL.
 // IMPORTANT: User says "make a test request".
 
-const WEBHOOK_URL = 'https://crmvega.onrender.com/api/webhook/bubble/order';
+const WEBHOOK_URL = 'https://crmvega-g766.onrender.com/api/webhook/bubble/order';
 const SECRET = process.env.BUBBLE_WEBHOOK_SECRET || 'your_secret_here';
 
 // Random main_ID to avoid conflicts
