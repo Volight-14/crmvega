@@ -181,10 +181,38 @@ router.get('/:id', auth, async (req, res) => {
         tags:order_tags(tag:tags(*))
       `);
 
-    // Strict lookup by main_id only, as requested
-    query = query.eq('main_id', id);
+    // 1. Try by main_id (most common for external links)
+    let { data, error } = await query.eq('main_id', id).maybeSingle();
 
-    const { data, error } = await query.single();
+    // 2. If not found, try by internal id (if it looks like a valid int4)
+    if (!data) {
+      // Reset query builder? Supabase objects are immutable-ish, better create new chain
+      const isInt4 = /^\d{1,9}$/.test(id) || (id.length === 10 && id <= "2147483647");
+
+      if (isInt4) {
+        const { data: byId, error: errId } = await supabase
+          .from('orders')
+          .select(`
+             *,
+             contact:contacts(*),
+             manager:managers(name),
+             tags:order_tags(tag:tags(*))
+           `)
+          .eq('id', id)
+          .maybeSingle();
+
+        if (byId) {
+          data = byId;
+          error = null;
+        }
+      }
+    }
+
+    if (!data) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    if (error) throw error;
 
     if (error) throw error;
 
