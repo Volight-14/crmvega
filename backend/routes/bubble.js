@@ -496,7 +496,7 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
       // Smart Name Resolution
       let name = data.client_name || null;
       if (!name && data.tg_amo) name = data.tg_amo.split(',')[0];
-      if (!name) name = `User ${telegramId || 'Unknown'}`;
+      if (!name) name = `User ${telegramId || rawUserValue || 'Unknown'}`;
 
       console.log(`[Bubble Webhook] Creating new contact: ${name} (TG: ${telegramId})`);
 
@@ -733,7 +733,7 @@ router.post('/contact', verifyWebhookToken, async (req, res) => {
 
     // Prepare contact data (only fields that exist in Supabase)
     const contactData = {
-      name: name || existingContact?.name || `User ${telegramId || 'Unknown'}`,
+      name: name || existingContact?.name || `User ${telegramId || phone || 'Unknown'}`,
       phone: (phone && phone !== '123' && phone.length > 5) ? phone : null,
       email: email || null,
       telegram_user_id: telegramId || null,
