@@ -181,15 +181,8 @@ router.get('/:id', auth, async (req, res) => {
         tags:order_tags(tag:tags(*))
       `);
 
-    // Check if ID is likely a main_id (timestamp, ~13 digits) or internal ID (int4)
-    // Max int4 is ~2 billion (10 digits). Timestamps are > 1 trillion.
-    const isLargeId = /^\d+$/.test(id) && (id.length > 10 || (id.length === 10 && parseInt(id) > 2147483647));
-
-    if (isLargeId) {
-      query = query.eq('main_id', id);
-    } else {
-      query = query.or(`id.eq.${id},main_id.eq.${id}`);
-    }
+    // Strict lookup by main_id only, as requested
+    query = query.eq('main_id', id);
 
     const { data, error } = await query.single();
 
