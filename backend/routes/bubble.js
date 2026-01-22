@@ -160,15 +160,16 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       // If we HAD a main_id passed, find the order ID associated with it
       const { data: existingOrds } = await supabase
         .from('orders')
-        .select('id, status')
+        .select('id, status, contact_id')
         .eq('main_id', finalMainId)
         .order('created_at', { ascending: false })
         .limit(1);
 
       if (existingOrds && existingOrds.length > 0) {
         finalOrderId = existingOrds[0].id;
+        finalContactId = existingOrds[0].contact_id; // FIX: Сохраняем contact_id
         orderStatusFromDb = existingOrds[0].status;
-        console.log(`[Bubble Webhook] Resolved Order ID ${finalOrderId} from main_id ${finalMainId}`);
+        console.log(`[Bubble Webhook] Resolved Order ID ${finalOrderId}, Contact ID ${finalContactId} from main_id ${finalMainId}`);
       } else {
         console.warn(`[Bubble Webhook] No order found for main_id ${finalMainId}`);
       }
