@@ -181,13 +181,8 @@ router.get('/:id', auth, async (req, res) => {
         tags:order_tags(tag:tags(*))
       `);
 
-    // Check if id is a large number (likely main_id) or small integer (internal id)
-    // main_id is usually a timestamp (13 chars) or similar
-    if (/^\d{10,}$/.test(id)) {
-      query = query.eq('main_id', id);
-    } else {
-      query = query.eq('id', id);
-    }
+    // Try finding by ID first (most common)
+    query = query.or(`id.eq.${id},main_id.eq.${id}`);
 
     const { data, error } = await query.single();
 
