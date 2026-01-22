@@ -183,6 +183,7 @@ router.get('/summary', auth, async (req, res) => {
         last_message: lastMessage,
         last_active: contact.last_message_at || lastMessage?.['Created Date'],
         latest_order_id: latestOrder?.id || null, // Используем реальный order.id, НЕ main_id!
+        latest_order_main_id: latestOrder?.main_id || null, // Добавляем main_id для ссылок
         last_order_status: latestOrder?.status,
         responsible_person: latestOrder?.manager?.name
       };

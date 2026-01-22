@@ -149,6 +149,7 @@ export interface InboxContact extends Contact {
   last_active?: string;
   unread_count?: number;
   latest_order_id?: number;
+  latest_order_main_id?: string;
   last_order_status?: string;
   responsible_person?: string;
 }

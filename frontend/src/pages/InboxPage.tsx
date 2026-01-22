@@ -51,6 +51,7 @@ const InboxPage: React.FC = () => {
     const [sending, setSending] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const selectedContactRef = useRef<number | null>(null);
     const socketRef = useRef<Socket | null>(null);
 
     // Initial load
@@ -97,15 +98,12 @@ const InboxPage: React.FC = () => {
 
             // Update current chat if open
             if (activeOrder && String(data.message.main_id) === String(activeOrder.main_id)) {
-                // Already handled by specific listeners below? 
-                // contact_message is generic. let's deduplicate via ID check.
                 setMessages(prev => {
                     if (prev.some(m => m.id === data.message.id)) return prev;
                     return [...prev, data.message];
                 });
                 scrollToBottom();
             } else if (selectedContact?.id === data.contact_id) {
-                // Fallback if main_id mismatch or not present
                 setMessages(prev => {
                     if (prev.some(m => m.id === data.message.id)) return prev;
                     return [...prev, data.message];
@@ -142,7 +140,7 @@ const InboxPage: React.FC = () => {
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
         socketRef.current.on('contact_message', handleNewMessage);
-        socketRef.current.on('message_updated', handleMessageUpdated); // Listen for reaction updates
+        socketRef.current.on('message_updated', handleMessageUpdated);
 
         // Join active lead room
         if (activeOrder?.main_id) {
@@ -157,7 +155,7 @@ const InboxPage: React.FC = () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedContact, activeOrder]); // Re-run when activeOrder changes to join new room
+    }, [selectedContact, activeOrder]);
 
     // Handle URL param selection
     useEffect(() => {
@@ -187,8 +185,10 @@ const InboxPage: React.FC = () => {
         try {
             setIsLoadingMessages(true);
             const data = await contactMessagesAPI.getByContactId(contactId, { limit: 50 });
-            setMessages(data);
-            scrollToBottom();
+            if (selectedContactRef.current === contactId) {
+                setMessages(data);
+                scrollToBottom();
+            }
         } catch (error: any) {
             console.error('Error fetching messages:', error);
             if (error.response) {
@@ -196,25 +196,38 @@ const InboxPage: React.FC = () => {
                 antMessage.error(`Ошибка загрузки: ${JSON.stringify(error.response.data)}`);
             }
         } finally {
-            setIsLoadingMessages(false);
+            if (selectedContactRef.current === contactId) {
+                setIsLoadingMessages(false);
+            }
         }
     };
 
     const selectContact = async (contact: ExtendedInboxContact) => {
+        selectedContactRef.current = contact.id;
         setSelectedContact(contact);
         setSearchParams({ contactId: String(contact.id) });
+
+        // Clear state immediately to avoid showing old data
+        setActiveOrder(null);
+        setMessages([]);
+
         fetchMessages(contact.id);
 
         // Загружаем активную заявку контакта
         try {
-            const { orders } = await ordersAPI.getAll({ contact_id: contact.id, limit: 1 });
+            const { orders } = await ordersAPI.getAll({ contact_id: contact.id, limit: 10 });
             const activeOrd = orders.find(o =>
                 !['completed', 'scammer', 'client_rejected', 'lost'].includes(o.status)
             ) || orders[0];
-            setActiveOrder(activeOrd || null);
+
+            if (selectedContactRef.current === contact.id) {
+                setActiveOrder(activeOrd || null);
+            }
         } catch (error) {
             console.error('Error fetching contact orders:', error);
-            setActiveOrder(null);
+            if (selectedContactRef.current === contact.id) {
+                setActiveOrder(null);
+            }
         }
     };
 
@@ -467,8 +480,8 @@ const InboxPage: React.FC = () => {
                                     </div>
                                 </div>
                                 <div style={{ display: 'flex', gap: 4 }}>
-                                    {selectedContact.latest_order_id && (
-                                        <Link to={`/order/${selectedContact.latest_order_id}`}>
+                                    {(activeOrder || selectedContact.latest_order_id) && (
+                                        <Link to={`/order/${activeOrder?.main_id || activeOrder?.id || selectedContact.latest_order_main_id || selectedContact.latest_order_id}`}>
                                             <Button type="link" size="small">{isMobile ? 'Сделка' : 'Открыть сделку'}</Button>
                                         </Link>
                                     )}
