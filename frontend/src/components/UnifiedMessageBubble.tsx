@@ -336,8 +336,16 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
                         onTouchEnd={handleTouchEnd}
                         onContextMenu={handleContextMenu}
                     >
-                        {!isRight && !isFromClient && (
-                            <div style={{ fontSize: 11, fontWeight: 500, opacity: 0.7, marginBottom: 2 }}>
+                        {!isFromClient && (
+                            <div style={{
+                                fontSize: 10,
+                                fontWeight: 600,
+                                opacity: 0.9,
+                                marginBottom: 2,
+                                textAlign: isRight ? 'right' : 'left',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px'
+                            }}>
                                 {msg.author_type}
                             </div>
                         )}
