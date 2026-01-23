@@ -336,12 +336,6 @@ router.patch('/:id', auth, async (req, res) => {
     if (updateData.status && oldOrder && updateData.status !== oldOrder.status) {
       // 1. Создаем системное сообщение во внутреннем чате
       try {
-        const { ORDER_STATUSES } = require('../utils/statuses'); // Ensure you have this map or fetch from DB/define it
-        // Since statuses.js might not exist or be importable easily here, let's use a hardcoded helper or just the keys if labels aren't available backend-side yet.
-        // Better approach: just use the status code or a simple map if possible.
-        // For now, let's use the status key. In a real app, you'd import the shared constants or labels.
-
-        // Let's rely on frontend labels? No, backend needs to know english/russian label.
         // Minimal map for now to match frontend:
         const STATUS_LABELS = {
           unsorted: 'Неразобранное',
