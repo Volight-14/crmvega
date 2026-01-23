@@ -368,6 +368,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClic
           overflowY: 'auto',
           borderRadius: '0 0 8px 8px',
           transition: 'background 0.2s',
+          minHeight: '100px', // Ensure drop zone area exists
         }}
       >
         <SortableContext items={orderIds} strategy={verticalListSortingStrategy}>
