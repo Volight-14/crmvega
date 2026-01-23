@@ -1,26 +1,14 @@
 const axios = require('axios');
 
+const { ORDER_STATUSES } = require('./statuses');
+
 // Обратный маппинг: внутренний статус -> Bubble status_id
-const STATUS_TO_BUBBLE_ID = {
-    'unsorted': '68464454',
-    'accepted_anna': '68464458',
-    'accepted_kostya': '68626790',
-    'accepted_stas': '68627678',
-    'accepted_lucy': '80739506',
-    'in_progress': '71445094',
-    'survey': '75360614',
-    'transferred_nikita': '68464462',
-    'transferred_val': '69674402',
-    'transferred_ben': '68626794',
-    'transferred_fin': '74741370',
-    'partially_completed': '68624190',
-    'postponed': '68464466',
-    'client_rejected': '70835430',
-    'scammer': '70836166',
-    'moderation': '69707910',
-    'completed': '142',
-    'duplicate': '143'
-};
+const STATUS_TO_BUBBLE_ID = Object.entries(ORDER_STATUSES).reduce((acc, [key, value]) => {
+    if (value.bubble_id) {
+        acc[key] = value.bubble_id;
+    }
+    return acc;
+}, {});
 
 /**
  * Отправляет вебхук на Bubble при изменении статуса заявки
