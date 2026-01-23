@@ -489,6 +489,15 @@ const OrdersPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
+  const sortedStatusOptions = useMemo(() => Object.entries(ORDER_STATUSES)
+    .sort(([, a], [, b]) => (a.order || 0) - (b.order || 0))
+    .map(([key, value]) => ({
+      value: key as OrderStatus,
+      label: value.label,
+      icon: value.icon,
+      color: value.color,
+    })), []);
+
   const fetchContacts = async () => {
     try {
       const { contacts: fetchedContacts } = await contactsAPI.getAll({ limit: 1000 });
@@ -929,7 +938,12 @@ const OrdersPage: React.FC = () => {
           <Table
             dataSource={filteredOrders}
             rowKey="id"
-            pagination={{ pageSize: 20 }}
+            pagination={{
+              defaultPageSize: 20,
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '20', '50', '100']
+            }}
+            scroll={{ x: 800 }} // Enable horizontal scroll for mobile
             onRow={(record) => ({
               onClick: () => navigate(`/order/${record.main_id || record.id}`),
               style: { cursor: 'pointer' }
@@ -954,19 +968,46 @@ const OrdersPage: React.FC = () => {
                 title: 'Этап сделки',
                 dataIndex: 'status',
                 key: 'status',
-                render: (status) => {
-                  const statusInfo = ORDER_STATUSES[status as OrderStatus];
+                render: (status, record) => {
                   return (
-                    <div style={{
-                      backgroundColor: statusInfo?.color === 'default' ? '#f0f0f0' : `${statusInfo?.color}15`,
-                      color: statusInfo?.color || '#595959',
-                      border: `1px solid ${statusInfo?.color || '#d9d9d9'}`,
-                      padding: '2px 8px',
-                      borderRadius: 4,
-                      display: 'inline-block',
-                      fontSize: 12
-                    }}>
-                      {statusInfo?.label || status}
+                    <div onClick={e => e.stopPropagation()}>
+                      <Select
+                        size="small"
+                        value={status}
+                        onChange={(newVal) => handleStatusChange(record.id, newVal)}
+                        style={{ width: '100%', minWidth: 140 }}
+                        bordered={false}
+                        showArrow={false}
+                        dropdownMatchSelectWidth={false}
+                        labelRender={(props) => {
+                          const statusInfo = ORDER_STATUSES[props.value as OrderStatus];
+                          return (
+                            <div style={{
+                              backgroundColor: statusInfo?.color === 'default' ? '#f0f0f0' : `${statusInfo?.color}15`,
+                              color: statusInfo?.color || '#595959',
+                              border: `1px solid ${statusInfo?.color || '#d9d9d9'}`,
+                              padding: '2px 8px',
+                              borderRadius: 4,
+                              display: 'inline-block',
+                              fontSize: 12,
+                              cursor: 'pointer',
+                              textAlign: 'center',
+                              width: '100%'
+                            }}>
+                              {statusInfo?.label || props.label}
+                            </div>
+                          );
+                        }}
+                      >
+                        {sortedStatusOptions.map((opt) => (
+                          <Option key={opt.value} value={opt.value}>
+                            <Space size={4}>
+                              <span style={{ color: opt.color }}>●</span>
+                              <span style={{ fontSize: 14 }}>{opt.label}</span>
+                            </Space>
+                          </Option>
+                        ))}
+                      </Select>
                     </div>
                   );
                 }
