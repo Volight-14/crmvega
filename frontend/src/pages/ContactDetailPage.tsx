@@ -352,7 +352,7 @@ const ContactDetailPage: React.FC = () => {
     }
   };
 
-  const handleSendFile = async (file: File) => {
+  const handleSendFile = async (file: File, caption?: string) => {
     if (!id || !manager) return;
     setSending(true);
     try {
@@ -365,7 +365,7 @@ const ContactDetailPage: React.FC = () => {
         return;
       }
 
-      const newMsg = await orderMessagesAPI.sendClientFile(activeOrder.id, file);
+      const newMsg = await orderMessagesAPI.sendClientFile(activeOrder.id, file, caption);
       setMessages(prev => [...prev, newMsg]);
       scrollToBottom();
     } catch (error: any) {

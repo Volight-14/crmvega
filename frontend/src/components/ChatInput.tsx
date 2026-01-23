@@ -19,7 +19,7 @@ interface ChatInputProps {
     onSendVoice: (voice: Blob, duration: number) => Promise<void> | void;
     sending: boolean;
     onTyping?: () => void;
-    onSendFile?: (file: File) => Promise<void> | void;
+    onSendFile?: (file: File, caption?: string) => Promise<void> | void;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, sending, onTyping, onSendFile }) => {
@@ -56,8 +56,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
         const slashIndex = val.lastIndexOf('/');
         if (slashIndex !== -1) {
             const query = val.slice(slashIndex + 1).toLowerCase();
-            // Trigger if query has no spaces (simple check to avoid triggering on old slashes) or if it's the last word
-            // We want to support filtering by text, e.g. /привет
             const matches = templates.filter(t => t.title?.toLowerCase().includes(query));
             setFilteredTemplates(matches);
             setShowTemplates(matches.length > 0);
@@ -67,7 +65,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
     };
 
     const handleTemplateSelect = async (template: WebsiteContent) => {
-        // Find the last slash to replace properly
         const val = messageInput;
         const slashIndex = val.lastIndexOf('/');
         const prefix = slashIndex !== -1 ? val.slice(0, slashIndex) : val;
@@ -93,7 +90,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
             const att = attachments[0];
             if (att.url) {
                 try {
-                    // Fetch via proxy/cors safe way or just standard fetch if public
                     const res = await fetch(att.url);
                     const blob = await res.blob();
                     const file = new File([blob], att.name || 'image.png', { type: blob.type });
@@ -180,7 +176,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
 
     // --- File & Paste Logic ---
     const handleFileSelect = (file: File) => {
-        // Clear previous
         if (previewUrl) URL.revokeObjectURL(previewUrl);
         setSelectedFile(file);
 
@@ -191,7 +186,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
             setPreviewUrl(null);
         }
 
-        // Reset file input so same file can be selected again if cancelled
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
@@ -218,35 +212,41 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
         setSelectedFile(null);
     };
 
-    // --- Sending Logic ---
-    const handleSendText = async () => {
-        if (!messageInput.trim() || sending) return;
-        try {
-            await onSendText(messageInput);
-            setMessageInput('');
-        } catch (e) {
-            console.error('Failed to send text:', e);
+    // --- Combined Send Logic ---
+    const handleSend = async () => {
+        if (sending) return;
+
+        // If file exists, send file with text as caption
+        if (selectedFile && onSendFile) {
+            try {
+                await onSendFile(selectedFile, messageInput.trim() || undefined);
+                clearFile();
+                setMessageInput('');
+            } catch (error) {
+                console.error('Failed to send file:', error);
+                antMessage.error('Ошибка отправки файла');
+            }
+            return;
+        }
+
+        // If no file, send text normally
+        if (messageInput.trim()) {
+            try {
+                await onSendText(messageInput);
+                setMessageInput('');
+            } catch (e) {
+                console.error('Failed to send text:', e);
+            }
         }
     };
 
-    const handleSendVoice = async () => {
+    const handleSendVoiceAction = async () => {
         if (!recordedAudio || sending) return;
         try {
             await onSendVoice(recordedAudio, recordingDuration);
             cancelRecording();
         } catch (e) {
             console.error('Failed to send voice:', e);
-        }
-    };
-
-    const handleSendFileAction = async () => {
-        if (!selectedFile || !onSendFile || sending) return;
-        try {
-            await onSendFile(selectedFile);
-            clearFile();
-        } catch (error) {
-            console.error('Failed to send file:', error);
-            antMessage.error('Ошибка отправки файла');
         }
     };
 
@@ -374,7 +374,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
                         <Button
                             type="primary"
                             icon={<SendOutlined />}
-                            onClick={handleSendVoice}
+                            onClick={handleSendVoiceAction}
                             loading={sending}
                             shape="circle"
                         />
@@ -411,11 +411,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter' && !e.shiftKey) {
                                     e.preventDefault();
-                                    if (selectedFile) {
-                                        handleSendFileAction(); // Ideally send with caption if backend supports
-                                    } else {
-                                        handleSendText();
-                                    }
+                                    handleSend();
                                 }
                             }}
                             style={{ borderRadius: 12, resize: 'none', flex: 1 }}
@@ -454,7 +450,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
                                 shape="circle"
                                 size="large"
                                 icon={<SendOutlined />}
-                                onClick={selectedFile ? handleSendFileAction : handleSendText}
+                                onClick={handleSend}
                                 loading={sending}
                             />
                         )}
@@ -464,4 +460,3 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
         </div>
     );
 };
-

@@ -220,16 +220,26 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName, isMobile = 
     }
   };
 
-  const handleSendFile = async (file: File) => {
+  const handleSendFile = async (file: File, caption?: string) => {
     if (sending) return;
     setSending(true);
     try {
       if (activeTab === 'client') {
         const replyId = replyTo && 'message_id_tg' in replyTo ? replyTo.message_id_tg as number : undefined;
-        await orderMessagesAPI.sendClientFile(orderId, file, undefined, replyId);
+        await orderMessagesAPI.sendClientFile(orderId, file, caption, replyId);
       } else {
         const replyId = replyTo ? replyTo.id : undefined;
+        // Internal file also might support caption? The API signature shows NO caption support for internal files yet in frontend api.ts
+        // Let's check api.ts again: `sendInternalFile: async (orderId: number, file: File, replyToId?: number)`
+        // So for internal, we ignore caption for now or need to update API.
+        // Assuming client wants this for TG (Client) mostly.
         await orderMessagesAPI.sendInternalFile(orderId, file, replyId);
+        if (caption) {
+          // If there is caption for internal, send it as text immediately after?
+          // Or just ignore it as internal chat might not support caption.
+          // Let's just send text if caption exists for internal to be safe
+          await orderMessagesAPI.sendInternalMessage(orderId, caption, replyId);
+        }
       }
       setReplyTo(null);
       scrollToBottom();

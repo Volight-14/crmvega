@@ -316,7 +316,7 @@ const InboxPage: React.FC = () => {
         }
     };
 
-    const handleSendFile = async (file: File) => {
+    const handleSendFile = async (file: File, caption?: string) => {
         if (!selectedContact || sending) return;
         setSending(true);
         try {
@@ -324,7 +324,7 @@ const InboxPage: React.FC = () => {
                 antMessage.error('Нет активной заявки для отправки сообщения');
                 return;
             }
-            const newMsg = await orderMessagesAPI.sendClientFile(activeOrder.id, file);
+            const newMsg = await orderMessagesAPI.sendClientFile(activeOrder.id, file, caption);
             setMessages(prev => [...prev, newMsg]);
             setContacts(prev => prev.map(c =>
                 c.id === selectedContact.id
