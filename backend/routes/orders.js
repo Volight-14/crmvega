@@ -336,34 +336,13 @@ router.patch('/:id', auth, async (req, res) => {
     if (updateData.status && oldOrder && updateData.status !== oldOrder.status) {
       // 1. Создаем системное сообщение во внутреннем чате
       try {
-        // Minimal map for now to match frontend:
-        const STATUS_LABELS = {
-          unsorted: 'Неразобранное',
-          accepted_anna: 'Принято Анна',
-          accepted_kostya: 'Принято Костя',
-          accepted_stas: 'Принято Стас',
-          accepted_lucy: 'Принято Люси',
-          in_progress: 'Работа с клиентом',
-          survey: 'Опрос',
-          transferred_nikita: 'Передано Никите',
-          transferred_val: 'Передано Вал Александру',
-          transferred_ben: 'Передано Бен Александру',
-          transferred_fin: 'Передано Фин Александру',
-          partially_completed: 'Частично исполнена',
-          postponed: 'Перенос на завтра',
-          client_rejected: 'Отказ клиента',
-          scammer: 'Мошенник',
-          moderation: 'На модерации',
-          completed: 'Успешно реализована',
-          duplicate: 'Дубль'
-        };
+        const { ORDER_STATUSES } = require('../utils/statuses');
 
-        const oldLabel = STATUS_LABELS[oldOrder.status] || oldOrder.status;
-        const newLabel = STATUS_LABELS[updateData.status] || updateData.status;
+        const oldLabel = ORDER_STATUSES[oldOrder.status]?.label || oldOrder.status;
+        const newLabel = ORDER_STATUSES[updateData.status]?.label || updateData.status;
         const managerName = req.manager.name || req.manager.email;
-        const timestamp = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 
-        // Format: "Анна Новый этап: Передано Никите из Принято Анна"
+        // Format: "🔄 Анна смена этапа: Передано Никите (было: Принято Анна)"
         const systemContent = `🔄 ${managerName} смена этапа: ${newLabel} (было: ${oldLabel})`;
 
         const { data: sysMsg, error: sysMsgError } = await supabase
