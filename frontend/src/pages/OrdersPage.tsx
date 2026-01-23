@@ -24,7 +24,11 @@ import {
   EditOutlined,
   DeleteOutlined,
   ExclamationCircleOutlined,
+  UnorderedListOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons';
+import { Table, Radio } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -442,6 +446,7 @@ const OrdersPage: React.FC = () => {
   const [activeId, setActiveId] = useState<number | null>(null);
   const [form] = Form.useForm();
   const [modal, contextHolder] = Modal.useModal();
+  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
 
   // Edit Contact state
   const [isEditContactModalVisible, setIsEditContactModalVisible] = useState(false);
@@ -773,6 +778,18 @@ const OrdersPage: React.FC = () => {
             style={{ width: '100%', maxWidth: 250, borderRadius: 8 }}
             allowClear
           />
+          <Radio.Group
+            value={viewMode}
+            onChange={(e) => setViewMode(e.target.value)}
+            buttonStyle="solid"
+          >
+            <Radio.Button value="kanban">
+              <AppstoreOutlined />
+            </Radio.Button>
+            <Radio.Button value="list">
+              <UnorderedListOutlined />
+            </Radio.Button>
+          </Radio.Group>
         </div>
 
         {searchParams.get('tag') && (
@@ -821,90 +838,165 @@ const OrdersPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Mobile Status Navigator */}
-      <div className="mobile-only" style={{ padding: '8px 16px', background: '#fff', borderBottom: '1px solid #f0f0f0' }}>
-        <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 4 }}>Быстрый переход к этапу:</div>
-        <Select
-          value={activeMobileColumn}
-          onChange={scrollToColumn}
-          style={{ width: '100%' }}
-          size="large"
-          virtual={false}
-          listHeight={400}
-          getPopupContainer={(trigger) => trigger.parentNode}
-        >
-          {sortedStatuses.map(status => (
-            <Option key={status} value={status}>
-              <Space>
-                {ORDER_STATUSES[status].icon}
-                {ORDER_STATUSES[status].label}
-                <span style={{ color: '#bfbfbf', fontSize: 11 }}>
-                  ({ordersByStatus[status]?.length || 0})
-                </span>
-              </Space>
-            </Option>
-          ))}
-        </Select>
-      </div>
-
-      {/* Kanban Board */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <div
-          ref={kanbanRef}
-          className="kanban-scroll-view"
-        >
-          <div className="kanban-track">
-            {sortedStatuses.map((status) => (
-              <div
-                key={status}
-                ref={el => { columnRefs.current[status] = el; }}
-                className="kanban-column-wrapper" // Wrapper for ref
-              >
-                <KanbanColumn
-                  status={status}
-                  orders={ordersByStatus[status] || []}
-                  onOrderClick={(order) => navigate(`/order/${order.main_id || order.id}`)}
-                  onAddOrder={() => openCreateModal(status)}
-                  onStatusChange={handleStatusChange}
-                  onEditContact={handleEditContact}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-        <DragOverlay>
-          {draggedOrder ? (
-            <Card
-              size="small"
-              style={{
-                width: 260,
-                opacity: 0.95,
-                boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
-                borderRadius: 8,
-              }}
-              bodyStyle={{ padding: '10px 12px' }}
+      {/* Content */}
+      {viewMode === 'kanban' ? (
+        <>
+          {/* Mobile Status Navigator - only for Kanban */}
+          <div className="mobile-only" style={{ padding: '8px 16px', background: '#fff', borderBottom: '1px solid #f0f0f0' }}>
+            <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 4 }}>Быстрый переход к этапу:</div>
+            <Select
+              value={activeMobileColumn}
+              onChange={scrollToColumn}
+              style={{ width: '100%' }}
+              size="large"
+              virtual={false}
+              listHeight={400}
+              getPopupContainer={(trigger) => trigger.parentNode}
             >
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                {draggedOrder.contact?.name || 'Без контакта'}
+              {sortedStatuses.map(status => (
+                <Option key={status} value={status}>
+                  <Space>
+                    {ORDER_STATUSES[status].icon}
+                    {ORDER_STATUSES[status].label}
+                    <span style={{ color: '#bfbfbf', fontSize: 11 }}>
+                      ({ordersByStatus[status]?.length || 0})
+                    </span>
+                  </Space>
+                </Option>
+              ))}
+            </Select>
+          </div>
+
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <div
+              ref={kanbanRef}
+              className="kanban-scroll-view"
+            >
+              <div className="kanban-track">
+                {sortedStatuses.map((status) => (
+                  <div
+                    key={status}
+                    ref={el => { columnRefs.current[status] = el; }}
+                    className="kanban-column-wrapper"
+                  >
+                    <KanbanColumn
+                      status={status}
+                      orders={ordersByStatus[status] || []}
+                      onOrderClick={(order) => navigate(`/order/${order.main_id || order.id}`)}
+                      onAddOrder={() => openCreateModal(status)}
+                      onStatusChange={handleStatusChange}
+                      onEditContact={handleEditContact}
+                    />
+                  </div>
+                ))}
               </div>
-              <div style={{ fontSize: 12, color: '#1890ff' }}>
-                {draggedOrder.title}
-              </div>
-              {draggedOrder.amount > 0 && (
-                <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>
-                  {draggedOrder.currency === 'EUR' ? '€' : draggedOrder.currency === 'USD' ? '$' : '₽'}
-                  {draggedOrder.amount.toLocaleString('ru-RU')}
-                </div>
-              )}
-            </Card>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+            </div>
+            <DragOverlay>
+              {draggedOrder ? (
+                <Card
+                  size="small"
+                  style={{
+                    width: 260,
+                    opacity: 0.95,
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                    borderRadius: 8,
+                  }}
+                  bodyStyle={{ padding: '10px 12px' }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                    {draggedOrder.contact?.name || 'Без контакта'}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#1890ff' }}>
+                    {draggedOrder.title}
+                  </div>
+                  {draggedOrder.amount > 0 && (
+                    <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>
+                      {draggedOrder.currency === 'EUR' ? '€' : draggedOrder.currency === 'USD' ? '$' : '₽'}
+                      {draggedOrder.amount.toLocaleString('ru-RU')}
+                    </div>
+                  )}
+                </Card>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        </>
+      ) : (
+        <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+          <Table
+            dataSource={filteredOrders}
+            rowKey="id"
+            pagination={{ pageSize: 20 }}
+            onRow={(record) => ({
+              onClick: () => navigate(`/order/${record.main_id || record.id}`),
+              style: { cursor: 'pointer' }
+            })}
+            columns={[
+              {
+                title: 'Название сделки',
+                dataIndex: 'title',
+                key: 'title',
+                render: (text, record) => (
+                  <div style={{ color: '#1890ff', fontWeight: 500 }}>
+                    {record.OrderName || text || `Заявка #${record.id}`}
+                  </div>
+                )
+              },
+              {
+                title: 'Основной контакт',
+                key: 'contact',
+                render: (_, record) => record.contact?.name || 'Без контакта'
+              },
+              {
+                title: 'Этап сделки',
+                dataIndex: 'status',
+                key: 'status',
+                render: (status) => {
+                  const statusInfo = ORDER_STATUSES[status as OrderStatus];
+                  return (
+                    <div style={{
+                      backgroundColor: statusInfo?.color === 'default' ? '#f0f0f0' : `${statusInfo?.color}15`,
+                      color: statusInfo?.color || '#595959',
+                      border: `1px solid ${statusInfo?.color || '#d9d9d9'}`,
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      display: 'inline-block',
+                      fontSize: 12
+                    }}>
+                      {statusInfo?.label || status}
+                    </div>
+                  );
+                }
+              },
+              {
+                title: 'Бюджет',
+                key: 'amount',
+                render: (_, record) => (
+                  <div>
+                    {record.amount > 0 ? (
+                      <span style={{ fontWeight: 600 }}>
+                        {record.amount.toLocaleString('ru-RU')} {record.currency}
+                      </span>
+                    ) : (
+                      <span style={{ color: '#bfbfbf' }}>—</span>
+                    )}
+                  </div>
+                )
+              },
+              {
+                title: 'Дата создания',
+                dataIndex: 'created_at',
+                key: 'created_at',
+                render: (date) => new Date(date).toLocaleDateString()
+              }
+            ]}
+          />
+        </div>
+      )}
 
       {/* Create Modal */}
       <Modal
