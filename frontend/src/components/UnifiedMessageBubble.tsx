@@ -53,6 +53,20 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
 
     // Determine colors
     const getBubbleStyles = () => {
+        if (msg.message_type === 'system') {
+            return {
+                background: '#f5f5f5',
+                color: '#595959',
+                borderRadius: '8px',
+                border: '1px dashed #d9d9d9',
+                linkColor: '#1890ff',
+                width: '100%',
+                margin: '8px 0',
+                fontSize: 12,
+                textAlign: 'center' as const
+            };
+        }
+
         if (variant === 'internal') {
             if (isRight) {
                 return {

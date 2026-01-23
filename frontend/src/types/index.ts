@@ -14,7 +14,7 @@ export interface Message {
   main_id?: string;
   author_type: 'manager' | 'user' | 'customer' | 'Клиент' | 'Оператор' | 'Бот' | 'Админ' | 'Менеджер' | 'Служба заботы';
   content: string;
-  message_type?: 'text' | 'image' | 'file' | 'voice' | 'video' | 'video_note' | 'sticker';
+  message_type?: 'text' | 'image' | 'file' | 'voice' | 'video' | 'video_note' | 'sticker' | 'system';
   message_id_tg?: number | string;
   timestamp?: number;
   'Modified Date'?: string;

@@ -333,13 +333,71 @@ router.patch('/:id', auth, async (req, res) => {
     const io = req.app.get('io');
 
     // Если изменился статус, запускаем автоматизации и отправляем вебхук на Bubble
-    if (updateData.status && oldOrder) {
-      // Запускаем автоматизации
+    if (updateData.status && oldOrder && updateData.status !== oldOrder.status) {
+      // 1. Создаем системное сообщение во внутреннем чате
+      try {
+        const { ORDER_STATUSES } = require('../utils/statuses'); // Ensure you have this map or fetch from DB/define it
+        // Since statuses.js might not exist or be importable easily here, let's use a hardcoded helper or just the keys if labels aren't available backend-side yet.
+        // Better approach: just use the status code or a simple map if possible.
+        // For now, let's use the status key. In a real app, you'd import the shared constants or labels.
+
+        // Let's rely on frontend labels? No, backend needs to know english/russian label.
+        // Minimal map for now to match frontend:
+        const STATUS_LABELS = {
+          unsorted: 'Неразобранное',
+          accepted_anna: 'Принято Анна',
+          accepted_kostya: 'Принято Костя',
+          accepted_stas: 'Принято Стас',
+          accepted_lucy: 'Принято Люси',
+          in_progress: 'Работа с клиентом',
+          survey: 'Опрос',
+          transferred_nikita: 'Передано Никите',
+          transferred_val: 'Передано Вал Александру',
+          transferred_ben: 'Передано Бен Александру',
+          transferred_fin: 'Передано Фин Александру',
+          partially_completed: 'Частично исполнена',
+          postponed: 'Перенос на завтра',
+          client_rejected: 'Отказ клиента',
+          scammer: 'Мошенник',
+          moderation: 'На модерации',
+          completed: 'Успешно реализована',
+          duplicate: 'Дубль'
+        };
+
+        const oldLabel = STATUS_LABELS[oldOrder.status] || oldOrder.status;
+        const newLabel = STATUS_LABELS[updateData.status] || updateData.status;
+        const managerName = req.manager.name || req.manager.email;
+        const timestamp = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+        // Format: "Анна Новый этап: Передано Никите из Принято Анна"
+        const systemContent = `🔄 ${managerName} смена этапа: ${newLabel} (было: ${oldLabel})`;
+
+        const { data: sysMsg, error: sysMsgError } = await supabase
+          .from('internal_messages')
+          .insert({
+            order_id: parseInt(id),
+            sender_id: req.manager.id, // Or a special system bot ID if preferred
+            content: systemContent,
+            is_read: false,
+            message_type: 'system' // New type for styling
+          })
+          .select()
+          .single();
+
+        if (!sysMsgError && io) {
+          io.to(`order_${id}`).emit('new_internal_message', sysMsg);
+        }
+
+      } catch (sysErr) {
+        console.error('Error creating system status message:', sysErr);
+      }
+
+      // 2. Запускаем автоматизации
       runAutomations('order_status_changed', data, { io }).catch(err => {
         console.error('Error running automations for order_status_changed:', err);
       });
 
-      // Отправляем вебхук на Bubble (асинхронно, не блокируем ответ)
+      // 3. Отправляем вебхук на Bubble
       if (data.main_id) {
         sendBubbleStatusWebhook({
           mainId: data.main_id,
