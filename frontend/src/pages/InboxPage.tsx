@@ -14,7 +14,6 @@ import {
     Typography,
     Empty,
     Tag,
-    Badge,
     Space,
     message as antMessage,
     Grid
@@ -403,9 +402,7 @@ const InboxPage: React.FC = () => {
                                         >
                                             <List.Item.Meta
                                                 avatar={
-                                                    <Badge count={contact.unread_count} size="small">
-                                                        <Avatar size={48} icon={<UserOutlined />} src={contact.avatar_url} />
-                                                    </Badge>
+                                                    <Avatar size={48} icon={<UserOutlined />} src={contact.avatar_url} />
                                                 }
                                                 title={
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -423,7 +420,6 @@ const InboxPage: React.FC = () => {
                                                             <Text type="secondary" style={{ maxWidth: 180 }} ellipsis>
                                                                 {contact.last_message?.content || 'Нет сообщений'}
                                                             </Text>
-                                                            {contact.telegram_user_id && <Tag color="blue" style={{ margin: 0, fontSize: 10 }}>TG</Tag>}
                                                         </div>
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                                             {contact.last_order_status && ORDER_STATUSES[contact.last_order_status as keyof typeof ORDER_STATUSES] && (

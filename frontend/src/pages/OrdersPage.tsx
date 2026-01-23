@@ -8,7 +8,6 @@ import {
   Select,
   Tag,
   Avatar,
-  Badge,
   Modal,
   Form,
   message,
@@ -227,24 +226,22 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onClick, onStatusChange, o
         }}>
           {/* Last Message */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <Badge count={order.unread_count} offset={[10, 0]} size="small">
-              {order.last_message && (
-                <div style={{
-                  background: '#f0f5ff',
-                  borderRadius: '8px 8px 8px 0',
-                  padding: '6px 10px',
-                  display: 'inline-block',
-                  maxWidth: '100%'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Avatar size={16} src={order.contact?.name ? undefined : undefined} style={{ backgroundColor: '#87d068', flexShrink: 0 }} icon={<UserOutlined style={{ fontSize: 10 }} />} />
-                    <Text style={{ fontSize: 12, color: '#262626' }} ellipsis>
-                      {order.last_message.content}
-                    </Text>
-                  </div>
+            {order.last_message && (
+              <div style={{
+                background: '#f0f5ff',
+                borderRadius: '8px 8px 8px 0',
+                padding: '6px 10px',
+                display: 'inline-block',
+                maxWidth: '100%'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Avatar size={16} src={order.contact?.name ? undefined : undefined} style={{ backgroundColor: '#87d068', flexShrink: 0 }} icon={<UserOutlined style={{ fontSize: 10 }} />} />
+                  <Text style={{ fontSize: 12, color: '#262626' }} ellipsis>
+                    {order.last_message.content}
+                  </Text>
                 </div>
-              )}
-            </Badge>
+              </div>
+            )}
           </div>
 
           {/* Status dropdown trigger as Tag */}
@@ -831,6 +828,9 @@ const OrdersPage: React.FC = () => {
           onChange={scrollToColumn}
           style={{ width: '100%' }}
           size="large"
+          virtual={false}
+          listHeight={400}
+          getPopupContainer={(trigger) => trigger.parentNode}
         >
           {sortedStatuses.map(status => (
             <Option key={status} value={status}>
