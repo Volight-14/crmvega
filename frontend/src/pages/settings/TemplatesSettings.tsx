@@ -15,7 +15,8 @@ import {
     PlusOutlined,
     EditOutlined,
     DeleteOutlined,
-    FileImageOutlined
+    FileImageOutlined,
+    SearchOutlined
 } from '@ant-design/icons';
 import { templatesAPI, uploadAPI } from '../../services/api';
 import { WebsiteContent } from '../../types';
@@ -47,7 +48,12 @@ const TemplatesSettings: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [editingTemplate, setEditingTemplate] = useState<WebsiteContent | null>(null);
+    const [searchText, setSearchText] = useState('');
     const [form] = Form.useForm();
+
+    const filteredTemplates = templates
+        .filter(t => t.title?.toLowerCase().includes(searchText.toLowerCase()))
+        .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
 
     // Upload state
     const [fileList, setFileList] = useState<any[]>([]);
@@ -172,6 +178,7 @@ const TemplatesSettings: React.FC = () => {
             dataIndex: 'title',
             key: 'title',
             width: '20%',
+            sorter: (a: WebsiteContent, b: WebsiteContent) => (a.title || '').localeCompare(b.title || ''),
         },
         {
             title: 'Содержимое',
@@ -225,8 +232,17 @@ const TemplatesSettings: React.FC = () => {
                 </Button>
             </Space>
 
+            <Input
+                placeholder="Поиск по названию..."
+                prefix={<SearchOutlined />}
+                value={searchText}
+                onChange={e => setSearchText(e.target.value)}
+                style={{ marginBottom: 16, width: 300 }}
+                allowClear
+            />
+
             <Table
-                dataSource={templates}
+                dataSource={filteredTemplates}
                 columns={columns}
                 rowKey="id"
                 loading={loading}

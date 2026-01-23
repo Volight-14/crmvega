@@ -56,20 +56,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
         const slashIndex = val.lastIndexOf('/');
         if (slashIndex !== -1) {
             const query = val.slice(slashIndex + 1).toLowerCase();
-            // Trigger if query has no spaces (simple check to avoid triggering on old slashes)
-            if (!query.includes(' ')) {
-                const matches = templates.filter(t => t.title?.toLowerCase().includes(query));
-                setFilteredTemplates(matches);
-                setShowTemplates(matches.length > 0);
-                return;
-            }
+            // Trigger if query has no spaces (simple check to avoid triggering on old slashes) or if it's the last word
+            // We want to support filtering by text, e.g. /привет
+            const matches = templates.filter(t => t.title?.toLowerCase().includes(query));
+            setFilteredTemplates(matches);
+            setShowTemplates(matches.length > 0);
+            return;
         }
         setShowTemplates(false);
     };
 
     const handleTemplateSelect = async (template: WebsiteContent) => {
-        const slashIndex = messageInput.lastIndexOf('/');
-        const prefix = messageInput.slice(0, slashIndex);
+        // Find the last slash to replace properly
+        const val = messageInput;
+        const slashIndex = val.lastIndexOf('/');
+        const prefix = slashIndex !== -1 ? val.slice(0, slashIndex) : val;
 
         let contentText = '';
         let attachments: any[] = [];

@@ -52,7 +52,7 @@ const ContactsPage: React.FC = () => {
       const { contacts: fetchedContacts } = await contactsAPI.getAll({
         search: searchText || undefined,
         status: statusFilter || undefined,
-        limit: 100,
+        limit: 1000,
       });
       setContacts(fetchedContacts);
     } catch (error) {
@@ -294,8 +294,9 @@ const ContactsPage: React.FC = () => {
           rowKey="id"
           loading={loading}
           pagination={{
-            pageSize: 20,
+            defaultPageSize: 20,
             showSizeChanger: true,
+            pageSizeOptions: ['10', '20', '50', '100'],
             showQuickJumper: true,
             showTotal: (total) => `Всего ${total} контактов`,
           }}
