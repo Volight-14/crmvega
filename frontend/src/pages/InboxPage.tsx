@@ -82,11 +82,6 @@ const InboxPage: React.FC = () => {
 
         const handleNewMessage = (data: { contact_id: number, message: Message }) => {
             console.log('📨 InboxPage received socket message:', data);
-            // Ignore system messages from updating the list
-            if (data.message.content?.startsWith('Успешно') || data.message.content?.startsWith('Дубль')) {
-                return;
-            }
-
             // Update last message in contacts list
             setContacts(prev => prev.map(c => {
                 if (c.id === data.contact_id) {
@@ -177,10 +172,10 @@ const InboxPage: React.FC = () => {
         try {
             setIsLoadingContacts(true);
             const contactsData = await contactsAPI.getSummary({ limit: 50, search: searchQuery });
-            // Filter out system messages
+            // Filter out contacts with 'completed' or 'duplicate' status
             const filteredContacts = contactsData.filter(c => {
-                const content = c.last_message?.content || '';
-                return !content.startsWith('Успешно') && !content.startsWith('Дубль');
+                const status = c.last_order_status;
+                return status !== 'completed' && status !== 'duplicate';
             });
             setContacts(filteredContacts);
         } catch (error) {
