@@ -352,12 +352,13 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
 
                         {renderAttachment()}
 
-                        {msg.content && !renderAttachment() && (
+                        {msg.content && (
                             <div style={{
                                 fontSize: 14,
                                 lineHeight: '1.5',
                                 whiteSpace: 'pre-wrap',
                                 wordBreak: 'break-word',
+                                marginTop: msg.file_url ? 8 : 0
                             }}>
                                 {linkifyText(msg.content)}
                             </div>
