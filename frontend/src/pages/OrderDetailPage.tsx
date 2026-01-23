@@ -29,6 +29,7 @@ import {
   PlusOutlined,
   MessageOutlined,
   InfoCircleOutlined,
+  TagOutlined,
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Order, Note, ORDER_STATUSES, NOTE_PRIORITIES } from '../types';
@@ -56,6 +57,7 @@ const OrderDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
+  const [isTagsModalVisible, setIsTagsModalVisible] = useState(false);
   const [form] = Form.useForm();
   const [noteForm] = Form.useForm();
   const screens = Grid.useBreakpoint();
@@ -350,13 +352,14 @@ const OrderDetailPage: React.FC = () => {
       {/* Header */}
       {isMobile ? (
         // Mobile Messenger-style Header
+        // Mobile Messenger-style Header
         <div style={{
           background: '#fff',
           padding: '8px 12px',
           borderBottom: '1px solid #f0f0f0',
           display: 'flex',
           alignItems: 'center',
-          gap: 12,
+          gap: 8,
           boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
           zIndex: 100,
           position: 'sticky',
@@ -387,17 +390,57 @@ const OrderDetailPage: React.FC = () => {
                 </div>
               )}
             </div>
-            <div style={{ fontSize: 12, color: '#8c8c8c', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span>{ORDER_STATUSES[order.status]?.label}</span>
+
+            {/* Mobile Status Selector */}
+            <div style={{ marginTop: 2 }}>
+              <Select
+                value={order.status}
+                onChange={handleStatusChange}
+                size="small"
+                bordered={false}
+                dropdownMatchSelectWidth={false}
+                style={{
+                  fontSize: 12,
+                  marginLeft: -8, // Align with text
+                  width: '100%',
+                  maxWidth: 200
+                }}
+                className="mobile-status-select"
+              >
+                {sortedStatusOptions.map((opt) => (
+                  <Option key={opt.value} value={opt.value}>
+                    <Space size={4}>
+                      <span>{opt.icon}</span>
+                      <span style={{
+                        color: opt.color === 'red' ? '#ff4d4f' :
+                          opt.color === 'green' ? '#52c41a' :
+                            opt.color === 'blue' ? '#1890ff' :
+                              opt.color === 'orange' ? '#fa8c16' :
+                                'inherit'
+                      }}>
+                        {opt.label}
+                      </span>
+                    </Space>
+                  </Option>
+                ))}
+              </Select>
             </div>
           </div>
 
-          <Button
-            type="text"
-            icon={<EditOutlined style={{ fontSize: 18, color: '#262626' }} />}
-            onClick={() => setIsEditModalVisible(true)}
-            style={{ padding: 4, height: 32, width: 32 }}
-          />
+          <Space size={4}>
+            <Button
+              type="text"
+              icon={<TagOutlined style={{ fontSize: 18, color: '#262626' }} />}
+              onClick={() => setIsTagsModalVisible(true)}
+              style={{ padding: 4, height: 32, width: 32 }}
+            />
+            <Button
+              type="text"
+              icon={<EditOutlined style={{ fontSize: 18, color: '#262626' }} />}
+              onClick={() => setIsEditModalVisible(true)}
+              style={{ padding: 4, height: 32, width: 32 }}
+            />
+          </Space>
         </div>
       ) : (
         // Desktop Header
@@ -805,6 +848,38 @@ const OrderDetailPage: React.FC = () => {
             </Select>
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* Tags Modal */}
+      <Modal
+        title="Теги заявки"
+        open={isTagsModalVisible}
+        onCancel={() => setIsTagsModalVisible(false)}
+        footer={null}
+        width={400}
+        styles={{
+          header: { borderRadius: '12px 12px 0 0' },
+          body: { padding: 16 },
+        }}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Нажмите на тег чтобы добавить или удалить его
+          </Text>
+        </div>
+        <OrderTags
+          orderId={order.id}
+          initialTags={order.tags}
+          onTagsChange={(newTags) => {
+            setOrder(prev => prev ? { ...prev, tags: newTags } : null);
+            // Keep modal open for multiple selection
+          }}
+        />
+        <div style={{ marginTop: 24, textAlign: 'right' }}>
+          <Button type="primary" onClick={() => setIsTagsModalVisible(false)}>
+            Готово
+          </Button>
+        </div>
       </Modal>
     </div>
   );
