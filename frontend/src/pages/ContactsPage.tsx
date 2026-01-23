@@ -297,8 +297,8 @@ const ContactsPage: React.FC = () => {
             defaultPageSize: 20,
             showSizeChanger: true,
             pageSizeOptions: ['10', '20', '50', '100'],
-            showQuickJumper: true,
-            showTotal: (total) => `Всего ${total} контактов`,
+            showTotal: (total, range) => `${range[0]}-${range[1]} из ${total}`,
+            position: ['bottomRight']
           }}
           scroll={{ x: 'max-content' }}
         />
