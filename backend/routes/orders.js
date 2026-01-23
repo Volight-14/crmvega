@@ -379,7 +379,7 @@ router.patch('/:id', auth, async (req, res) => {
             sender_id: req.manager.id, // Or a special system bot ID if preferred
             content: systemContent,
             is_read: false,
-            message_type: 'system' // New type for styling
+            attachment_type: 'system' // Use attachment_type as message_type column likely misses in DB
           })
           .select()
           .single();
