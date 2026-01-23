@@ -82,6 +82,11 @@ const InboxPage: React.FC = () => {
 
         const handleNewMessage = (data: { contact_id: number, message: Message }) => {
             console.log('📨 InboxPage received socket message:', data);
+            // Ignore system messages from updating the list
+            if (data.message.content?.startsWith('Успешно') || data.message.content?.startsWith('Дубль')) {
+                return;
+            }
+
             // Update last message in contacts list
             setContacts(prev => prev.map(c => {
                 if (c.id === data.contact_id) {
@@ -172,7 +177,12 @@ const InboxPage: React.FC = () => {
         try {
             setIsLoadingContacts(true);
             const contactsData = await contactsAPI.getSummary({ limit: 50, search: searchQuery });
-            setContacts(contactsData);
+            // Filter out system messages
+            const filteredContacts = contactsData.filter(c => {
+                const content = c.last_message?.content || '';
+                return !content.startsWith('Успешно') && !content.startsWith('Дубль');
+            });
+            setContacts(filteredContacts);
         } catch (error) {
             console.error('Error fetching inbox contacts:', error);
         } finally {
