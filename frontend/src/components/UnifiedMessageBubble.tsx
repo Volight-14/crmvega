@@ -13,6 +13,7 @@ import {
     DownloadOutlined,
     CopyOutlined
 } from '@ant-design/icons';
+import { Image } from 'antd';
 import { isClientMessage, getAvatarColor, formatTime, linkifyText } from '../utils/chatUtils';
 import { Message } from '../types';
 
@@ -190,12 +191,35 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
         </div>
     );
 
+    // Helper to download file without opening new tab with Bubble URL in address bar on mobile
+    const handleDownload = async (url: string, filename: string) => {
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = filename || 'download';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(blobUrl);
+        } catch (error) {
+            console.error('Download failed', error);
+            // Fallback
+            window.open(url, '_blank');
+        }
+    };
+
     const renderAttachment = () => {
         if (msg.file_url) {
             const isImage = msg.file_url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
             const isVideo = msg.file_url.match(/\.(mp4|webm|mov)$/i);
             const isPdf = msg.file_url.match(/\.pdf$/i);
             const isVoice = msg.message_type === 'voice' || msg.file_url.endsWith('.ogg') || msg.file_url.endsWith('.wav');
+
+            const fileName = msg.file_name || 'file';
 
             if (isVoice) {
                 return (
@@ -218,9 +242,18 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
             }
 
             if (isImage) {
+                // Use Ant Design Image for Lightbox preview - nice on mobile
                 return (
-                    <div onClick={(e) => { e.stopPropagation(); window.open(msg.file_url, '_blank'); }} style={{ cursor: 'pointer', marginTop: 4 }}>
-                        <img src={msg.file_url} alt="attachment" style={{ maxWidth: '100%', borderRadius: 8, maxHeight: 300, objectFit: 'cover' }} />
+                    <div onClick={(e) => e.stopPropagation()} style={{ marginTop: 4 }}>
+                        <Image
+                            width="100%"
+                            src={msg.file_url}
+                            alt="attachment"
+                            style={{ borderRadius: 8, maxHeight: 300, objectFit: 'cover' }}
+                            preview={{
+                                mask: false // Don't show confusing mask on mobile
+                            }}
+                        />
                     </div>
                 );
             }
@@ -237,7 +270,7 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
                 return (
                     <div
                         style={{ marginTop: 8, cursor: 'pointer' }}
-                        onClick={(e) => { e.stopPropagation(); window.open(msg.file_url, '_blank'); }}
+                        onClick={(e) => { e.stopPropagation(); handleDownload(msg.file_url!, fileName); }}
                     >
                         <div style={{
                             width: '240px',
@@ -266,18 +299,21 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
                                 <div style={{ fontWeight: 500, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                     {msg.file_name || 'Документ PDF'}
                                 </div>
-                                <div style={{ fontSize: 11, color: '#8c8c8c' }}>Нажмите для просмотра</div>
+                                <div style={{ fontSize: 11, color: '#8c8c8c' }}>Скачать PDF</div>
                             </div>
                         </div>
                     </div>
                 );
             }
 
-            // Generic
+            // Generic File
             return (
-                <a href={msg.file_url} target="_blank" rel="noopener noreferrer" style={{ color: styles.linkColor, textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+                <div
+                    onClick={(e) => { e.stopPropagation(); handleDownload(msg.file_url!, fileName); }}
+                    style={{ color: styles.linkColor, textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, cursor: 'pointer' }}
+                >
                     <DownloadOutlined /> {msg.file_name || 'Скачать файл'}
-                </a>
+                </div>
             );
         }
         return null;
