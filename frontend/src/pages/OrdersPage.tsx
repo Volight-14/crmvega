@@ -7,7 +7,6 @@ import {
   Input,
   Select,
   Tag,
-  Avatar,
   Modal,
   Form,
   message,
@@ -17,11 +16,9 @@ import {
 import {
   PlusOutlined,
   SearchOutlined,
-  UserOutlined,
   // DollarOutlined,
   // CalendarOutlined,
   // EuroOutlined,
-  EditOutlined,
   DeleteOutlined,
   ExclamationCircleOutlined,
   UnorderedListOutlined,
@@ -30,15 +27,14 @@ import {
 import { Table, Radio } from 'antd';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
-import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Order, ORDER_STATUSES, Contact, OrderStatus, Tag as TagData } from '../types';
 import { ordersAPI, contactsAPI, tagsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import io from 'socket.io-client';
 import KanbanOrderCard from '../components/KanbanOrderCard';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 const { Option } = Select;
 
 type Socket = ReturnType<typeof io>;
