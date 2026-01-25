@@ -17,6 +17,7 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import type { MenuProps } from 'antd';
+import BottomNavigation from './BottomNavigation';
 
 const { Header, Sider, Content } = Layout;
 const { useBreakpoint } = Grid;
@@ -224,6 +225,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     </>
   );
 
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       {!isMobile ? (
@@ -245,59 +247,105 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           {MenuContent}
         </Sider>
       ) : (
-        <Drawer
-          placement="left"
-          onClose={() => setMobileDrawerVisible(false)}
-          open={mobileDrawerVisible}
-          styles={{ body: { padding: 0 } }}
-          width={250}
-        >
-          {MenuContent}
-        </Drawer>
+        <>
+          <Drawer
+            placement="bottom"
+            onClose={() => setMobileDrawerVisible(false)}
+            open={mobileDrawerVisible}
+            height="auto"
+            styles={{ body: { padding: 0 } }}
+            title="Меню"
+          >
+            <Menu
+              mode="inline"
+              selectedKeys={selectedKeys}
+              items={[
+                ...menuItems,
+                { type: 'divider' },
+                ...userMenuItems
+              ]}
+              onClick={handleMenuClick}
+              style={{ borderRight: 0 }}
+            />
+          </Drawer>
+          <BottomNavigation
+            onMenuClick={() => setMobileDrawerVisible(true)}
+            unreadCount={unreadTotal}
+          />
+        </>
       )}
 
       <Layout style={{
         marginLeft: !isMobile ? (collapsed ? 80 : 200) : 0,
         transition: 'margin-left 0.2s',
-        minHeight: '100vh'
+        minHeight: '100vh',
+        marginBottom: isMobile ? 60 : 0 // Safe area for bottom nav
       }}>
-        <Header style={{
-          padding: '0 16px',
-          background: '#fff',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          position: 'sticky',
-          top: 0,
-          zIndex: 99,
-          width: '100%'
-        }}>
-          <Space>
-            {React.createElement(isMobile ? MenuUnfoldOutlined : (collapsed ? MenuUnfoldOutlined : MenuFoldOutlined), {
-              className: 'trigger',
-              onClick: () => isMobile ? setMobileDrawerVisible(true) : setCollapsed(!collapsed),
-              style: { fontSize: 18, cursor: 'pointer' },
-            })}
-          </Space>
-          <Space size={isMobile ? "middle" : "large"}>
-            <Badge count={unreadTotal}>
-              <BellOutlined style={{ fontSize: 18, cursor: 'pointer' }} onClick={() => navigate('/inbox?filter=unread')} />
-            </Badge>
-            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-              <Space style={{ cursor: 'pointer' }}>
-                <Avatar icon={<UserOutlined />} />
-                {!isMobile && <span>{manager?.name || 'Пользователь'}</span>}
-              </Space>
-            </Dropdown>
-          </Space>
-        </Header>
+        {!isMobile && (
+          <Header style={{
+            padding: '0 16px',
+            background: '#fff',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            position: 'sticky',
+            top: 0,
+            zIndex: 99,
+            width: '100%'
+          }}>
+            <Space>
+              {React.createElement(collapsed ? MenuUnfoldOutlined : MenuFoldOutlined, {
+                className: 'trigger',
+                onClick: () => setCollapsed(!collapsed),
+                style: { fontSize: 18, cursor: 'pointer' },
+              })}
+            </Space>
+            <Space size="large">
+              <Badge count={unreadTotal}>
+                <BellOutlined style={{ fontSize: 18, cursor: 'pointer' }} onClick={() => navigate('/inbox?filter=unread')} />
+              </Badge>
+              <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+                <Space style={{ cursor: 'pointer' }}>
+                  <Avatar icon={<UserOutlined />} />
+                  <span>{manager?.name || 'Пользователь'}</span>
+                </Space>
+              </Dropdown>
+            </Space>
+          </Header>
+        )}
+
+        {/* Mobile Header - Compact */}
+        {isMobile && (
+          <div style={{
+            padding: '12px 16px',
+            background: '#fff',
+            borderBottom: '1px solid #f0f0f0',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            position: 'sticky',
+            top: 0,
+            zIndex: 900
+          }}>
+            <div style={{ fontWeight: 700, fontSize: 18 }}>CRM</div>
+            <Space size="middle">
+              {unreadTotal > 0 && (
+                <Badge count={unreadTotal} size="small">
+                  <BellOutlined onClick={() => navigate('/inbox?filter=unread')} />
+                </Badge>
+              )}
+              <Avatar size="small" icon={<UserOutlined />} />
+            </Space>
+          </div>
+        )}
+
         <Content style={{
-          margin: isMobile ? '12px' : '24px 16px',
-          padding: isMobile ? 12 : 24,
-          background: '#fff',
+          margin: isMobile ? '0' : '24px 16px',
+          padding: isMobile ? 0 : 24,
+          background: isMobile ? '#f5f5f5' : '#fff', // Mobile background full width of gray
           minHeight: 280,
-          borderRadius: 8
+          borderRadius: isMobile ? 0 : 8
         }}>
           {children}
         </Content>

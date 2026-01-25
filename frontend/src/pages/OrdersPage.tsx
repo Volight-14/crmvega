@@ -33,6 +33,8 @@ import { ordersAPI, contactsAPI, tagsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import io from 'socket.io-client';
 import KanbanOrderCard from '../components/KanbanOrderCard';
+import MobileOrderList from '../components/MobileOrderList';
+import { Badge } from 'antd';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -612,15 +614,14 @@ const OrdersPage: React.FC = () => {
       {viewMode === 'kanban' ? (
         <>
           {/* Mobile Status Navigator - only for Kanban */}
-          <div className="mobile-only" style={{ padding: '8px 16px', background: '#fff', borderBottom: '1px solid #f0f0f0' }}>
-            <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 4 }}>Быстрый переход к этапу:</div>
+          <div className="mobile-only" style={{ padding: '8px 16px', background: '#fff', borderBottom: '1px solid #f0f0f0', position: 'sticky', top: 0, zIndex: 10 }}>
             <Select
               value={activeMobileColumn}
               onChange={scrollToColumn}
               style={{ width: '100%' }}
               size="large"
               virtual={false}
-              listHeight={400}
+              dropdownMatchSelectWidth={false}
               getPopupContainer={(trigger) => trigger.parentNode}
             >
               {sortedStatuses.map(status => (
@@ -628,9 +629,10 @@ const OrdersPage: React.FC = () => {
                   <Space>
                     {ORDER_STATUSES[status].icon}
                     {ORDER_STATUSES[status].label}
-                    <span style={{ color: '#bfbfbf', fontSize: 11 }}>
-                      ({ordersByStatus[status]?.length || 0})
-                    </span>
+                    <Badge
+                      count={ordersByStatus[status]?.length || 0}
+                      style={{ backgroundColor: '#f0f0f0', color: '#999', boxShadow: 'none' }}
+                    />
                   </Space>
                 </Option>
               ))}
@@ -684,120 +686,148 @@ const OrdersPage: React.FC = () => {
                   <div style={{ fontSize: 12, color: '#1890ff' }}>
                     {draggedOrder.title}
                   </div>
-                  {draggedOrder.amount > 0 && (
-                    <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>
-                      {draggedOrder.currency === 'EUR' ? '€' : draggedOrder.currency === 'USD' ? '$' : '₽'}
-                      {draggedOrder.amount.toLocaleString('ru-RU')}
-                    </div>
-                  )}
                 </Card>
               ) : null}
             </DragOverlay>
           </DndContext>
+
+          {/* Mobile FAB for new order */}
+          <div className="mobile-only" style={{ position: 'fixed', bottom: 80, right: 24, zIndex: 100 }}>
+            <Button
+              type="primary"
+              shape="circle"
+              icon={<PlusOutlined style={{ fontSize: 24 }} />}
+              size="large"
+              style={{ width: 56, height: 56, boxShadow: '0 4px 12px rgba(24, 144, 255, 0.4)' }}
+              onClick={() => openCreateModal('unsorted')}
+            />
+          </div>
         </>
       ) : (
-        <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
-          <Table
-            dataSource={filteredOrders}
-            rowKey="id"
-            pagination={{
-              defaultPageSize: 20,
-              showSizeChanger: true,
-              pageSizeOptions: ['10', '20', '50', '100']
-            }}
-            scroll={{ x: 800 }} // Enable horizontal scroll for mobile
-            onRow={(record) => ({
-              onClick: () => navigate(`/order/${record.main_id || record.id}`),
-              style: { cursor: 'pointer' }
-            })}
-            columns={[
-              {
-                title: 'Название сделки',
-                dataIndex: 'title',
-                key: 'title',
-                render: (text, record) => (
-                  <div style={{ color: '#1890ff', fontWeight: 500 }}>
-                    {record.OrderName || text || `Заявка #${record.id}`}
-                  </div>
-                )
-              },
-              {
-                title: 'Основной контакт',
-                key: 'contact',
-                render: (_, record) => record.contact?.name || 'Без контакта'
-              },
-              {
-                title: 'Этап сделки',
-                dataIndex: 'status',
-                key: 'status',
-                render: (status, record) => {
-                  return (
-                    <div onClick={e => e.stopPropagation()}>
-                      <Select
-                        size="small"
-                        value={status}
-                        onChange={(newVal) => handleStatusChange(record.id, newVal)}
-                        style={{ width: '100%', minWidth: 140 }}
-                        bordered={false}
-                        showArrow={false}
-                        dropdownMatchSelectWidth={false}
-                        labelRender={(props) => {
-                          const statusInfo = ORDER_STATUSES[props.value as OrderStatus];
-                          return (
-                            <div style={{
-                              backgroundColor: statusInfo?.color === 'default' ? '#f0f0f0' : `${statusInfo?.color}15`,
-                              color: statusInfo?.color || '#595959',
-                              border: `1px solid ${statusInfo?.color || '#d9d9d9'}`,
-                              padding: '2px 8px',
-                              borderRadius: 4,
-                              display: 'inline-block',
-                              fontSize: 12,
-                              cursor: 'pointer',
-                              textAlign: 'center',
-                              width: '100%'
-                            }}>
-                              {statusInfo?.label || props.label}
-                            </div>
-                          );
-                        }}
-                      >
-                        {sortedStatusOptions.map((opt) => (
-                          <Option key={opt.value} value={opt.value}>
-                            <Space size={4}>
-                              <span style={{ color: opt.color }}>●</span>
-                              <span style={{ fontSize: 14 }}>{opt.label}</span>
-                            </Space>
-                          </Option>
-                        ))}
-                      </Select>
+        <>
+          {/* Desktop Table */}
+          <div className="mobile-hidden" style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+            <Table
+              dataSource={filteredOrders}
+              rowKey="id"
+              pagination={{
+                defaultPageSize: 20,
+                showSizeChanger: true,
+                pageSizeOptions: ['10', '20', '50', '100']
+              }}
+              onRow={(record) => ({
+                onClick: () => navigate(`/order/${record.main_id || record.id}`),
+                style: { cursor: 'pointer' }
+              })}
+              columns={[
+                {
+                  title: 'Название сделки',
+                  dataIndex: 'title',
+                  key: 'title',
+                  render: (text, record) => (
+                    <div style={{ color: '#1890ff', fontWeight: 500 }}>
+                      {record.OrderName || text || `Заявка #${record.id}`}
                     </div>
-                  );
+                  )
+                },
+                {
+                  title: 'Основной контакт',
+                  key: 'contact',
+                  render: (_, record) => record.contact?.name || 'Без контакта'
+                },
+                {
+                  title: 'Этап сделки',
+                  dataIndex: 'status',
+                  key: 'status',
+                  render: (status, record) => {
+                    return (
+                      <div onClick={e => e.stopPropagation()}>
+                        <Select
+                          size="small"
+                          value={status}
+                          onChange={(newVal) => handleStatusChange(record.id, newVal)}
+                          style={{ width: '100%', minWidth: 140 }}
+                          bordered={false}
+                          showArrow={false}
+                          dropdownMatchSelectWidth={false}
+                          labelRender={(props) => {
+                            const statusInfo = ORDER_STATUSES[props.value as OrderStatus];
+                            return (
+                              <div style={{
+                                backgroundColor: statusInfo?.color === 'default' ? '#f0f0f0' : `${statusInfo?.color}15`,
+                                color: statusInfo?.color || '#595959',
+                                border: `1px solid ${statusInfo?.color || '#d9d9d9'}`,
+                                padding: '2px 8px',
+                                borderRadius: 4,
+                                display: 'inline-block',
+                                fontSize: 12,
+                                cursor: 'pointer',
+                                textAlign: 'center',
+                                width: '100%'
+                              }}>
+                                {statusInfo?.label || props.label}
+                              </div>
+                            );
+                          }}
+                        >
+                          {sortedStatusOptions.map((opt) => (
+                            <Option key={opt.value} value={opt.value}>
+                              <Space size={4}>
+                                <span style={{ color: opt.color }}>●</span>
+                                <span style={{ fontSize: 14 }}>{opt.label}</span>
+                              </Space>
+                            </Option>
+                          ))}
+                        </Select>
+                      </div>
+                    );
+                  }
+                },
+                {
+                  title: 'Бюджет',
+                  key: 'amount',
+                  render: (_, record) => (
+                    <div>
+                      {record.amount > 0 ? (
+                        <span style={{ fontWeight: 600 }}>
+                          {record.amount.toLocaleString('ru-RU')} {record.currency}
+                        </span>
+                      ) : (
+                        <span style={{ color: '#bfbfbf' }}>—</span>
+                      )}
+                    </div>
+                  )
+                },
+                {
+                  title: 'Дата создания',
+                  dataIndex: 'created_at',
+                  key: 'created_at',
+                  render: (date) => new Date(date).toLocaleDateString()
                 }
-              },
-              {
-                title: 'Бюджет',
-                key: 'amount',
-                render: (_, record) => (
-                  <div>
-                    {record.amount > 0 ? (
-                      <span style={{ fontWeight: 600 }}>
-                        {record.amount.toLocaleString('ru-RU')} {record.currency}
-                      </span>
-                    ) : (
-                      <span style={{ color: '#bfbfbf' }}>—</span>
-                    )}
-                  </div>
-                )
-              },
-              {
-                title: 'Дата создания',
-                dataIndex: 'created_at',
-                key: 'created_at',
-                render: (date) => new Date(date).toLocaleDateString()
-              }
-            ]}
-          />
-        </div>
+              ]}
+            />
+          </div>
+
+          {/* Mobile List View */}
+          <div className="mobile-only">
+            <MobileOrderList
+              orders={filteredOrders}
+              onOrderClick={(order) => navigate(`/order/${order.main_id || order.id}`)}
+              loading={loading}
+            />
+            <div style={{ position: 'fixed', bottom: 80, right: 24, zIndex: 100 }}>
+              <Button
+                type="primary"
+                shape="circle"
+                icon={<PlusOutlined style={{ fontSize: 24 }} />}
+                size="large"
+                style={{ width: 56, height: 56, boxShadow: '0 4px 12px rgba(24, 144, 255, 0.4)' }}
+                onClick={() => openCreateModal('unsorted')}
+              />
+            </div>
+          </div>
+        </>
+
       )}
 
       {/* Create Modal */}
