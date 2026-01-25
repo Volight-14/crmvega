@@ -31,6 +31,7 @@ import {
   PlusOutlined,
   DeleteOutlined,
   EditOutlined,
+  FileTextOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
 import { managersAPI } from '../services/api';
@@ -38,6 +39,8 @@ import { Manager, ORDER_STATUSES } from '../types';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
+
+import TemplatesSettings from './settings/TemplatesSettings';
 
 const SettingsPage: React.FC = () => {
   const { manager } = useAuth();
@@ -435,6 +438,15 @@ const SettingsPage: React.FC = () => {
               ) : <Result status="403" title="Нет доступа" />}
             </div>
           )
+        },
+        {
+          key: 'templates',
+          label: (
+            <span>
+              <FileTextOutlined /> {!isMobile && 'Шаблоны'}
+            </span>
+          ),
+          children: <TemplatesSettings />
         }
         // ... other tabs ...
       ]}
