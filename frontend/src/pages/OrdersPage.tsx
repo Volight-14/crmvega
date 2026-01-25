@@ -528,7 +528,8 @@ const OrdersPage: React.FC = () => {
       {contextHolder}
       {/* Header */}
       {/* Header */}
-      <div style={{
+      {/* Desktop Header */}
+      <div className="mobile-hidden" style={{
         background: '#fff',
         padding: '16px 24px',
         borderBottom: '1px solid #f0f0f0',
@@ -582,8 +583,6 @@ const OrdersPage: React.FC = () => {
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', justifyContent: 'flex-end', flex: '1 1 auto' }}>
-
-
           {manager?.role === 'admin' && (
             <Button
               danger
@@ -607,6 +606,49 @@ const OrdersPage: React.FC = () => {
           >
             НОВАЯ ЗАЯВКА
           </Button>
+        </div>
+      </div>
+
+      {/* Mobile Header - Clean & Compact */}
+      <div className="mobile-only" style={{
+        background: '#fff',
+        padding: '12px 16px',
+        borderBottom: '1px solid #f0f0f0',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12
+      }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <Input
+            placeholder="Поиск"
+            prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            style={{ flex: 1, borderRadius: 8, background: '#f5f7fa', border: 'none' }}
+            allowClear
+          />
+
+          <Button
+            icon={viewMode === 'kanban' ? <UnorderedListOutlined /> : <AppstoreOutlined />}
+            onClick={() => setViewMode(viewMode === 'kanban' ? 'list' : 'kanban')}
+            style={{ borderRadius: 8, border: '1px solid #f0f0f0' }}
+          />
+
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => openCreateModal('unsorted')}
+            style={{
+              borderRadius: 8,
+              background: '#1890ff', // Solid color is cleaner on mobile often
+              border: 'none',
+              width: 40,
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          />
         </div>
       </div>
 
