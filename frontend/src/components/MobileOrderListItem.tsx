@@ -55,39 +55,41 @@ const MobileOrderListItem: React.FC<MobileOrderListItemProps> = ({ order, onClic
     });
 
     return (
-        <StyledCard onClick={onClick}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                <div style={{ flex: 1 }}>
-                    <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 4 }}>
-                        {order.title || `Заявка #${order.id}`}
-                    </Text>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <UserOutlined style={{ fontSize: 12, color: '#8c8c8c' }} />
-                        <Text type="secondary" style={{ fontSize: 13 }}>
-                            {order.contact?.name || 'Без контакта'}
+        <div onClick={onClick} style={{ cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
+            <StyledCard>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                    <div style={{ flex: 1 }}>
+                        <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 4 }}>
+                            {order.title || `Заявка #${order.id}`}
                         </Text>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <UserOutlined style={{ fontSize: 12, color: '#8c8c8c' }} />
+                            <Text type="secondary" style={{ fontSize: 13 }}>
+                                {order.contact?.name || 'Без контакта'}
+                            </Text>
+                        </div>
                     </div>
+                    {amountDisplay && (
+                        <Text strong style={{ fontSize: 15, color: '#1890ff' }}>
+                            {amountDisplay}
+                        </Text>
+                    )}
                 </div>
-                {amountDisplay && (
-                    <Text strong style={{ fontSize: 15, color: '#1890ff' }}>
-                        {amountDisplay}
-                    </Text>
-                )}
-            </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-                <StatusTag color={statusInfo.color || '#8c8c8c'}>
-                    {statusInfo.label}
-                </StatusTag>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                    <StatusTag color={statusInfo.color || '#8c8c8c'}>
+                        {statusInfo.label}
+                    </StatusTag>
 
-                <Space size="small">
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                        {dateDisplay}
-                    </Text>
-                    <RightOutlined style={{ fontSize: 12, color: '#bfbfbf' }} />
-                </Space>
-            </div>
-        </StyledCard>
+                    <Space size="small">
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                            {dateDisplay}
+                        </Text>
+                        <RightOutlined style={{ fontSize: 12, color: '#bfbfbf' }} />
+                    </Space>
+                </div>
+            </StyledCard>
+        </div>
     );
 };
 

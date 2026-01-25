@@ -343,9 +343,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         <Content style={{
           margin: isMobile ? '0' : '24px 16px',
           padding: isMobile ? 0 : 24,
-          background: isMobile ? '#f5f5f5' : '#fff', // Mobile background full width of gray
-          minHeight: 280,
-          borderRadius: isMobile ? 0 : 8
+          paddingBottom: isMobile ? '70px' : 0, // Add padding for bottom nav + little extra
+          background: isMobile ? '#f5f5f5' : '#fff',
+          borderRadius: isMobile ? 0 : 8,
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+          overflow: 'hidden',
+          position: 'relative'
         }}>
           {children}
         </Content>
