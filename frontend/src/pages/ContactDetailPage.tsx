@@ -377,6 +377,9 @@ const ContactDetailPage: React.FC = () => {
     }
   };
 
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
+
   if (!contact) {
     return <div>Загрузка...</div>;
   }
@@ -429,8 +432,6 @@ const ContactDetailPage: React.FC = () => {
     },
   ];
 
-  const screens = Grid.useBreakpoint(); // Be sure Grid is imported, or we use window check/media query
-  const isMobile = !screens.md;
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#f5f5f5' }}>
