@@ -1,5 +1,11 @@
 # CRM Система с Telegram ботом
 
+> **⚠️ ВАЖНО: ТЕКУЩАЯ АРХИТЕКТУРА ДЕПЛОЯ**
+> - **Frontend**: Vercel (автоматический деплой из main)
+> - **Backend**: Render https://crmvega-g766.onrender.com ⚡️ НЕ ЗАПУСКАТЬ ЛОКАЛЬНО
+> - **Database**: Supabase
+> - **Сборщик**: Vite (не Create React App!)
+
 Полнофункциональная CRM система для управления заявками и общения с клиентами через Telegram бота.
 
 ## Возможности
@@ -37,7 +43,7 @@ crm/
 ## Технологии
 
 - **Backend**: Node.js, Express, Socket.IO, Supabase
-- **Frontend**: React, TypeScript, Ant Design, Socket.IO
+- **Frontend**: React, TypeScript, Ant Design, Socket.IO, **Vite** (сборщик)
 - **Database**: PostgreSQL (через Supabase)
 - **Bot**: Telegram Bot API, Telegraf
 - **Real-time**: Socket.IO
@@ -95,8 +101,11 @@ CRM_API_TOKEN=your_crm_api_token
 
 **frontend/.env:**
 ```env
-REACT_APP_API_URL=http://localhost:5000/api
+VITE_API_URL=https://crmvega-g766.onrender.com/api
+VITE_SOCKET_URL=https://crmvega-g766.onrender.com
 ```
+
+> **Примечание**: После миграции на Vite используется префикс `VITE_` вместо `REACT_APP_`
 
 ### 5. Запуск системы
 
@@ -216,8 +225,8 @@ Database          → Supabase
 2. Перейдите на [vercel.com](https://vercel.com) и импортируйте репозиторий
 3. Выберите папку `frontend` как Root Directory
 4. Настройте переменные окружения в Vercel dashboard:
-   - `REACT_APP_API_URL` - URL вашего backend на Render (например: `https://your-app.onrender.com/api`)
-   - `REACT_APP_SOCKET_URL` - URL для Socket.IO (например: `https://your-app.onrender.com`)
+   - `VITE_API_URL` - URL вашего backend на Render (например: `https://crmvega-g766.onrender.com/api`)
+   - `VITE_SOCKET_URL` - URL для Socket.IO (например: `https://crmvega-g766.onrender.com`)
 5. Deploy будет автоматическим при пуше в main ветку
 
 ### Backend на Render
