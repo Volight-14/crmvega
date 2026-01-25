@@ -27,7 +27,6 @@ import {
   PlusOutlined,
   DeleteOutlined,
   FileTextOutlined,
-  HistoryOutlined,
   ArrowLeftOutlined,
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -384,53 +383,7 @@ const ContactDetailPage: React.FC = () => {
     return <div>Загрузка...</div>;
   }
 
-  const orderColumns = [
-    {
-      title: 'Заявка',
-      dataIndex: 'title',
-      key: 'title',
-      render: (title: string, record: Order) => (
-        <div>
-          <div style={{ fontWeight: 'bold' }}>{title}</div>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            ID: {record.id}
-          </Text>
-        </div>
-      ),
-    },
-    {
-      title: 'Статус',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: Order['status']) => {
-        const statusInfo = ORDER_STATUSES[status];
-        return <Tag color={statusInfo.color}>{statusInfo.icon} {statusInfo.label}</Tag>;
-      },
-    },
-    {
-      title: 'Сумма',
-      dataIndex: 'amount',
-      key: 'amount',
-      render: (amount: number, record: Order) => (
-        <Text strong>{amount?.toLocaleString('ru-RU') || 0} {record.currency || 'RUB'}</Text>
-      ),
-    },
-    {
-      title: 'Дата создания',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      render: (date: string) => new Date(date).toLocaleDateString('ru-RU'),
-    },
-    {
-      title: 'Действия',
-      key: 'actions',
-      render: (_: any, record: Order) => (
-        <Button type="link" onClick={() => navigate(`/order/${record.main_id || record.id}`)}>
-          Открыть
-        </Button>
-      ),
-    },
-  ];
+
 
 
   return (
@@ -550,6 +503,7 @@ const ContactDetailPage: React.FC = () => {
                                 msg={msg}
                                 isOwn={(msg.author_type || msg.sender_type) === 'manager'}
                                 variant="client"
+                                onAddReaction={handleAddReaction}
                               />
                             ))}
                           </div>
@@ -602,12 +556,26 @@ const ContactDetailPage: React.FC = () => {
                   </Button>
                   <List
                     dataSource={notes}
-                    renderItem={note => (
-                      <Card size="small" style={{ marginBottom: 8 }}>
-                        <div>{note.content}</div>
-                        <div style={{ marginTop: 4, fontSize: 11, color: '#aaa' }}>{new Date(note.created_at).toLocaleString()}</div>
-                      </Card>
-                    )}
+                    renderItem={note => {
+                      const priorityInfo = NOTE_PRIORITIES[note.priority];
+                      return (
+                        <Card size="small" style={{ marginBottom: 8 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <Space>
+                              <span>{priorityInfo.icon}</span>
+                              <span style={{ fontWeight: 500 }}>{priorityInfo.label}</span>
+                            </Space>
+                            {note.manager_id === manager?.id && (
+                              <Button type="text" danger icon={<DeleteOutlined />} size="small" onClick={() => handleDeleteNote(note.id)} />
+                            )}
+                          </div>
+                          <div style={{ marginTop: 8 }}>{note.content}</div>
+                          <div style={{ marginTop: 4, fontSize: 11, color: '#aaa' }}>
+                            {note.manager?.name} • {new Date(note.created_at).toLocaleString('ru-RU')}
+                          </div>
+                        </Card>
+                      );
+                    }}
                   />
                 </div>
               )

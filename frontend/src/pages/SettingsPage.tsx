@@ -27,17 +27,14 @@ import {
   SettingOutlined,
   TeamOutlined,
   ApiOutlined,
-  ExportOutlined,
   KeyOutlined,
   PlusOutlined,
   DeleteOutlined,
   EditOutlined,
-  FileTextOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
 import { managersAPI } from '../services/api';
 import { Manager, ORDER_STATUSES } from '../types';
-import TemplatesSettings from './settings/TemplatesSettings';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -204,13 +201,8 @@ const SettingsPage: React.FC = () => {
 
   // ... imports and previous code ...
 
-  const screens = Grid.useBreakpoint(); // Using Grid from antd that should be imported
-  // But Grid is not imported in the original file, need to check if I can just use window width or add import.
-  // Ideally, I should add Grid to imports. But here I will use a ref safer approach or just assume desktop for now if I can't import easily?
-  // No, I can add imports in a separate instruction. I will assume Grid is available or use a hook.
-  // Actually, I'll update the component structure to be responsive.
-
-  const isMobile = window.innerWidth < 768; // Simple check for now, or update to useBreakpoint properly in a separate edit if needed.
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   // Better:
   /*
      const screens = Grid.useBreakpoint();
@@ -425,7 +417,17 @@ const SettingsPage: React.FC = () => {
                     { title: 'Роль', dataIndex: 'role', key: 'role', render: r => <Tag>{r}</Tag>, responsive: ['md'] },
                     {
                       title: '', key: 'actions', render: (_, r) => r.id !== manager.id && (
-                        <Button type="text" icon={<EditOutlined />} onClick={() => handleEditUser(r)} />
+                        <Space>
+                          <Button type="text" icon={<EditOutlined />} onClick={() => handleEditUser(r)} />
+                          <Popconfirm
+                            title="Удалить?"
+                            onConfirm={() => handleDeleteUser(r.id)}
+                            okText="Да"
+                            cancelText="Нет"
+                          >
+                            <Button type="text" danger icon={<DeleteOutlined />} />
+                          </Popconfirm>
+                        </Space>
                       )
                     }
                   ]}
