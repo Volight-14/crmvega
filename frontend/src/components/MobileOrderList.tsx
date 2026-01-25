@@ -11,7 +11,7 @@ interface MobileOrderListProps {
 
 const MobileOrderList: React.FC<MobileOrderListProps> = ({ orders, onOrderClick, loading }) => {
     return (
-        <div style={{ padding: '0 12px 80px 12px' }}> {/* Bottom padding for nav bar */}
+        <div style={{ paddingBottom: 80 }}> {/* Bottom padding for nav bar only */}
             <List
                 loading={loading}
                 dataSource={orders}

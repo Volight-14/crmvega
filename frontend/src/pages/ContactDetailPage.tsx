@@ -450,7 +450,7 @@ const ContactDetailPage: React.FC = () => {
               key: 'data',
               label: 'Инфо',
               children: (
-                <div style={{ padding: isMobile ? 16 : 0, background: isMobile ? '#fff' : 'transparent' }}>
+                <div style={{ padding: 0, background: isMobile ? '#fff' : 'transparent' }}>
                   <Card bordered={false} style={{ borderRadius: isMobile ? 0 : 8, boxShadow: isMobile ? 'none' : undefined }}>
                     <Descriptions column={1} layout={isMobile ? 'vertical' : 'horizontal'}>
                       <Descriptions.Item label="Email">{contact.email || '-'}</Descriptions.Item>
@@ -522,14 +522,14 @@ const ContactDetailPage: React.FC = () => {
               key: 'orders',
               label: `Заявки (${orders.length})`,
               children: (
-                <div style={{ padding: isMobile ? 16 : 0, paddingBottom: 80 }}>
-                  <Button block type="dashed" icon={<PlusOutlined />} onClick={() => navigate(`/orders?contact_id=${id}`)} style={{ marginBottom: 16 }}>
+                <div style={{ padding: 0, paddingBottom: 80 }}>
+                  <Button block type="dashed" icon={<PlusOutlined />} onClick={() => navigate(`/orders?contact_id=${id}`)} style={{ margin: 16, width: 'calc(100% - 32px)' }}>
                     Новая заявка
                   </Button>
                   <List
                     dataSource={orders}
                     renderItem={order => (
-                      <Card size="small" style={{ marginBottom: 8, borderRadius: 8 }} onClick={() => navigate(`/order/${order.main_id || order.id}`)}>
+                      <Card size="small" style={{ marginBottom: 1, borderRadius: 0 }} onClick={() => navigate(`/order/${order.main_id || order.id}`)}>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                           <div style={{ fontWeight: 600 }}>#{order.id} {order.title}</div>
                           <Tag>{ORDER_STATUSES[order.status]?.label}</Tag>
@@ -547,8 +547,8 @@ const ContactDetailPage: React.FC = () => {
               key: 'notes',
               label: 'Заметки',
               children: (
-                <div style={{ padding: isMobile ? 16 : 0 }}>
-                  <Button block type="dashed" icon={<PlusOutlined />} onClick={() => setIsNoteModalVisible(true)} style={{ marginBottom: 16 }}>
+                <div style={{ padding: 0 }}>
+                  <Button block type="dashed" icon={<PlusOutlined />} onClick={() => setIsNoteModalVisible(true)} style={{ margin: 16, width: 'calc(100% - 32px)' }}>
                     Добавить заметку
                   </Button>
                   <List
@@ -556,7 +556,7 @@ const ContactDetailPage: React.FC = () => {
                     renderItem={note => {
                       const priorityInfo = NOTE_PRIORITIES[note.priority];
                       return (
-                        <Card size="small" style={{ marginBottom: 8 }}>
+                        <Card size="small" style={{ marginBottom: 1, borderRadius: 0 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                             <Space>
                               <span>{priorityInfo.icon}</span>

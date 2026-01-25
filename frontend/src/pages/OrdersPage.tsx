@@ -657,6 +657,7 @@ const OrdersPage: React.FC = () => {
         <>
           {/* Mobile Status Navigator - only for Kanban */}
           <div className="mobile-only" style={{ padding: '8px 16px', background: '#fff', borderBottom: '1px solid #f0f0f0', position: 'sticky', top: 0, zIndex: 10 }}>
+            {/* ... select content ... */}
             <Select
               value={activeMobileColumn}
               onChange={scrollToColumn}
@@ -712,23 +713,10 @@ const OrdersPage: React.FC = () => {
             </div>
             <DragOverlay>
               {draggedOrder ? (
-                <Card
-                  size="small"
-                  style={{
-                    width: 260,
-                    opacity: 0.95,
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
-                    borderRadius: 8,
-                  }}
-                  bodyStyle={{ padding: '10px 12px' }}
-                >
-                  <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                    {draggedOrder.contact?.name || 'Без контакта'}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#1890ff' }}>
-                    {draggedOrder.title}
-                  </div>
-                </Card>
+                <KanbanOrderCard
+                  order={draggedOrder}
+                  onClick={() => { }}
+                />
               ) : null}
             </DragOverlay>
           </DndContext>
@@ -736,7 +724,16 @@ const OrdersPage: React.FC = () => {
         </>
       ) : (
         <>
-          {/* Desktop Table */}
+          {/* Mobile List View */}
+          <div className="mobile-only" style={{ flex: 1, overflow: 'auto', background: '#fff' }}>
+            <MobileOrderList
+              orders={filteredOrders}
+              onOrderClick={(order) => navigate(`/order/${order.id}`)}
+              loading={loading}
+            />
+          </div>
+
+          {/* Desktop Table - Hidden on Mobile */}
           <div className="mobile-hidden" style={{ flex: 1, overflow: 'auto', padding: 24 }}>
             <Table
               dataSource={filteredOrders}

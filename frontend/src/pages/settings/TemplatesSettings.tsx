@@ -241,18 +241,63 @@ const TemplatesSettings: React.FC = () => {
                 allowClear
             />
 
-            <Table
-                dataSource={filteredTemplates}
-                columns={columns}
-                rowKey="id"
-                loading={loading}
-                pagination={{
-                    defaultPageSize: 10,
-                    showSizeChanger: true,
-                    pageSizeOptions: ['10', '20', '50', '100'],
-                    showTotal: (total, range) => `${range[0]}-${range[1]} из ${total} шаблонов`,
-                }}
-            />
+            {window.innerWidth < 768 ? (
+                <div style={{ paddingBottom: 20 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        {filteredTemplates.map(item => {
+                            const parsed = parseContent(item.content);
+                            return (
+                                <div key={item.id} style={{
+                                    background: '#fff',
+                                    borderRadius: 12,
+                                    padding: 16,
+                                    border: '1px solid #f0f0f0'
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                        <Text strong style={{ fontSize: 16 }}>{item.title}</Text>
+                                        <Space>
+                                            <Button icon={<EditOutlined />} size="small" onClick={() => handleEdit(item)} />
+                                            <Popconfirm title="Удалить?" onConfirm={() => handleDelete(item.id)}>
+                                                <Button danger icon={<DeleteOutlined />} size="small" />
+                                            </Popconfirm>
+                                        </Space>
+                                    </div>
+                                    <div style={{ color: '#666' }}>
+                                        {parsed.text && (
+                                            <div style={{
+                                                display: '-webkit-box',
+                                                WebkitLineClamp: 3,
+                                                WebkitBoxOrient: 'vertical',
+                                                overflow: 'hidden'
+                                            }}>
+                                                {parsed.text}
+                                            </div>
+                                        )}
+                                        {parsed.attachments && parsed.attachments.length > 0 && (
+                                            <div style={{ marginTop: 8 }}>
+                                                <FileImageOutlined /> {parsed.attachments.length} вложений
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            ) : (
+                <Table
+                    dataSource={filteredTemplates}
+                    columns={columns}
+                    rowKey="id"
+                    loading={loading}
+                    pagination={{
+                        defaultPageSize: 10,
+                        showSizeChanger: true,
+                        pageSizeOptions: ['10', '20', '50', '100'],
+                        showTotal: (total, range) => `${range[0]}-${range[1]} из ${total} шаблонов`,
+                    }}
+                />
+            )}
 
             <Modal
                 title={editingTemplate ? "Редактировать шаблон" : "Новый шаблон"}

@@ -136,7 +136,7 @@ const KanbanOrderCard: React.FC<KanbanOrderCardProps> = memo(({ order, onClick, 
                         <UserOutlined style={{ fontSize: 10 }} />
                     </div>
                     <div className={styles.messageText}>
-                        {order.last_message?.content || '...'}
+                        {order.last_message?.content || ''}
                     </div>
                 </div>
 
