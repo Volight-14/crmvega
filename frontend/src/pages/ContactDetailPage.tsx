@@ -15,8 +15,6 @@ import {
   Form,
   Modal,
   Select,
-  Table,
-  Badge,
   message,
   Empty,
   Grid
@@ -26,7 +24,6 @@ import {
   EditOutlined,
   PlusOutlined,
   DeleteOutlined,
-  FileTextOutlined,
   ArrowLeftOutlined,
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
