@@ -406,14 +406,14 @@ const InboxPage: React.FC = () => {
     const showChat = !isMobile || (isMobile && selectedContact);
 
     return (
-        <Layout style={{ height: '100%', background: '#fff', border: '1px solid #f0f0f0', borderRadius: isMobile ? 0 : 8, overflow: 'hidden' }}>
+        <Layout style={{ height: '100%', background: isMobile ? '#f5f5f5' : '#fff', border: isMobile ? 'none' : '1px solid #f0f0f0', borderRadius: isMobile ? 0 : 8, overflow: 'hidden' }}>
             {showList && (
                 <Sider
                     width={isMobile ? '100%' : screens.xl ? 350 : 280}
                     theme="light"
-                    style={{ borderRight: isMobile ? 'none' : '1px solid #f0f0f0' }}
+                    style={{ borderRight: isMobile ? 'none' : '1px solid #f0f0f0', backgroundColor: isMobile ? 'transparent' : '#fff' }}
                 >
-                    <div style={{ padding: 16, borderBottom: '1px solid #f0f0f0' }}>
+                    <div style={{ padding: 16, borderBottom: isMobile ? 'none' : '1px solid #f0f0f0', background: isMobile ? '#f5f5f5' : '#fff' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                             <Title level={4} style={{ margin: 0 }}>Диалоги</Title>
                             <Button
@@ -431,7 +431,7 @@ const InboxPage: React.FC = () => {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             onPressEnter={fetchContacts}
-                            style={{ marginBottom: 8 }}
+                            style={{ marginBottom: 8, borderRadius: 8 }}
                         />
 
                         {showUnreadOnly && (
@@ -453,7 +453,7 @@ const InboxPage: React.FC = () => {
                             </div>
                         )}
                     </div>
-                    <div style={{ height: 'calc(100% - 140px)', overflowY: 'auto' }}>
+                    <div style={{ height: 'calc(100% - 140px)', overflowY: 'auto', padding: isMobile ? '0 12px' : 0 }}>
                         {isLoadingContacts && contacts.length === 0 ? (
                             <div style={{ textAlign: 'center', padding: 20 }}><Spin /></div>
                         ) : (
@@ -472,12 +472,18 @@ const InboxPage: React.FC = () => {
                                                 cursor: 'pointer',
                                                 padding: '12px 16px',
                                                 background: isSelected
-                                                    ? '#bae7ff' // Selected (Stronger Blue)
-                                                    : isClientLast
-                                                        ? '#e6f7ff' // Client last msg (Soft Blue)
-                                                        : 'transparent',
-                                                borderBottom: '1px solid #f0f0f0',
-                                                transition: 'all 0.3s'
+                                                    ? '#bae7ff'
+                                                    : isMobile
+                                                        ? '#fff' // White card on mobile
+                                                        : isClientLast
+                                                            ? '#e6f7ff'
+                                                            : 'transparent',
+                                                borderBottom: isMobile ? 'none' : '1px solid #f0f0f0',
+                                                transition: 'all 0.3s',
+                                                // Mobile Card Styles
+                                                marginBottom: isMobile ? 8 : 0,
+                                                borderRadius: isMobile ? 12 : 0,
+                                                boxShadow: isMobile ? '0 1px 3px rgba(0,0,0,0.05)' : 'none'
                                             }}
                                         >
                                             <List.Item.Meta
