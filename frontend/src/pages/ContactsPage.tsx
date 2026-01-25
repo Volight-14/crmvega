@@ -15,6 +15,8 @@ import {
   Modal,
   Form,
   message,
+  Grid,
+  List
 } from 'antd';
 import {
   UserOutlined,
@@ -246,68 +248,126 @@ const ContactsPage: React.FC = () => {
     },
   ];
 
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
+
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <div style={{ padding: 24, paddingBottom: 0 }}>
-        <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
+      <div style={{ padding: isMobile ? 12 : 24, paddingBottom: 0 }}>
+        <Row justify="space-between" align="middle" style={{ marginBottom: isMobile ? 12 : 24 }}>
           <Col>
-            <Title level={2} style={{ margin: 0 }}>Контакты</Title>
+            {/* Hide Title on mobile to save space, or make it small */}
+            {!isMobile && <Title level={2} style={{ margin: 0 }}>Контакты</Title>}
           </Col>
           <Col>
+            {/* FAB is better for Mobile but keeping button consistent for now, just smaller */}
             <Button
               type="primary"
               icon={<PlusOutlined />}
               onClick={handleCreate}
+              size={isMobile ? 'middle' : 'large'}
+              style={{ borderRadius: isMobile ? 8 : 6 }}
             >
-              Новый контакт
+              {isMobile ? 'Создать' : 'Новый контакт'}
             </Button>
           </Col>
         </Row>
 
-        <Card style={{ marginBottom: 16 }}>
-          <Space size="middle" style={{ width: '100%', flexWrap: 'wrap' }} wrap>
+        <div style={{ marginBottom: 16 }}>
+          <Space direction={isMobile ? 'vertical' : 'horizontal'} size="middle" style={{ width: '100%' }}>
             <Input
-              placeholder="Поиск по имени, телефону, email..."
+              placeholder="Поиск..."
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              style={{ width: '100%', maxWidth: 300 }}
+              style={{ width: '100%', maxWidth: isMobile ? '100%' : 300, borderRadius: 8 }}
               allowClear
             />
-            <Select
-              value={statusFilter}
-              onChange={setStatusFilter}
-              placeholder="Фильтр по статусу"
-              style={{ width: '100%', maxWidth: 200 }}
-              allowClear
-            >
-              <Option value="active">Активные</Option>
-              <Option value="inactive">Неактивные</Option>
-              <Option value="needs_attention">Требуют внимания</Option>
-            </Select>
+            {/* Hide filter on mobile initially or make it compact scrolling? Keeping simple for now */
+              !isMobile && (
+                <Select
+                  value={statusFilter}
+                  onChange={setStatusFilter}
+                  placeholder="Статус"
+                  style={{ width: 150 }}
+                  allowClear
+                >
+                  <Option value="active">Активные</Option>
+                  <Option value="inactive">Неактивные</Option>
+                  <Option value="needs_attention">Внимание</Option>
+                </Select>
+              )}
           </Space>
-        </Card>
+        </div>
       </div>
 
-      <div style={{ flex: 1, overflow: 'hidden', padding: '0 24px 24px 24px' }}>
-        <Card style={{ height: '100%', display: 'flex', flexDirection: 'column' }} bodyStyle={{ flex: 1, overflow: 'hidden', padding: 0 }}>
-          <div style={{ height: '100%', overflow: 'auto' }}>
-            <Table
-              columns={columns}
-              dataSource={contacts}
-              rowKey="id"
-              loading={loading}
-              pagination={{
-                defaultPageSize: 20,
-                showSizeChanger: true,
-                pageSizeOptions: ['10', '20', '50', '100'],
-                showTotal: (total, range) => `${range[0]}-${range[1]} из ${total}`,
-                position: ['bottomRight'],
-                style: { padding: '16px 24px' }
-              }}
-              scroll={{ x: 'max-content' }}
-              sticky
-            />
+      <div style={{ flex: 1, overflow: 'hidden', padding: isMobile ? '0 12px 12px 12px' : '0 24px 24px 24px' }}>
+        <Card
+          style={{ height: '100%', display: 'flex', flexDirection: 'column', borderRadius: 12, border: isMobile ? 'none' : '1px solid #f0f0f0', background: isMobile ? 'transparent' : '#fff' }}
+          bodyStyle={{ flex: 1, overflow: 'hidden', padding: 0 }}
+        >
+          <div style={{ height: '100%', overflowY: 'auto', paddingRight: isMobile ? 0 : 4 }}>
+            {isMobile ? (
+              <List
+                dataSource={contacts}
+                loading={loading}
+                renderItem={(contact) => (
+                  <div
+                    onClick={() => navigate(`/contact/${contact.telegram_user_id || contact.id}`)}
+                    style={{
+                      background: '#fff',
+                      borderRadius: 12,
+                      padding: 16,
+                      marginBottom: 12,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 16,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Avatar size={48} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff', flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {contact.name}
+                        </div>
+                        {contact.status && (
+                          <div style={{ fontSize: 10 }}>{getStatusIcon(contact.status)}</div>
+                        )}
+                      </div>
+                      {contact.phone && (
+                        <div style={{ color: '#8c8c8c', fontSize: 13, marginBottom: 2 }}>
+                          <PhoneOutlined style={{ marginRight: 6 }} /> {contact.phone}
+                        </div>
+                      )}
+                      {contact.email && (
+                        <div style={{ color: '#8c8c8c', fontSize: 13 }}>
+                          <MailOutlined style={{ marginRight: 6 }} /> {contact.email}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              />
+            ) : (
+              <Table
+                columns={columns}
+                dataSource={contacts}
+                rowKey="id"
+                loading={loading}
+                pagination={{
+                  defaultPageSize: 20,
+                  showSizeChanger: true,
+                  pageSizeOptions: ['10', '20', '50', '100'],
+                  showTotal: (total, range) => `${range[0]}-${range[1]} из ${total}`,
+                  position: ['bottomRight'],
+                  style: { padding: '16px 24px' }
+                }}
+                scroll={{ x: 'max-content' }}
+                sticky
+              />
+            )}
           </div>
         </Card>
       </div>
