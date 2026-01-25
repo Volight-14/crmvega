@@ -725,7 +725,7 @@ const OrdersPage: React.FC = () => {
       ) : (
         <>
           {/* Mobile List View */}
-          <div className="mobile-only" style={{ flex: 1, overflow: 'auto', background: '#fff' }}>
+          <div className="mobile-only" style={{ flex: 1, overflow: 'auto', background: 'transparent' }}>
             <MobileOrderList
               orders={filteredOrders}
               onOrderClick={(order) => navigate(`/order/${order.id}`)}
