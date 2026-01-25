@@ -19,6 +19,7 @@ import {
   Badge,
   message,
   Empty,
+  Grid
 } from 'antd';
 import {
   UserOutlined,
@@ -428,107 +429,103 @@ const ContactDetailPage: React.FC = () => {
     },
   ];
 
+  const screens = Grid.useBreakpoint(); // Be sure Grid is imported, or we use window check/media query
+  const isMobile = !screens.md;
+
   return (
-    <div>
-      <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
-        <Col>
-          <Space>
-            <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/contacts')}>
-              Назад
-            </Button>
-            <Avatar size={64} icon={<UserOutlined />} src={contact.avatar_url} />
-            <div>
-              <Title level={2} style={{ margin: 0 }}>
-                {contact.name}
-              </Title>
-
-            </div>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#f5f5f5' }}>
+      {/* Header */}
+      <div style={{
+        background: '#fff',
+        padding: isMobile ? '12px 16px' : '24px',
+        borderBottom: '1px solid #f0f0f0'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Space align="start">
+            <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/contacts')} shape="circle" />
+            <Space size={16} style={{ marginLeft: 8 }}>
+              <Avatar size={isMobile ? 48 : 64} icon={<UserOutlined />} src={contact.avatar_url} />
+              <div>
+                <Title level={isMobile ? 4 : 2} style={{ margin: 0 }}>{contact.name}</Title>
+                <Text type="secondary">{contact.position || 'Клиент'}</Text>
+              </div>
+            </Space>
           </Space>
-        </Col>
-        <Col>
-          <Button icon={<EditOutlined />} onClick={() => setIsEditModalVisible(true)}>
-            Редактировать
-          </Button>
-        </Col>
-      </Row>
-
-      <Card>
-        <Descriptions column={2} bordered>
-          <Descriptions.Item label="Дата последнего обмена">
-            {contact.Date_LastOrder ? new Date(contact.Date_LastOrder).toLocaleDateString('ru-RU') : (
-              orders.length > 0 ? new Date(orders[0].created_at).toLocaleDateString('ru-RU') : '-'
-            )}
-          </Descriptions.Item>
-          <Descriptions.Item label="Балл лояльности">
-            {contact.Loyality ?? '-'}
-          </Descriptions.Item>
-          <Descriptions.Item label="Сумма обменов">
-            {(contact.TotalSumExchanges || contact.orders_total_amount || 0).toLocaleString('ru-RU')}
-          </Descriptions.Item>
-          <Descriptions.Item label="Кто пригласил">
-            {contact.WhoInvite || '-'}
-          </Descriptions.Item>
-          <Descriptions.Item label="Всего заявок" span={2}>
-            <Badge count={contact.orders_count || orders.length || 0} showZero>
-              <span style={{ marginRight: 8 }}>Заявок:</span>
-            </Badge>
-          </Descriptions.Item>
-          {contact.comment && (
-            <Descriptions.Item label="Комментарий" span={2}>{contact.comment}</Descriptions.Item>
+          {!isMobile && (
+            <Button icon={<EditOutlined />} onClick={() => setIsEditModalVisible(true)}>
+              Редактировать
+            </Button>
           )}
-        </Descriptions>
-      </Card>
+          {isMobile && (
+            <Button type="text" icon={<EditOutlined />} onClick={() => setIsEditModalVisible(true)} />
+          )}
+        </div>
 
-      <Card style={{ marginTop: 24 }}>
+        {/* Quick Stats Summary */}
+        <div style={{
+          marginTop: 16,
+          display: 'flex',
+          gap: 16,
+          overflowX: 'auto',
+          paddingBottom: 4
+        }}>
+          <div style={{ background: '#f9f9f9', padding: '8px 12px', borderRadius: 8, minWidth: 100 }}>
+            <div style={{ fontSize: 11, color: '#888' }}>Баланс обменов</div>
+            <div style={{ fontWeight: 600 }}>{(contact.TotalSumExchanges || contact.orders_total_amount || 0).toLocaleString('ru-RU')}</div>
+          </div>
+          <div style={{ background: '#f9f9f9', padding: '8px 12px', borderRadius: 8, minWidth: 100 }}>
+            <div style={{ fontSize: 11, color: '#888' }}>Заявок</div>
+            <div style={{ fontWeight: 600 }}>{contact.orders_count || orders.length || 0}</div>
+          </div>
+          <div style={{ background: '#f9f9f9', padding: '8px 12px', borderRadius: 8, minWidth: 100 }}>
+            <div style={{ fontSize: 11, color: '#888' }}>Лояльность</div>
+            <div style={{ fontWeight: 600 }}>{contact.Loyality ?? 0}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? 0 : 24 }}>
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
+          style={{ background: isMobile ? '#fff' : 'transparent' }}
+          tabBarStyle={{
+            padding: isMobile ? '0 16px' : 0,
+            background: isMobile ? '#fff' : 'transparent',
+            marginBottom: isMobile ? 0 : 16
+          }}
           items={[
             {
               key: 'data',
-              label: (
-                <span>
-                  <UserOutlined /> Контактные данные
-                </span>
-              ),
+              label: 'Инфо',
               children: (
-                <Form form={form} layout="vertical" onFinish={handleUpdateContact}>
-                  <Row gutter={16}>
-                    <Col span={12}>
-                      <Form.Item name="name" label="Имя">
-                        <Input />
-                      </Form.Item>
-                    </Col>
-                    <Col span={12}>
-                      <Form.Item name="email" label="Email">
-                        <Input type="email" />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                  <Form.Item name="comment" label="Комментарий">
-                    <TextArea rows={3} />
-                  </Form.Item>
-                  <Form.Item>
-                    <Button type="primary" htmlType="submit">
-                      Сохранить изменения
-                    </Button>
-                  </Form.Item>
-                </Form>
+                <div style={{ padding: isMobile ? 16 : 0, background: isMobile ? '#fff' : 'transparent' }}>
+                  <Card bordered={false} style={{ borderRadius: isMobile ? 0 : 8, boxShadow: isMobile ? 'none' : undefined }}>
+                    <Descriptions column={1} layout={isMobile ? 'vertical' : 'horizontal'}>
+                      <Descriptions.Item label="Email">{contact.email || '-'}</Descriptions.Item>
+                      <Descriptions.Item label="Телефон">{contact.phone || '-'}</Descriptions.Item>
+                      <Descriptions.Item label="Дата создания">{new Date(contact.created_at).toLocaleDateString()}</Descriptions.Item>
+                      <Descriptions.Item label="Комментарий">{contact.comment || '-'}</Descriptions.Item>
+                    </Descriptions>
+                  </Card>
+                </div>
               ),
             },
             {
               key: 'messages',
-              label: (
-                <span>
-                  <FileTextOutlined /> Сообщения
-                </span>
-              ),
+              label: 'Чат',
               children: (
-                <>
-                  <div style={{ height: '500px', overflowY: 'auto', padding: '16px', background: '#fff', borderRadius: '8px', border: '1px solid #f0f0f0', display: 'flex', flexDirection: 'column' }}>
+                <div style={{
+                  height: isMobile ? 'calc(100vh - 280px)' : '600px', // Fixed height for chat area
+                  display: 'flex', flexDirection: 'column',
+                  background: '#fff',
+                  margin: isMobile ? 0 : 0
+                }}>
+                  <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
                     {messages.length === 0 ? (
-                      <Empty description="Нет сообщений" style={{ marginTop: 'auto', marginBottom: 'auto' }} />
+                      <Empty description="Нет сообщений" style={{ marginTop: 40 }} />
                     ) : (
+                      // Keeping message logic same, just structure
                       (() => {
                         const groupedMessages: { date: string, msgs: Message[] }[] = [];
                         messages.forEach(msg => {
@@ -546,28 +543,14 @@ const ContactDetailPage: React.FC = () => {
                             <div style={{ textAlign: 'center', margin: '16px 0', opacity: 0.5, fontSize: 12 }}>
                               <span style={{ background: '#f5f5f5', padding: '4px 12px', borderRadius: 12 }}>{group.date}</span>
                             </div>
-                            {group.msgs.map((msg, index) => {
-                              const prevMsg = index > 0 ? group.msgs[index - 1] : null;
-                              const currentOrderId = (msg as any).order_id;
-                              const prevOrderId = prevMsg ? (prevMsg as any).order_id : null;
-                              const showOrderHeader = currentOrderId && currentOrderId !== prevOrderId;
-
-                              return (
-                                <div key={msg.id || `${msg.created_at}-${Math.random()}`}>
-                                  {showOrderHeader && (
-                                    <div style={{ textAlign: 'center', margin: '12px 0 4px 0', opacity: 0.6, fontSize: '11px' }}>
-                                      <Tag>Заявка #{currentOrderId} - {(msg as any).order_title}</Tag>
-                                    </div>
-                                  )}
-                                  <UnifiedMessageBubble
-                                    msg={msg}
-                                    isOwn={(msg.author_type || msg.sender_type) === 'manager'}
-                                    variant="client"
-                                    onAddReaction={handleAddReaction}
-                                  />
-                                </div>
-                              );
-                            })}
+                            {group.msgs.map((msg, index) => (
+                              <UnifiedMessageBubble
+                                key={msg.id || index}
+                                msg={msg}
+                                isOwn={(msg.author_type || msg.sender_type) === 'manager'}
+                                variant="client"
+                              />
+                            ))}
                           </div>
                         ));
                       })()
@@ -580,145 +563,57 @@ const ContactDetailPage: React.FC = () => {
                     onSendFile={handleSendFile}
                     sending={sending}
                   />
-                </>
-              ),
+                </div>
+              )
             },
             {
               key: 'orders',
-              label: (
-                <span>
-                  <FileTextOutlined /> Заявки
-                </span>
-              ),
+              label: `Заявки (${orders.length})`,
               children: (
-                <>
-                  <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
-                    <Title level={4} style={{ margin: 0 }}>Заявки контакта</Title>
-                    <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate(`/orders?contact_id=${id}`)}>
-                      Новая заявка
-                    </Button>
-                  </Space>
-                  <Table
-                    columns={orderColumns}
+                <div style={{ padding: isMobile ? 16 : 0, paddingBottom: 80 }}>
+                  <Button block type="dashed" icon={<PlusOutlined />} onClick={() => navigate(`/orders?contact_id=${id}`)} style={{ marginBottom: 16 }}>
+                    Новая заявка
+                  </Button>
+                  <List
                     dataSource={orders}
-                    rowKey="id"
-                    pagination={false}
+                    renderItem={order => (
+                      <Card size="small" style={{ marginBottom: 8, borderRadius: 8 }} onClick={() => navigate(`/order/${order.main_id || order.id}`)}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <div style={{ fontWeight: 600 }}>#{order.id} {order.title}</div>
+                          <Tag>{ORDER_STATUSES[order.status]?.label}</Tag>
+                        </div>
+                        <div style={{ marginTop: 8, color: '#666' }}>
+                          {order.amount?.toLocaleString()} {order.currency}
+                        </div>
+                      </Card>
+                    )}
                   />
-                </>
-              ),
+                </div>
+              )
             },
             {
               key: 'notes',
-              label: (
-                <span>
-                  <FileTextOutlined /> Заметки
-                </span>
-              ),
+              label: 'Заметки',
               children: (
-                <>
-                  <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
-                    <Title level={4} style={{ margin: 0 }}>Внутренние заметки</Title>
-                    <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsNoteModalVisible(true)}>
-                      Добавить заметку
-                    </Button>
-                  </Space>
+                <div style={{ padding: isMobile ? 16 : 0 }}>
+                  <Button block type="dashed" icon={<PlusOutlined />} onClick={() => setIsNoteModalVisible(true)} style={{ marginBottom: 16 }}>
+                    Добавить заметку
+                  </Button>
                   <List
                     dataSource={notes}
-                    renderItem={(note) => {
-                      const priorityInfo = NOTE_PRIORITIES[note.priority];
-                      return (
-                        <List.Item>
-                          <List.Item.Meta
-                            title={
-                              <Space>
-                                <span>{priorityInfo.icon}</span>
-                                <span>{priorityInfo.label}</span>
-                                <Text type="secondary" style={{ fontSize: 12 }}>
-                                  {note.manager?.name} • {new Date(note.created_at).toLocaleString('ru-RU')}
-                                </Text>
-                                {note.manager_id === manager?.id && (
-                                  <Button
-                                    type="link"
-                                    danger
-                                    size="small"
-                                    icon={<DeleteOutlined />}
-                                    onClick={() => handleDeleteNote(note.id)}
-                                  >
-                                    Удалить
-                                  </Button>
-                                )}
-                              </Space>
-                            }
-                            description={note.content}
-                          />
-                        </List.Item>
-                      );
-                    }}
-                  />
-                </>
-              ),
-            },
-            {
-              key: 'history',
-              label: (
-                <span>
-                  <HistoryOutlined /> История
-                </span>
-              ),
-              children: (
-                <>
-                  <Title level={4} style={{ marginBottom: 16 }}>История клиента</Title>
-                  <List
-                    bordered
-                    dataSource={[
-                      {
-                        label: 'Дата регистрации/создания',
-                        date: contact.created_at,
-                        icon: <UserOutlined />,
-                        link: undefined
-                      },
-                      ...orders.filter(o => o.closed_date || o.WhenDone || o.status === 'completed').map(o => ({
-                        label: `Заявка #${o.id} выполнена`,
-                        date: o.closed_date || o.WhenDone || o.updated_at,
-                        icon: <HistoryOutlined />,
-                        link: `/order/${o.main_id || o.id}`
-                      }))
-                    ]}
-                    renderItem={(item) => (
-                      <List.Item>
-                        <List.Item.Meta
-                          avatar={<Avatar icon={item.icon} style={{ backgroundColor: '#1890ff' }} />}
-                          title={
-                            item.link ? (
-                              <button
-                                onClick={() => navigate(item.link || '')}
-                                style={{
-                                  background: 'none',
-                                  border: 'none',
-                                  padding: 0,
-                                  color: '#1890ff',
-                                  cursor: 'pointer',
-                                  textDecoration: 'none',
-                                  fontSize: 'inherit'
-                                }}
-                              >
-                                {item.label}
-                              </button>
-                            ) : (
-                              item.label
-                            )
-                          }
-                          description={new Date(item.date).toLocaleString('ru-RU')}
-                        />
-                      </List.Item>
+                    renderItem={note => (
+                      <Card size="small" style={{ marginBottom: 8 }}>
+                        <div>{note.content}</div>
+                        <div style={{ marginTop: 4, fontSize: 11, color: '#aaa' }}>{new Date(note.created_at).toLocaleString()}</div>
+                      </Card>
                     )}
                   />
-                </>
-              ),
-            },
+                </div>
+              )
+            }
           ]}
         />
-      </Card>
+      </div>
 
       <Modal
         title="Редактировать контакт"

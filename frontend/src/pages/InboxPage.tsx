@@ -485,10 +485,10 @@ const InboxPage: React.FC = () => {
                                                     <Avatar size={48} icon={<UserOutlined />} src={contact.avatar_url} />
                                                 }
                                                 title={
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                        <Text strong style={{ maxWidth: 160 }} ellipsis>{contact.name}</Text>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                                        <Text strong style={{ flex: 1, minWidth: 0, marginRight: 8 }} ellipsis>{contact.name}</Text>
                                                         {contact.last_active && (
-                                                            <Text type="secondary" style={{ fontSize: 12 }}>
+                                                            <Text type="secondary" style={{ fontSize: 12, flexShrink: 0 }}>
                                                                 {formatTime(contact.last_active)}
                                                             </Text>
                                                         )}
@@ -497,18 +497,18 @@ const InboxPage: React.FC = () => {
                                                 description={
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                            <Text type="secondary" style={{ maxWidth: 180 }} ellipsis>
+                                                            <Text type="secondary" style={{ flex: 1, minWidth: 0 }} ellipsis>
                                                                 {contact.last_message?.content || 'Нет сообщений'}
                                                             </Text>
                                                         </div>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
                                                             {contact.last_order_status && ORDER_STATUSES[contact.last_order_status as keyof typeof ORDER_STATUSES] && (
-                                                                <Tag color={ORDER_STATUSES[contact.last_order_status as keyof typeof ORDER_STATUSES].color || 'default'} style={{ margin: 0, fontSize: 10, lineHeight: '16px', padding: '0 4px' }}>
+                                                                <Tag color={ORDER_STATUSES[contact.last_order_status as keyof typeof ORDER_STATUSES].color || 'default'} style={{ margin: 0, fontSize: 10, lineHeight: '16px', padding: '0 4px', flexShrink: 0 }}>
                                                                     {ORDER_STATUSES[contact.last_order_status as keyof typeof ORDER_STATUSES].label}
                                                                 </Tag>
                                                             )}
                                                             {contact.responsible_person && (
-                                                                <Text type="secondary" style={{ fontSize: 11 }}>
+                                                                <Text type="secondary" style={{ fontSize: 11 }} ellipsis>
                                                                     <UserOutlined style={{ marginRight: 4 }} />
                                                                     {contact.responsible_person}
                                                                 </Text>
