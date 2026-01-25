@@ -36,11 +36,10 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { managersAPI } from '../services/api';
 import { Manager, ORDER_STATUSES } from '../types';
+import TemplatesSettings from './settings/TemplatesSettings';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
-
-import TemplatesSettings from './settings/TemplatesSettings';
 
 const SettingsPage: React.FC = () => {
   const { manager } = useAuth();
