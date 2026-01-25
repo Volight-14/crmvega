@@ -36,6 +36,7 @@ import { Order, ORDER_STATUSES, Contact, OrderStatus, Tag as TagData } from '../
 import { ordersAPI, contactsAPI, tagsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import io from 'socket.io-client';
+import KanbanOrderCard from '../components/KanbanOrderCard';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -63,241 +64,8 @@ const COLUMN_COLORS: Record<string, string> = {
   completed: '#52c41a',
 };
 
-interface OrderCardProps {
-  order: Order;
-  onClick: () => void;
-  onStatusChange?: (newStatus: OrderStatus) => void;
-  onEditContact?: (contact: Contact) => void;
-}
+// Old OrderCard and OrderCardProps Removed
 
-const OrderCard: React.FC<OrderCardProps> = ({ order, onClick, onStatusChange, onEditContact }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: order.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  const sortedStatusOptions = Object.entries(ORDER_STATUSES)
-    .sort(([, a], [, b]) => (a.order || 0) - (b.order || 0))
-    .map(([key, value]) => ({
-      value: key as OrderStatus,
-      label: value.label,
-      icon: value.icon,
-      color: value.color,
-    }));
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ru-RU', {
-      day: 'numeric',
-      month: 'short',
-      timeZone: 'Europe/Madrid'
-    }).replace('.', '') + ', ' + date.toLocaleTimeString('ru-RU', {
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Europe/Madrid'
-    });
-  };
-
-  // Helper to clean values (remove 'null' strings)
-  const clean = (val: string | number | undefined | null) => {
-    if (!val) return '';
-    const str = String(val).trim();
-    if (str.toLowerCase() === 'null') return '';
-    return str;
-  };
-
-  // Construct main info string
-  const mainInfoParts = [
-    clean(order.DeliveryTime),
-    clean(order.NextDay),
-    clean(order.CityEsp02),
-    clean(order.SumInput),
-    clean(order.CurrPair1),
-    (clean(order.SumOutput) || clean(order.CurrPair2)) ? 'на' : '',
-    clean(order.SumOutput),
-    clean(order.CurrPair2)
-  ];
-
-  // Join parts and handle empty strings nicely
-  const mainInfoString = mainInfoParts.filter(part => part && part !== '').join(' ');
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      onClick={() => !isDragging && onClick()}
-    >
-      <Card
-        size="small"
-        style={{
-          marginBottom: 8,
-          cursor: 'pointer',
-          borderRadius: 8,
-          border: '1px solid #f0f0f0',
-          boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.15)' : '0 1px 3px rgba(0,0,0,0.05)',
-        }}
-        bodyStyle={{ padding: '10px 12px' }}
-        hoverable
-      >
-        {/* Header: Name + Date */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 2,
-        }}>
-          <div style={{
-            fontWeight: 600,
-            fontSize: 14,
-            color: '#262626',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            maxWidth: '70%',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6
-          }}>
-            {order.contact?.name || order.OrderName || order.title || 'Без имени'}
-            {order.contact && 'id' in order.contact && (
-              <EditOutlined
-                style={{ fontSize: 12, color: '#bfbfbf', cursor: 'pointer' }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEditContact?.(order.contact as Contact);
-                }}
-              />
-            )}
-          </div>
-          <Text type="secondary" style={{ fontSize: 11, flexShrink: 0 }}>
-            {formatDate(order.created_at)}
-          </Text>
-        </div>
-
-        {/* Subtitle: City */}
-        {clean(order.CityEsp02) && (
-          <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 6 }}>
-            {clean(order.CityEsp02)}
-          </div>
-        )}
-
-        {/* Main Info String */}
-        <div style={{
-          fontSize: 14,
-          color: '#1890ff',
-          marginBottom: 8,
-          lineHeight: '1.4',
-          wordWrap: 'break-word'
-        }}>
-          {mainInfoString}
-        </div>
-
-        {/* Tags */}
-        {order.tags && order.tags.length > 0 && (
-          <div style={{ marginBottom: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {order.tags.map(tag => (
-              <Tag
-                key={tag.id}
-                color={tag.color}
-                style={{ margin: 0, fontSize: 10, lineHeight: '18px' }}
-              >
-                {tag.name}
-              </Tag>
-            ))}
-          </div>
-        )}
-
-        {/* Footer: Last Message and Status */}
-        <div style={{
-          marginTop: 8,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-end',
-          gap: 8,
-        }}>
-          {/* Last Message */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            {order.last_message && (
-              <div style={{
-                background: '#f0f5ff',
-                borderRadius: '8px 8px 8px 0',
-                padding: '6px 10px',
-                display: 'inline-block',
-                maxWidth: '100%'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Avatar size={16} src={order.contact?.name ? undefined : undefined} style={{ backgroundColor: '#87d068', flexShrink: 0 }} icon={<UserOutlined style={{ fontSize: 10 }} />} />
-                  <Text style={{ fontSize: 12, color: '#262626' }} ellipsis>
-                    {order.last_message.content}
-                  </Text>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Status dropdown trigger as Tag */}
-          <div
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-            style={{ flexShrink: 0 }}
-          >
-            <Select
-              size="small"
-              value={order.status}
-              onChange={(newStatus) => onStatusChange?.(newStatus)}
-              style={{ width: 'auto', minWidth: 100 }}
-              dropdownMatchSelectWidth={false}
-              bordered={false}
-              showArrow={false}
-              // Render the selected value as a visually distinct Tag-like element
-              labelRender={(props) => {
-                const statusConfig = ORDER_STATUSES[props.value as OrderStatus];
-                return (
-                  <div className="status-tag" style={{
-                    backgroundColor: statusConfig?.color === 'default' ? '#f0f0f0' : `${statusConfig?.color}15`,
-                    color: statusConfig?.color || '#595959',
-                    border: `1px solid ${statusConfig?.color || '#d9d9d9'}`,
-                    borderRadius: 4,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap'
-                  }}>
-                    {statusConfig?.label || props.label}
-                  </div>
-                );
-              }}
-            >
-              {sortedStatusOptions.map((opt) => (
-                <Option key={opt.value} value={opt.value}>
-                  <Space size={4}>
-                    <span style={{ color: opt.color }}>●</span>
-                    <span style={{ fontSize: 14 }}>{opt.label}</span>
-                  </Space>
-                </Option>
-              ))}
-            </Select>
-          </div>
-        </div>
-
-      </Card>
-    </div>
-  );
-};
 
 interface KanbanColumnProps {
   status: OrderStatus;
@@ -317,12 +85,11 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClic
     id: status,
   });
 
-  // Считаем общую сумму по колонке (конвертируем в евро для примера)
+  // Calculate total amount
   const totalAmount = useMemo(() => {
     return orders.reduce((sum, order) => {
       let amount = order.amount || 0;
-      // Простая конвертация для отображения
-      if (order.currency === 'RUB') amount = amount / 100; // примерный курс
+      if (order.currency === 'RUB') amount = amount / 100;
       if (order.currency === 'USD') amount = amount * 0.92;
       return sum + amount;
     }, 0);
@@ -330,7 +97,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClic
 
   return (
     <div className="kanban-column">
-      {/* Заголовок колонки */}
+      {/* Column Header */}
       <div style={{
         background: '#fff',
         borderRadius: '8px 8px 0 0',
@@ -361,17 +128,17 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClic
         </div>
       </div>
 
-      {/* Область с карточками */}
+      {/* Cards Area */}
       <div
         ref={setNodeRef}
         style={{
           flex: 1,
-          background: isOver ? '#f0f9ff' : '#fafafa',
+          background: isOver ? '#f0f9ff' : '#f5f7fa', // Slightly greyer background for contrast with white cards
           padding: '8px',
           overflowY: 'auto',
           borderRadius: '0 0 8px 8px',
           transition: 'background 0.2s',
-          minHeight: '100px', // Ensure drop zone area exists
+          minHeight: '100px',
         }}
       >
         <SortableContext items={orderIds} strategy={verticalListSortingStrategy}>
@@ -384,7 +151,6 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClic
                 fontSize: 13,
               }}
             >
-              {/* Кнопка быстрого добавления */}
               <Button
                 type="dashed"
                 icon={<PlusOutlined />}
@@ -393,6 +159,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClic
                   width: '100%',
                   borderRadius: 8,
                   height: 40,
+                  borderColor: 'rgba(0,0,0,0.1)'
                 }}
               >
                 Быстрое добавление
@@ -401,7 +168,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClic
           ) : (
             <>
               {orders.map((order) => (
-                <OrderCard
+                <KanbanOrderCard
                   key={order.id}
                   order={order}
                   onClick={() => onOrderClick(order)}
@@ -409,7 +176,6 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClic
                   onEditContact={onEditContact}
                 />
               ))}
-              {/* Кнопка добавления внизу */}
               <Button
                 type="text"
                 icon={<PlusOutlined />}

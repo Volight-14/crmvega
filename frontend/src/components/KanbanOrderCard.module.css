@@ -1,0 +1,171 @@
+.card {
+  position: relative;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02), 0 1px 0 rgba(0, 0, 0, 0.02);
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+  cursor: grab;
+  user-select: none;
+  touch-action: manipulation;
+  /* Hardware acceleration trigger */
+  will-change: transform, box-shadow;
+  /* Glass/Premium feel tweaks */
+  margin-bottom: 8px;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+  z-index: 10;
+}
+
+.dragging {
+  cursor: grabbing;
+  opacity: 0.8;
+  transform: scale(1.02);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+}
+
+/* Header Section */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 75%;
+}
+
+.title {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  color: #1f1f1f;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+}
+
+.editIcon {
+  font-size: 11px;
+  color: #d9d9d9;
+  cursor: pointer;
+  transition: color 0.15s;
+  padding: 2px;
+}
+
+.editIcon:hover {
+  color: #1890ff;
+}
+
+.date {
+  font-size: 11px;
+  color: #8c8c8c;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+/* Content Section */
+.city {
+  font-size: 11px;
+  color: #8c8c8c;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.mainInfo {
+  font-size: 14px;
+  color: #1890ff;
+  margin-bottom: 10px;
+  line-height: 1.4;
+  font-weight: 500;
+  word-wrap: break-word;
+}
+
+/* Tags Section */
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.tag {
+  font-size: 10px;
+  padding: 0 6px;
+  height: 18px;
+  line-height: 18px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* Footer Section */
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.lastMessage {
+  flex: 1;
+  min-width: 0;
+  background: #f7f7f7;
+  border-radius: 8px 8px 8px 0;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #595959;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.avatar {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: #87d068;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: white;
+  font-size: 8px;
+}
+
+.messageText {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+/* Status Select Override (Custom styling for the dropdown trigger) */
+.statusTrigger {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.statusTrigger:hover {
+  filter: brightness(0.95);
+}
