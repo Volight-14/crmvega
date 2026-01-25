@@ -500,26 +500,11 @@ const ContactDetailPage: React.FC = () => {
                       </Form.Item>
                     </Col>
                     <Col span={12}>
-                      <Form.Item name="phone" label="Телефон">
-                        <Input />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                  <Row gutter={16}>
-                    <Col span={12}>
                       <Form.Item name="email" label="Email">
                         <Input type="email" />
                       </Form.Item>
                     </Col>
-                    <Col span={12}>
-                      <Form.Item name="company" label="Компания">
-                        <Input />
-                      </Form.Item>
-                    </Col>
                   </Row>
-                  <Form.Item name="address" label="Адрес">
-                    <TextArea rows={2} />
-                  </Form.Item>
                   <Form.Item name="comment" label="Комментарий">
                     <TextArea rows={3} />
                   </Form.Item>
@@ -748,20 +733,8 @@ const ContactDetailPage: React.FC = () => {
           </Form.Item>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="phone" label="Телефон">
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
               <Form.Item name="email" label="Email">
                 <Input type="email" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="company" label="Компания">
-                <Input />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -770,9 +743,6 @@ const ContactDetailPage: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="address" label="Адрес">
-            <TextArea rows={2} />
-          </Form.Item>
           <Form.Item name="comment" label="Комментарий">
             <TextArea rows={3} />
           </Form.Item>
