@@ -566,7 +566,7 @@ const InboxPage: React.FC = () => {
                                 </div>
                                 <div style={{ display: 'flex', gap: 4 }}>
                                     {(activeOrder || selectedContact.latest_order_id) && (
-                                        <Link to={`/order/${activeOrder?.main_id || activeOrder?.id || selectedContact.latest_order_main_id || selectedContact.latest_order_id}`}>
+                                        <Link to={`/order/${activeOrder?.id || selectedContact.latest_order_id}`}>
                                             <Button type="link" size="small">{isMobile ? 'Сделка' : 'Открыть сделку'}</Button>
                                         </Link>
                                     )}

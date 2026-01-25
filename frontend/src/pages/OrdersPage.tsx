@@ -701,7 +701,7 @@ const OrdersPage: React.FC = () => {
                     <KanbanColumn
                       status={status}
                       orders={ordersByStatus[status] || []}
-                      onOrderClick={(order) => navigate(`/order/${order.main_id || order.id}`)}
+                      onOrderClick={(order) => navigate(`/order/${order.id}`)}
                       onAddOrder={() => openCreateModal(status)}
                       onStatusChange={handleStatusChange}
                       onEditContact={handleEditContact}
@@ -747,7 +747,7 @@ const OrdersPage: React.FC = () => {
                 pageSizeOptions: ['10', '20', '50', '100']
               }}
               onRow={(record) => ({
-                onClick: () => navigate(`/order/${record.main_id || record.id}`),
+                onClick: () => navigate(`/order/${record.id}`),
                 style: { cursor: 'pointer' }
               })}
               columns={[
@@ -843,7 +843,7 @@ const OrdersPage: React.FC = () => {
           <div className="mobile-only" style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
             <MobileOrderList
               orders={filteredOrders}
-              onOrderClick={(order) => navigate(`/order/${order.main_id || order.id}`)}
+              onOrderClick={(order) => navigate(`/order/${order.id}`)}
               loading={loading}
             />
           </div>
