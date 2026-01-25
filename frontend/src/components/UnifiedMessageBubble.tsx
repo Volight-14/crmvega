@@ -396,7 +396,7 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.5px'
                             }}>
-                                {msg.author_type}
+                                {msg.user || msg.author_type}
                             </div>
                         )}
 
