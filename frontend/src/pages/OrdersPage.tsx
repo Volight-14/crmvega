@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+
 import {
   Typography,
 
@@ -131,12 +132,12 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClic
         ref={setNodeRef}
         style={{
           flex: 1,
-          background: isOver ? '#f0f9ff' : '#f5f7fa', // Slightly greyer background for contrast with white cards
+          background: isOver ? '#f0f9ff' : '#f5f7fa',
           padding: '8px',
-          overflowY: 'auto',
           borderRadius: '0 0 8px 8px',
           transition: 'background 0.2s',
           minHeight: '100px',
+          position: 'relative',
         }}
       >
         <SortableContext items={orderIds} strategy={verticalListSortingStrategy}>
@@ -164,7 +165,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClic
               </Button>
             </div>
           ) : (
-            <>
+            <div style={{ height: '100%', overflowY: 'auto' }}>
               {orders.map((order) => (
                 <KanbanOrderCard
                   key={order.id}
@@ -180,13 +181,13 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClic
                 onClick={onAddOrder}
                 style={{
                   width: '100%',
-                  color: '#bfbfbf',
                   marginTop: 8,
+                  color: '#bfbfbf',
                 }}
               >
                 Добавить
               </Button>
-            </>
+            </div>
           )}
         </SortableContext>
       </div>
