@@ -247,62 +247,70 @@ const ContactsPage: React.FC = () => {
   ];
 
   return (
-    <div>
-      <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
-        <Col>
-          <Title level={2}>Контакты</Title>
-        </Col>
-        <Col>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleCreate}
-          >
-            Новый контакт
-          </Button>
-        </Col>
-      </Row>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ padding: 24, paddingBottom: 0 }}>
+        <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
+          <Col>
+            <Title level={2} style={{ margin: 0 }}>Контакты</Title>
+          </Col>
+          <Col>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleCreate}
+            >
+              Новый контакт
+            </Button>
+          </Col>
+        </Row>
 
-      <Card style={{ marginBottom: 16 }}>
-        <Space size="middle" style={{ width: '100%', flexWrap: 'wrap' }} wrap>
-          <Input
-            placeholder="Поиск по имени, телефону, email..."
-            prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: '100%', maxWidth: 300 }}
-            allowClear
-          />
-          <Select
-            value={statusFilter}
-            onChange={setStatusFilter}
-            placeholder="Фильтр по статусу"
-            style={{ width: '100%', maxWidth: 200 }}
-            allowClear
-          >
-            <Option value="active">Активные</Option>
-            <Option value="inactive">Неактивные</Option>
-            <Option value="needs_attention">Требуют внимания</Option>
-          </Select>
-        </Space>
-      </Card>
+        <Card style={{ marginBottom: 16 }}>
+          <Space size="middle" style={{ width: '100%', flexWrap: 'wrap' }} wrap>
+            <Input
+              placeholder="Поиск по имени, телефону, email..."
+              prefix={<SearchOutlined />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              style={{ width: '100%', maxWidth: 300 }}
+              allowClear
+            />
+            <Select
+              value={statusFilter}
+              onChange={setStatusFilter}
+              placeholder="Фильтр по статусу"
+              style={{ width: '100%', maxWidth: 200 }}
+              allowClear
+            >
+              <Option value="active">Активные</Option>
+              <Option value="inactive">Неактивные</Option>
+              <Option value="needs_attention">Требуют внимания</Option>
+            </Select>
+          </Space>
+        </Card>
+      </div>
 
-      <Card>
-        <Table
-          columns={columns}
-          dataSource={contacts}
-          rowKey="id"
-          loading={loading}
-          pagination={{
-            defaultPageSize: 20,
-            showSizeChanger: true,
-            pageSizeOptions: ['10', '20', '50', '100'],
-            showTotal: (total, range) => `${range[0]}-${range[1]} из ${total}`,
-            position: ['bottomRight']
-          }}
-          scroll={{ x: 'max-content' }}
-        />
-      </Card>
+      <div style={{ flex: 1, overflow: 'hidden', padding: '0 24px 24px 24px' }}>
+        <Card style={{ height: '100%', display: 'flex', flexDirection: 'column' }} bodyStyle={{ flex: 1, overflow: 'hidden', padding: 0 }}>
+          <div style={{ height: '100%', overflow: 'auto' }}>
+            <Table
+              columns={columns}
+              dataSource={contacts}
+              rowKey="id"
+              loading={loading}
+              pagination={{
+                defaultPageSize: 20,
+                showSizeChanger: true,
+                pageSizeOptions: ['10', '20', '50', '100'],
+                showTotal: (total, range) => `${range[0]}-${range[1]} из ${total}`,
+                position: ['bottomRight'],
+                style: { padding: '16px 24px' }
+              }}
+              scroll={{ x: 'max-content' }}
+              sticky
+            />
+          </div>
+        </Card>
+      </div>
 
       <Modal
         title={editingContact ? 'Редактировать контакт' : 'Новый контакт'}
