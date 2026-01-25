@@ -88,6 +88,27 @@ app.use((req, res, next) => {
         // Look for: non-comma/brace/bracket, optional whitespace, newline, optional whitespace, quote (next key)
         fixed = fixed.replace(/([^,\{\[])\s*\n\s*"/g, '$1,\n"');
 
+        // Fix: Nested quotes inside values (e.g. "content": "... "верно" ...")
+        // We look for patterns like: "key": " ... " ... " and try to escape the inner quotes
+        // This regex is complex: it finds a quoted value, and validation fails if inner quotes exist.
+        // Simplified approach: If we find a line like "key": "text "quote" text", we escape the inner quotes.
+        // Look for "key": "start... " ... " ...end",
+        // It's hard to do perfectly with regex.
+        // Let's try to replace "word" with 'word' inside known text fields if parsing fails?
+        // Or better: Replace " (quote space) or " (space quote) inside value?
+        // Let's rely on specific Bubble patterns. Bubble often sends unescaped quotes.
+
+        // Attempt to fix quotes inside content/text fields specifically if needed
+        // Pattern: "key": " ... " ... " ...
+
+        // New Strategy: Global replace of \" with ' inside values seems safer?
+        // But we don't know where values start/end cleanly.
+
+        // Let's assume the specific error case: " ... "верно" "
+        // Replace "верно" with 'верно' (quoted word inside string)
+        fixed = fixed.replace(/ "([^"]+)" /g, " '$1' "); // Replace "word" with 'word' (spaces around)
+        fixed = fixed.replace(/: "([^"]*)"([^"]*)"([^"]*)",/g, ': "$1\'$2\'$3",'); // Attempt to fix simple nested quotes
+
         // Quote unquoted alphanumerics that are likely IDs or strings (prev fix)
         // Added Cyrillic range \u0400-\u04FF to handle Russian unquoted values
         fixed = fixed.replace(/(:\s*)(?!true|false|null|\-?[\d\.]+|"[^"]*"|\[|\{)([a-zA-Z0-9_\-\.\/\u0400-\u04FF]+)(\s*[,}])/g, '$1"$2"$3');

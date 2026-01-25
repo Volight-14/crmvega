@@ -87,8 +87,10 @@ async function rehostFile(url, originalName = 'file') {
         const buffer = Buffer.from(response.data, 'binary');
         const contentType = response.headers['content-type'] || 'application/octet-stream';
 
-        // 2. Determine extension
+        // 2. Determine extension and MIME type
         let ext = 'bin';
+        let finalContentType = contentType;
+
         const mimeToExt = {
             'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp',
             'application/pdf': 'pdf', 'text/plain': 'txt', 'text/csv': 'csv',
@@ -96,10 +98,23 @@ async function rehostFile(url, originalName = 'file') {
             'audio/wav': 'wav', 'video/mp4': 'mp4', 'video/webm': 'webm',
         };
 
+        const extToMime = {
+            'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'gif': 'image/gif',
+            'webp': 'image/webp', 'pdf': 'application/pdf', 'txt': 'text/plain',
+            'mp3': 'audio/mpeg', 'ogg': 'audio/ogg', 'wav': 'audio/wav',
+            'mp4': 'video/mp4', 'webm': 'video/webm'
+        };
+
         if (originalName && originalName.includes('.')) {
-            ext = originalName.split('.').pop().split('?')[0]; // Safe extension from name
+            ext = originalName.split('.').pop().split('?')[0].toLowerCase();
         } else if (mimeToExt[contentType]) {
             ext = mimeToExt[contentType];
+        }
+
+        // Fix: If contentType is octet-stream but we have a known extension, force correct MIME
+        if ((!finalContentType || finalContentType === 'application/octet-stream') && extToMime[ext]) {
+            finalContentType = extToMime[ext];
+            console.log(`[Storage] Corrected MIME from ${contentType} to ${finalContentType} based on extension .${ext}`);
         }
 
         // 3. Generate path
@@ -111,7 +126,7 @@ async function rehostFile(url, originalName = 'file') {
             .storage
             .from(BUCKET_NAME)
             .upload(filePath, buffer, {
-                contentType: contentType,
+                contentType: finalContentType,
                 upsert: false
             });
 
