@@ -144,6 +144,22 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     }
   };
 
+  const fetchUnreadCount = async () => {
+    if (!manager) return;
+    try {
+      const { ordersAPI } = await import('../services/api');
+      const { count } = await ordersAPI.getUnreadCount();
+      setUnreadTotal(count);
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchUnreadCount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manager]);
+
   useEffect(() => {
     // Restore count? maybe not needed persistent for session
     document.title = unreadTotal > 0 ? `(${unreadTotal}) CRM` : 'CRM';
@@ -166,42 +182,17 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       // Logic for alerts
       if (!manager) return;
 
-      const stored = localStorage.getItem(`crm_notification_settings_${manager.id}`);
-      let settings = { all_active: true, statuses: [] as string[] };
-      if (stored) {
-        try { settings = JSON.parse(stored); } catch (e) { }
-      }
+      // Optimistically play sound if it might match (we'll refresh count anyway)
+      playAlertSound();
 
-      console.log('🔧 Notification Settings:', settings);
-      console.log('Message Order Status:', msg.order_status);
+      // Refresh count from DB to be accurate
+      fetchUnreadCount();
 
-      let shouldNotify = false;
-
-      // 1. Check if "Only my notifications" (statuses) is active
-      if (settings.statuses && settings.statuses.length > 0) {
-        // Strict filtering by status
-        if (msg.order_status && settings.statuses.includes(msg.order_status)) {
-          shouldNotify = true;
-        }
-      }
-      // 2. If no specific statuses, check "All notifications"
-      else if (settings.all_active) {
-        shouldNotify = true;
-      }
-
-      if (shouldNotify) {
-        console.log('🔔 Triggering notification!');
-        playAlertSound();
-        setUnreadTotal(prev => prev + 1);
-
-        notification.open({
-          message: 'Новое сообщение',
-          description: `От: ${msg.author_type || 'Клиента'}. Статус: ${msg.order_status}`,
-          duration: 3,
-        });
-      } else {
-        console.log('🔕 Notification filtered out based on settings.');
-      }
+      notification.open({
+        message: 'Новое сообщение',
+        description: `От: ${msg.author_type || 'Клиента'}.`,
+        duration: 3,
+      });
     });
 
     return () => {
@@ -292,7 +283,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           </Space>
           <Space size={isMobile ? "middle" : "large"}>
             <Badge count={unreadTotal}>
-              <BellOutlined style={{ fontSize: 18, cursor: 'pointer' }} onClick={() => setUnreadTotal(0)} />
+              <BellOutlined style={{ fontSize: 18, cursor: 'pointer' }} onClick={() => navigate('/inbox?filter=unread')} />
             </Badge>
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
               <Space style={{ cursor: 'pointer' }}>

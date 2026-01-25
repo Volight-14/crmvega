@@ -167,7 +167,65 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// Получить заявку по ID
+// Создаем отдельный эндпоинт для подсчета непрочитанных (Notification Bell)
+router.get('/unread-count', auth, async (req, res) => {
+  try {
+    // 1. Получаем настройки пользователя
+    const { data: manager } = await supabase
+      .from('managers')
+      .select('notification_settings')
+      .eq('id', req.manager.id)
+      .single();
+
+    const settings = manager?.notification_settings || {};
+    const { all_active, statuses } = settings;
+
+    // 2. Находим main_id всех диалогов с непрочитанными сообщениями
+    // Важно: считаем "непрочитанными" сообщения от клиентов, у которых нет статуса 'read'
+    const { data: unreadData, error: msgError } = await supabase
+      .from('messages')
+      .select('main_id')
+      .neq('status', 'read') // Предполагаем, что прочитанные помечены как 'read'
+      .or('author_type.eq.user,author_type.eq.customer,author_type.eq.client,author_type.eq.Client,author_type.eq.Клиент') // Отфильтровываем сообщения менеджеров
+      .not('main_id', 'is', null);
+
+    if (msgError) throw msgError;
+
+    // Уникальные main_id
+    const distinctMainIds = [...new Set(unreadData.map(m => String(m.main_id)))];
+
+    if (distinctMainIds.length === 0) {
+      return res.json({ count: 0 });
+    }
+
+    // 3. Считаем количество ордеров, соответствующих этим main_id и фильтру статусов
+    let query = supabase
+      .from('orders')
+      .select('id', { count: 'exact', head: true })
+      .in('main_id', distinctMainIds);
+
+    // Если "Все уведомления" выключены и есть выбранные статусы - фильтруем по ним
+    // Если "Все уведомления" включены - считаем по всем статусам (или можно игнорировать settings.statuses)
+    // ТЗ: "Если выбраны свои уведомления - в колокольчике показывается количество сделок ... только в этих этапах"
+    // ТЗ: "Если включены все уведомления - показываются ... непрочитанные записи в Диалогах" (видимо все)
+
+    if (!all_active && statuses && statuses.length > 0) {
+      query = query.in('status', statuses);
+    }
+
+    const { count, error: countError } = await query;
+
+    if (countError) throw countError;
+
+    res.json({ count: count || 0 });
+
+  } catch (error) {
+    console.error('Error fetching unread count:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Получить заявку по ID (existing)
 router.get('/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;

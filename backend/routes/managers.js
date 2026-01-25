@@ -138,4 +138,29 @@ router.delete('/:id', auth, requireAdmin, async (req, res) => {
     }
 });
 
+// Обновить настройки уведомлений (текущий польезватель)
+router.put('/settings/notifications', auth, async (req, res) => {
+    try {
+        const { notification_settings } = req.body;
+
+        if (!notification_settings) {
+            return res.status(400).json({ error: 'Settings are required' });
+        }
+
+        const { data, error } = await supabase
+            .from('managers')
+            .update({ notification_settings })
+            .eq('id', req.manager.id)
+            .select('notification_settings')
+            .single();
+
+        if (error) throw error;
+
+        res.json(data);
+    } catch (error) {
+        console.error('Error updating notification settings:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 module.exports = router;

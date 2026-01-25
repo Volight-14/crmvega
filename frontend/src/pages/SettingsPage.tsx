@@ -186,14 +186,19 @@ const SettingsPage: React.FC = () => {
     }
   }, [manager]);
 
-  const handleNotificationChange = (key: string, value: any) => {
-    setNotificationSettings(prev => {
-      const newSettings = { ...prev, [key]: value };
-      if (manager?.id) {
-        localStorage.setItem(`crm_notification_settings_${manager.id}`, JSON.stringify(newSettings));
+  const handleNotificationChange = async (key: string, value: any) => {
+    const newSettings = { ...notificationSettings, [key]: value };
+    setNotificationSettings(newSettings);
+
+    if (manager?.id) {
+      localStorage.setItem(`crm_notification_settings_${manager.id}`, JSON.stringify(newSettings));
+
+      try {
+        await managersAPI.updateNotificationSettings(newSettings);
+      } catch (error) {
+        console.error('Failed to save notification settings to backend', error);
       }
-      return newSettings;
-    });
+    }
   };
 
   return (

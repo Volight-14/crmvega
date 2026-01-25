@@ -4,6 +4,7 @@ import io from 'socket.io-client';
 import { contactsAPI, contactMessagesAPI, orderMessagesAPI, ordersAPI, messagesAPI } from '../services/api';
 import { InboxContact, Message, Order, ORDER_STATUSES } from '../types';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import {
     Layout,
     List,
@@ -38,7 +39,7 @@ interface ExtendedInboxContact extends InboxContact {
 }
 
 const InboxPage: React.FC = () => {
-    // const { manager } = useAuth();
+    const { manager } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
     const [contacts, setContacts] = useState<ExtendedInboxContact[]>([]);
     const [selectedContact, setSelectedContact] = useState<ExtendedInboxContact | null>(null);
@@ -49,9 +50,34 @@ const InboxPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [sending, setSending] = useState(false);
 
+    // Filters
+    const [showUnreadOnly, setShowUnreadOnly] = useState(false);
+    const [filterStages, setFilterStages] = useState<string[]>([]);
+    const [showFilters, setShowFilters] = useState(false); // Toggle extra filters UI
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const selectedContactRef = useRef<number | null>(null);
     const socketRef = useRef<Socket | null>(null);
+
+    // Initial load & URL params
+    useEffect(() => {
+        const filterParam = searchParams.get('filter');
+        if (filterParam === 'unread') {
+            setShowUnreadOnly(true);
+            // Load user settings for stages
+            if (manager) {
+                const stored = localStorage.getItem(`crm_notification_settings_${manager.id}`);
+                if (stored) {
+                    try {
+                        const s = JSON.parse(stored);
+                        if (!s.all_active && s.statuses?.length > 0) {
+                            setFilterStages(s.statuses);
+                        }
+                    } catch (e) { }
+                }
+            }
+        }
+    }, [searchParams, manager]);
 
     // Initial load
     useEffect(() => {
@@ -74,7 +100,7 @@ const InboxPage: React.FC = () => {
             socketRef.current?.disconnect();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [showUnreadOnly, filterStages]);
 
     // Listen for new messages
     useEffect(() => {
@@ -171,12 +197,33 @@ const InboxPage: React.FC = () => {
     const fetchContacts = async () => {
         try {
             setIsLoadingContacts(true);
-            const contactsData = await contactsAPI.getSummary({ limit: 50, search: searchQuery });
-            // Filter out contacts with 'completed' or 'duplicate' status
-            const filteredContacts = contactsData.filter(c => {
-                const status = c.last_order_status;
-                return status !== 'completed' && status !== 'duplicate';
-            });
+            const contactsData = await contactsAPI.getSummary({ limit: 100, search: searchQuery });
+
+            let filteredContacts = contactsData;
+
+            // 1. Base Filter (Hide completed/duplicates unless specifically searching or requested?)
+            if (!searchQuery) {
+                filteredContacts = filteredContacts.filter(c => {
+                    const status = c.last_order_status;
+                    return status !== 'completed' && status !== 'duplicate';
+                });
+            }
+
+            // 2. Unread Filter
+            if (showUnreadOnly) {
+                filteredContacts = filteredContacts.filter(c => {
+                    // Logic: Last message from client/user
+                    return c.last_message && isClientMessage(c.last_message.author_type);
+                });
+            }
+
+            // 3. Stage Filter
+            if (filterStages.length > 0) {
+                filteredContacts = filteredContacts.filter(c =>
+                    c.last_order_status && filterStages.includes(c.last_order_status)
+                );
+            }
+
             setContacts(filteredContacts);
         } catch (error) {
             console.error('Error fetching inbox contacts:', error);
@@ -369,16 +416,46 @@ const InboxPage: React.FC = () => {
                     style={{ borderRight: isMobile ? 'none' : '1px solid #f0f0f0' }}
                 >
                     <div style={{ padding: 16, borderBottom: '1px solid #f0f0f0' }}>
-                        <Title level={4} style={{ marginBottom: 16 }}>Диалоги</Title>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                            <Title level={4} style={{ margin: 0 }}>Диалоги</Title>
+                            <Button
+                                type={showUnreadOnly ? 'primary' : 'default'}
+                                size="small"
+                                onClick={() => setShowUnreadOnly(!showUnreadOnly)}
+                            >
+                                {showUnreadOnly ? 'Непрочитанные' : 'Все'}
+                            </Button>
+                        </div>
+
                         <Input
                             placeholder="Поиск..."
                             prefix={<SearchOutlined />}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             onPressEnter={fetchContacts}
+                            style={{ marginBottom: 8 }}
                         />
+
+                        {showUnreadOnly && (
+                            <div style={{ paddingBottom: 8 }}>
+                                <select
+                                    style={{ width: '100%', padding: 4, borderRadius: 4, borderColor: '#d9d9d9' }}
+                                    multiple={false}
+                                    value={filterStages[0] || ''}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setFilterStages(val ? [val] : []);
+                                    }}
+                                >
+                                    <option value="">Все этапы</option>
+                                    {Object.entries(ORDER_STATUSES).map(([key, val]) => (
+                                        <option key={key} value={key}>{val.icon} {val.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                     </div>
-                    <div style={{ height: 'calc(100% - 108px)', overflowY: 'auto' }}>
+                    <div style={{ height: 'calc(100% - 140px)', overflowY: 'auto' }}>
                         {isLoadingContacts && contacts.length === 0 ? (
                             <div style={{ textAlign: 'center', padding: 20 }}><Spin /></div>
                         ) : (

@@ -87,6 +87,11 @@ export const managersAPI = {
   delete: async (id: number): Promise<void> => {
     await api.delete(`/managers/${id}`);
   },
+
+  updateNotificationSettings: async (settings: any): Promise<{ notification_settings: any }> => {
+    const response = await api.put('/managers/settings/notifications', { notification_settings: settings });
+    return response.data;
+  },
 };
 
 // Messages API
@@ -165,6 +170,11 @@ export const ordersAPI = {
 
   clearUnsorted: async (): Promise<{ success: boolean; count: number }> => {
     const response = await api.delete('/orders/unsorted');
+    return response.data;
+  },
+
+  getUnreadCount: async (): Promise<{ count: number }> => {
+    const response = await api.get('/orders/unread-count');
     return response.data;
   },
 };
