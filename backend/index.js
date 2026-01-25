@@ -89,16 +89,31 @@ app.use((req, res, next) => {
         fixed = fixed.replace(/([^,\{\[])\s*\n\s*"/g, '$1,\n"');
 
         // Quote unquoted alphanumerics that are likely IDs or strings (prev fix)
-        fixed = fixed.replace(/(:\s*)(?!true|false|null|\-?[\d\.]+|"[^"]*"|\[|\{)([a-zA-Z0-9_\-\.\/]+)(\s*[,}])/g, '$1"$2"$3');
+        // Added Cyrillic range \u0400-\u04FF to handle Russian unquoted values
+        fixed = fixed.replace(/(:\s*)(?!true|false|null|\-?[\d\.]+|"[^"]*"|\[|\{)([a-zA-Z0-9_\-\.\/\u0400-\u04FF]+)(\s*[,}])/g, '$1"$2"$3');
 
         req.body = JSON.parse(fixed);
         console.log('JSON accepted after auto-fix.');
       } catch (err2) {
-        // If still invalid, pass the error but LOG IT
-        console.error('JSON Parse Error Final:', err2.message);
-        console.error('JSON Fix Attempted result:', fixed || 'N/A'); // Log what we tried to parse
-        console.error('Failed Body:', req.body);
-        return next(err2);
+        // If still invalid, try one more aggressive fix for unquoted strings with spaces (experimental)
+        // This is risky but helps with "status: В работе" cases
+        try {
+          // Match key: value until comma or end brace
+          // Note: This might break if value contains comma inside unquoted string (which is invalid anyway)
+          // Only apply if previous fix failed
+          console.log('Attempting aggressive auto-fix for unquoted strings with spaces...');
+          let aggressive = fixed || req.body;
+          aggressive = aggressive.replace(/(:\s*)(?!true|false|null|\-?[\d\.]+|"[^"]*"|\[|\{)([^,\}]+)(\s*[,}])/g, function (match, p1, p2, p3) {
+            return p1 + '"' + p2.trim() + '"' + p3;
+          });
+          req.body = JSON.parse(aggressive);
+          console.log('JSON accepted after aggressive auto-fix.');
+        } catch (err3) {
+          console.error('JSON Parse Error Final:', err3.message);
+          console.error('JSON Fix Attempted result:', fixed || 'N/A');
+          console.error('Failed Body:', req.body);
+          return next(err3);
+        }
       }
     }
   }
