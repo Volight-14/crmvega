@@ -611,9 +611,9 @@ const OrdersPage: React.FC = () => {
 
       {/* Mobile Header - Clean & Compact */}
       <div className="mobile-only" style={{
-        background: '#fff',
+        background: 'transparent',
         padding: '12px 16px',
-        borderBottom: '1px solid #f0f0f0',
+        borderBottom: 'none',
         display: 'flex',
         flexDirection: 'column',
         gap: 12
@@ -624,14 +624,14 @@ const OrdersPage: React.FC = () => {
             prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            style={{ flex: 1, borderRadius: 8, background: '#f5f7fa', border: 'none' }}
+            style={{ flex: 1, borderRadius: 8, background: '#fff', border: 'none' }} // Changed input bg to white to stand out on gray
             allowClear
           />
 
           <Button
             icon={viewMode === 'kanban' ? <UnorderedListOutlined /> : <AppstoreOutlined />}
             onClick={() => setViewMode(viewMode === 'kanban' ? 'list' : 'kanban')}
-            style={{ borderRadius: 8, border: '1px solid #f0f0f0' }}
+            style={{ borderRadius: 8, border: 'none', background: '#fff' }} // Button bg white
           />
 
           <Button
@@ -640,7 +640,7 @@ const OrdersPage: React.FC = () => {
             onClick={() => openCreateModal('unsorted')}
             style={{
               borderRadius: 8,
-              background: '#1890ff', // Solid color is cleaner on mobile often
+              background: '#1890ff',
               border: 'none',
               width: 40,
               padding: 0,
@@ -656,7 +656,7 @@ const OrdersPage: React.FC = () => {
       {viewMode === 'kanban' ? (
         <>
           {/* Mobile Status Navigator - only for Kanban */}
-          <div className="mobile-only" style={{ padding: '8px 16px', background: '#fff', borderBottom: '1px solid #f0f0f0', position: 'sticky', top: 0, zIndex: 10 }}>
+          <div className="mobile-only" style={{ padding: '0 16px 16px', background: 'transparent' }}>
             {/* ... select content ... */}
             <Select
               value={activeMobileColumn}
