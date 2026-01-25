@@ -197,7 +197,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     return () => {
       socketRef.current?.disconnect();
     };
-  }, [manager]);
+  }, [manager, fetchUnreadCount]);
 
   const MenuContent = (
     <>
