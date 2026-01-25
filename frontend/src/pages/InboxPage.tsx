@@ -82,7 +82,7 @@ const InboxPage: React.FC = () => {
         fetchContacts();
 
         // Socket connection
-        const socketUrl = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
+        const socketUrl = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
         socketRef.current = io(socketUrl, {
             transports: ['websocket', 'polling'],
             reconnection: true,

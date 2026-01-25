@@ -15,6 +15,30 @@ interface KanbanOrderCardProps {
     onEditContact?: (contact: Contact) => void;
 }
 
+// Helper functions moved outside component
+const formatDate = (dateString: string) => {
+    // Quick format without Moment.js overhead
+    const date = new Date(dateString);
+    const day = date.getDate();
+    const month = date.toLocaleString('ru-RU', { month: 'short' }).replace('.', '');
+    const time = date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    return `${day} ${month}, ${time}`;
+};
+
+const clean = (val: any) => {
+    if (!val || val === 'null' || val === 'undefined') return '';
+    return String(val).trim();
+};
+
+// Sort statuses once
+const SORTED_STATUS_OPTIONS = Object.entries(ORDER_STATUSES)
+    .sort(([, a], [, b]) => (a.order || 0) - (b.order || 0))
+    .map(([key, value]) => ({
+        value: key as OrderStatus,
+        label: value.label,
+        color: value.color,
+    }));
+
 // Memoized component for performance
 const KanbanOrderCard: React.FC<KanbanOrderCardProps> = memo(({ order, onClick, onStatusChange, onEditContact }) => {
     const {
@@ -33,20 +57,6 @@ const KanbanOrderCard: React.FC<KanbanOrderCardProps> = memo(({ order, onClick, 
         zIndex: isDragging ? 999 : 'auto',
     };
 
-    const formatDate = (dateString: string) => {
-        // Quick format without Moment.js overhead
-        const date = new Date(dateString);
-        const day = date.getDate();
-        const month = date.toLocaleString('ru-RU', { month: 'short' }).replace('.', '');
-        const time = date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-        return `${day} ${month}, ${time}`;
-    };
-
-    const clean = (val: any) => {
-        if (!val || val === 'null' || val === 'undefined') return '';
-        return String(val).trim();
-    };
-
     const mainInfoString = [
         clean(order.DeliveryTime),
         clean(order.NextDay),
@@ -61,15 +71,6 @@ const KanbanOrderCard: React.FC<KanbanOrderCardProps> = memo(({ order, onClick, 
     const handleStatusClick = (e: React.MouseEvent) => {
         e.stopPropagation();
     };
-
-    // Sort statuses for dropdown
-    const sortedStatusOptions = Object.entries(ORDER_STATUSES)
-        .sort(([, a], [, b]) => (a.order || 0) - (b.order || 0))
-        .map(([key, value]) => ({
-            value: key as OrderStatus,
-            label: value.label,
-            color: value.color,
-        }));
 
     return (
         <div
@@ -170,7 +171,7 @@ const KanbanOrderCard: React.FC<KanbanOrderCardProps> = memo(({ order, onClick, 
                             );
                         }}
                     >
-                        {sortedStatusOptions.map(opt => (
+                        {SORTED_STATUS_OPTIONS.map(opt => (
                             <Option key={opt.value} value={opt.value}>
                                 <Space>
                                     <span style={{ color: opt.color }}>●</span>
