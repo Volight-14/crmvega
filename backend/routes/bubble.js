@@ -2,7 +2,7 @@ const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 const { runAutomations } = require('../services/automationRunner');
 const { mapStatus } = require('../utils/statusMapping');
-const { uploadAvatarFromUrl } = require('../utils/storage');
+const { uploadAvatarFromUrl, rehostFile } = require('../utils/storage');
 
 const router = express.Router();
 const supabase = createClient(
@@ -240,6 +240,19 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
         }
       }
     }
+
+    // --- RE-HOSTING LOGIC START ---
+    // If we have a file URL from Bubble (or anywhere external), re-host it to Supabase
+    if (finalFileUrl && finalFileUrl.startsWith('http') && !finalFileUrl.includes('supabase.co')) {
+      const rehostedUrl = await rehostFile(finalFileUrl, finalFileName);
+      if (rehostedUrl) {
+        console.log(`[Bubble Webhook] File re-hosted: ${finalFileUrl} -> ${rehostedUrl}`);
+        finalFileUrl = rehostedUrl;
+      } else {
+        console.warn(`[Bubble Webhook] File re-hosting failed, keeping original URL: ${finalFileUrl}`);
+      }
+    }
+    // --- RE-HOSTING LOGIC END ---
 
     // Process reactions
     // Process reactions

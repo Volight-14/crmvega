@@ -70,7 +70,74 @@ async function uploadAvatarFromUrl(url, customFilename = null) {
         return null;
     }
 }
+/**
+ * Re-hosts a file: downloads from URL -> uploads to Supabase Storage
+ * @param {string} url - Source URL
+ * @param {string} originalName - Original filename for extension detection (optional)
+ * @returns {Promise<string|null>} - New Supabase Public URL
+ */
+async function rehostFile(url, originalName = 'file') {
+    if (!url) return null;
+
+    try {
+        console.log(`[Storage] Re-hosting file from ${url}...`);
+
+        // 1. Download file
+        const response = await axios.get(url, { responseType: 'arraybuffer' });
+        const buffer = Buffer.from(response.data, 'binary');
+        const contentType = response.headers['content-type'] || 'application/octet-stream';
+
+        // 2. Determine extension
+        let ext = 'bin';
+        const mimeToExt = {
+            'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp',
+            'application/pdf': 'pdf', 'text/plain': 'txt', 'text/csv': 'csv',
+            'application/zip': 'zip', 'audio/mpeg': 'mp3', 'audio/ogg': 'ogg',
+            'audio/wav': 'wav', 'video/mp4': 'mp4', 'video/webm': 'webm',
+        };
+
+        if (originalName && originalName.includes('.')) {
+            ext = originalName.split('.').pop().split('?')[0]; // Safe extension from name
+        } else if (mimeToExt[contentType]) {
+            ext = mimeToExt[contentType];
+        }
+
+        // 3. Generate path
+        const filename = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+        const filePath = `chat/${filename}`; // Store in 'chat' folder
+
+        // 4. Upload
+        const { error } = await supabase
+            .storage
+            .from(BUCKET_NAME)
+            .upload(filePath, buffer, {
+                contentType: contentType,
+                upsert: false
+            });
+
+        if (error) {
+            console.error('[Storage] Re-host upload error:', error);
+            // If upload fails, return original URL as fallback? Or null?
+            // Returning null signals failure, safer for now.
+            return null;
+        }
+
+        // 5. Get Public URL
+        const { data: publicUrlData } = supabase
+            .storage
+            .from(BUCKET_NAME)
+            .getPublicUrl(filePath);
+
+        console.log(`[Storage] Re-hosted to: ${publicUrlData.publicUrl}`);
+        return publicUrlData.publicUrl;
+
+    } catch (error) {
+        console.error('[Storage] Re-host failed:', error.message);
+        return null; // Fallback to using original URL logic handled by caller if needed
+    }
+}
 
 module.exports = {
-    uploadAvatarFromUrl
+    uploadAvatarFromUrl,
+    rehostFile
 };
