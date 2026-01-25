@@ -50,10 +50,8 @@ const InboxPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [sending, setSending] = useState(false);
 
-    // Filters
     const [showUnreadOnly, setShowUnreadOnly] = useState(false);
     const [filterStages, setFilterStages] = useState<string[]>([]);
-    const [showFilters, setShowFilters] = useState(false); // Toggle extra filters UI
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const selectedContactRef = useRef<number | null>(null);

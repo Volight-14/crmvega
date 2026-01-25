@@ -144,7 +144,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     }
   };
 
-  const fetchUnreadCount = async () => {
+  const fetchUnreadCount = React.useCallback(async () => {
     if (!manager) return;
     try {
       const { ordersAPI } = await import('../services/api');
@@ -153,12 +153,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     } catch (error) {
       console.error('Error fetching unread count:', error);
     }
-  };
+  }, [manager]);
 
   useEffect(() => {
     fetchUnreadCount();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [manager]);
+  }, [fetchUnreadCount]);
 
   useEffect(() => {
     // Restore count? maybe not needed persistent for session
