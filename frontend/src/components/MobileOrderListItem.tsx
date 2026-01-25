@@ -1,8 +1,7 @@
 import React from 'react';
-import { Card, Tag, Space, Typography, Avatar } from 'antd';
+import { Card, Space, Typography } from 'antd';
 import {
     UserOutlined,
-    CalendarOutlined,
     RightOutlined
 } from '@ant-design/icons';
 import { Order, ORDER_STATUSES } from '../types';
