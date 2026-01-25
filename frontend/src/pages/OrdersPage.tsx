@@ -519,7 +519,7 @@ const OrdersPage: React.FC = () => {
 
   return (
     <div style={{
-      height: '100vh',
+      height: '100%', // Changed from 100vh to 100% to fit parent
       display: 'flex',
       flexDirection: 'column',
       background: '#f0f2f5',
@@ -840,7 +840,7 @@ const OrdersPage: React.FC = () => {
           </div>
 
           {/* Mobile List View */}
-          <div className="mobile-only">
+          <div className="mobile-only" style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
             <MobileOrderList
               orders={filteredOrders}
               onOrderClick={(order) => navigate(`/order/${order.main_id || order.id}`)}
