@@ -691,17 +691,6 @@ const OrdersPage: React.FC = () => {
             </DragOverlay>
           </DndContext>
 
-          {/* Mobile FAB for new order */}
-          <div className="mobile-only" style={{ position: 'fixed', bottom: 80, right: 24, zIndex: 100 }}>
-            <Button
-              type="primary"
-              shape="circle"
-              icon={<PlusOutlined style={{ fontSize: 24 }} />}
-              size="large"
-              style={{ width: 56, height: 56, boxShadow: '0 4px 12px rgba(24, 144, 255, 0.4)' }}
-              onClick={() => openCreateModal('unsorted')}
-            />
-          </div>
         </>
       ) : (
         <>
@@ -815,16 +804,6 @@ const OrdersPage: React.FC = () => {
               onOrderClick={(order) => navigate(`/order/${order.main_id || order.id}`)}
               loading={loading}
             />
-            <div style={{ position: 'fixed', bottom: 80, right: 24, zIndex: 100 }}>
-              <Button
-                type="primary"
-                shape="circle"
-                icon={<PlusOutlined style={{ fontSize: 24 }} />}
-                size="large"
-                style={{ width: 56, height: 56, boxShadow: '0 4px 12px rgba(24, 144, 255, 0.4)' }}
-                onClick={() => openCreateModal('unsorted')}
-              />
-            </div>
           </div>
         </>
 

@@ -68,7 +68,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ onMenuClick, unread
     const isActive = (path: string) => currentPath.startsWith(path);
 
     return (
-        <BottomNavContainer className="mobile-only">
+        <BottomNavContainer>
             <NavItem
                 $active={isActive('/orders')}
                 onClick={() => navigate('/orders')}
