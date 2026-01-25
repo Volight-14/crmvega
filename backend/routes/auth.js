@@ -35,19 +35,19 @@ router.post('/register', async (req, res) => {
 
     // Создаем JWT токен с ролью
     const token = jwt.sign(
-      { id: data.id, email: data.email, role: data.role || 'operator' },
+      { id: data.id, email: data.email, name: data.name, role: data.role || 'operator' },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    res.json({ 
-      token, 
-      manager: { 
-        id: data.id, 
-        email: data.email, 
+    res.json({
+      token,
+      manager: {
+        id: data.id,
+        email: data.email,
         name: data.name,
         role: data.role || 'operator'
-      } 
+      }
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -79,7 +79,7 @@ router.post('/login', async (req, res) => {
 
     // Создаем JWT токен с ролью
     const token = jwt.sign(
-      { id: manager.id, email: manager.email, role: manager.role || 'operator' },
+      { id: manager.id, email: manager.email, name: manager.name, role: manager.role || 'operator' },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -145,7 +145,7 @@ router.post('/forgot-password', async (req, res) => {
 
     // Отправляем email через Supabase Edge Function
     const resetUrl = `${process.env.FRONTEND_URL || 'https://crmvega.vercel.app'}/reset-password?token=${token}`;
-    
+
     try {
       // Вызываем Edge Function для отправки email
       const response = await fetch(`${process.env.SUPABASE_URL}/functions/v1/send-reset-email`, {
