@@ -165,7 +165,7 @@ router.post('/:orderId/client', auth, async (req, res) => {
         lead_id: order.main_id, // Backward compatibility if needed, using main_id value
         main_id: order.main_id,
         content: content.trim(),
-        author_type: 'Оператор',
+        author_type: req.manager.name || 'Оператор',
         message_type: 'text',
         message_id_tg: telegramMessageId,
         reply_to_mess_id_tg: reply_to_message_id || null,
@@ -304,7 +304,7 @@ router.post('/:orderId/client/file', auth, upload.single('file'), async (req, re
         lead_id: storeLeadId,
         main_id: order.main_id,
         content: caption ? caption.trim() : '', // Avoid duplicate filename in content
-        author_type: 'Оператор',
+        author_type: req.manager.name || 'Оператор',
         message_type: 'file',
         message_id_tg: telegramMessageId,
         reply_to_mess_id_tg: reply_to_message_id || null,
@@ -421,7 +421,7 @@ router.post('/:orderId/client/voice', auth, (req, res, next) => {
         lead_id: storeLeadId,
         main_id: order.main_id,
         content: '🎤 Голосовое сообщение',
-        author_type: 'Оператор',
+        author_type: req.manager.name || 'Оператор',
         message_type: 'voice',
         message_id_tg: telegramMessageId,
         reply_to_mess_id_tg: reply_to_message_id || null,
