@@ -35,9 +35,6 @@ router.get('/', auth, async (req, res) => {
       // Минимальный режим для канбан-доски
       query = supabase
         .from('orders')
-        // Renamed title -> OrderName
-        // Added fields for Kanban card
-        // Verified columns via MCP: CityEsp02, DeliveryTime, NextDay, SumOutput, CurrPair2 EXIST.
         .select(`id, contact_id, "OrderName", "SumInput", "CurrPair1", status, created_at, main_id, "CityEsp02", "DeliveryTime", "NextDay", "SumOutput", "CurrPair2", contact:contacts(id, name)${tag_id ? ', order_tags!inner(tag_id)' : ''}`)
         .order('created_at', { ascending: false });
 
