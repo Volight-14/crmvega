@@ -194,7 +194,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
     let finalMessageType = (message_type || 'text').toLowerCase();
     let finalFileUrl = req.body.file_url || null;
     let finalFileName = req.body.file_name || null;
-    let finalContent = content.trim();
+    let finalContent = finalContentBeforeProcess.trim();
 
     // Check if content CONTAINS a file URL (not only exact match)
     // Regex allows finding URL within text
