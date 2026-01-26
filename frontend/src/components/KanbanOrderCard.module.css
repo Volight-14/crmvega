@@ -2,7 +2,8 @@
   position: relative;
   background: #ffffff;
   border-radius: 12px;
-  padding: 12px 14px;
+  padding: 14px 16px;
+  /* Increased from 12px 14px */
   border: 1px solid rgba(0, 0, 0, 0.04);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02), 0 1px 0 rgba(0, 0, 0, 0.02);
   transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
@@ -114,8 +115,10 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  gap: 12px;
-  padding-top: 8px;
+  gap: 16px;
+  /* Increased from 12px */
+  padding-top: 10px;
+  /* Increased from 8px */
   border-top: 1px solid rgba(0, 0, 0, 0.03);
 }
 

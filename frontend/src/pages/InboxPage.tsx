@@ -406,7 +406,7 @@ const InboxPage: React.FC = () => {
     const showChat = !isMobile || (isMobile && selectedContact);
 
     return (
-        <Layout style={{ height: '100%', background: isMobile ? '#f5f5f5' : '#fff', border: isMobile ? 'none' : '1px solid #f0f0f0', borderRadius: isMobile ? 0 : 8, overflow: 'hidden' }}>
+        <Layout style={{ height: 'calc(100vh - 64px)', background: isMobile ? '#f5f5f5' : '#fff', border: isMobile ? 'none' : '1px solid #f0f0f0', borderRadius: isMobile ? 0 : 8, overflow: 'hidden' }}>
             {showList && (
                 <Sider
                     width={isMobile ? '100%' : screens.xl ? 350 : 280}

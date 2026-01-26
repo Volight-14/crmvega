@@ -141,7 +141,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClic
           padding: '8px',
           borderRadius: '0 0 8px 8px',
           transition: 'background 0.2s',
-          minHeight: '100px',
+          minHeight: '300px', // Increased for better drop zone
           position: 'relative',
         }}
       >
@@ -329,18 +329,55 @@ const OrdersPage: React.FC = () => {
   };
 
   const fetchOrders = async () => {
+    const CACHE_KEY = 'crm_orders_cache';
+    const CACHE_TTL = 60 * 1000; // 60 seconds
+
+    // Try to load from cache first
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached);
+        const age = Date.now() - timestamp;
+
+        if (age < CACHE_TTL) {
+          // Cache is fresh - use it immediately
+          setOrders(data);
+          console.log('✅ Loaded from cache (age:', Math.round(age / 1000), 'sec)');
+          // Still fetch in background to update cache
+          fetchInBackground();
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Cache read failed:', e);
+    }
+
+    // No cache or expired - fetch normally
+    await fetchInBackground();
+  };
+
+  const fetchInBackground = async () => {
     setLoading(true);
     try {
-      // Используем minimal=true для быстрой загрузки канбана
-      // Загружаем только необходимые поля без тегов и полных данных контактов
       const tagId = searchParams.get('tag');
+      // REMOVED LIMIT - загружаем все заказы
       const { orders: fetchedOrders } = await ordersAPI.getAll({
-        limit: 500,
         minimal: true,
         // @ts-ignore
         tag_id: tagId ? parseInt(tagId) : undefined
       });
+
       setOrders(fetchedOrders);
+
+      // Save to cache
+      try {
+        localStorage.setItem('crm_orders_cache', JSON.stringify({
+          data: fetchedOrders,
+          timestamp: Date.now()
+        }));
+      } catch (e) {
+        console.warn('Cache write failed:', e);
+      }
     } catch (error) {
       console.error('Error fetching orders:', error);
       message.error('Ошибка загрузки заявок');
