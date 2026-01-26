@@ -360,8 +360,9 @@ const OrdersPage: React.FC = () => {
     setLoading(true);
     try {
       const tagId = searchParams.get('tag');
-      // REMOVED LIMIT - загружаем все заказы
+      // Backend defaults to limit=50 if not specified, so we MUST send a limit
       const { orders: fetchedOrders } = await ordersAPI.getAll({
+        limit: 10000, // High limit to get all orders
         minimal: true,
         // @ts-ignore
         tag_id: tagId ? parseInt(tagId) : undefined
