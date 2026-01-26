@@ -176,22 +176,14 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
     }
     // ------------------------------------------
 
-    if (!content || typeof content !== 'string' || content.trim().length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'content is required and must be a non-empty string'
-      });
-    }
+    // Relaxed validation: content and author_type are now optional
+    const finalContentBeforeProcess = (content && typeof content === 'string') ? content : '';
+    const normalizedAuthorType = (author_type && typeof author_type === 'string') ? author_type.trim() : 'unknown';
 
-    if (!author_type || typeof author_type !== 'string') {
-      return res.status(400).json({
-        success: false,
-        error: 'author_type is required',
-        received: author_type
-      });
+    // Log warning if core fields missing but proceed
+    if (!finalContentBeforeProcess && !req.body.file_url) {
+      console.warn('[Bubble Webhook] Message received without content or file_url');
     }
-
-    const normalizedAuthorType = author_type.trim();
 
     // Removed restriction on author_type values.
     // Any string is now allowed and saved as-is.
@@ -680,11 +672,9 @@ router.post('/contact', verifyWebhookToken, async (req, res) => {
     }
 
     // Validate required fields
+    // Relaxed validation: Just warn if everything is missing
     if (!name && !telegramId && !phone) {
-      return res.status(400).json({
-        success: false,
-        error: 'At least one of: name, telegram_user_id, or phone is required'
-      });
+      console.warn('[Bubble Webhook] Contact received without name, telegram_user_id, or phone. Proceeding with defaults.');
     }
 
     // Try to find existing contact
