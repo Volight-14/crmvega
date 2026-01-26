@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 
 import {
   Typography,
@@ -202,9 +202,9 @@ const OrdersPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [allTags, setAllTags] = useState<TagData[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [debouncedSearchText, setDebouncedSearchText] = useState('');
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [createStatus, setCreateStatus] = useState<OrderStatus>('unsorted');
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -253,6 +253,14 @@ const OrdersPage: React.FC = () => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchText(searchText);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchText]);
 
   const sortedStatusOptions = useMemo(() => Object.entries(ORDER_STATUSES)
     .sort(([, a], [, b]) => (a.order || 0) - (b.order || 0))
@@ -322,14 +330,14 @@ const OrdersPage: React.FC = () => {
 
   // Фильтрация по поиску
   const filteredOrders = useMemo(() => {
-    if (!searchText) return orders;
-    const search = searchText.toLowerCase();
+    if (!debouncedSearchText) return orders;
+    const search = debouncedSearchText.toLowerCase();
     return orders.filter(order =>
       order.title.toLowerCase().includes(search) ||
       order.contact?.name?.toLowerCase().includes(search) ||
       order.description?.toLowerCase().includes(search)
     );
-  }, [orders, searchText]);
+  }, [orders, debouncedSearchText]);
 
   const handleDragStart = (event: any) => {
     setActiveId(event.active.id);
@@ -384,7 +392,7 @@ const OrdersPage: React.FC = () => {
     }
   };
 
-  const handleStatusChange = async (orderId: number, newStatus: OrderStatus) => {
+  const handleStatusChange = useCallback(async (orderId: number, newStatus: OrderStatus) => {
     const order = orders.find(d => d.id === orderId);
     if (!order || order.status === newStatus) return;
 
@@ -403,7 +411,7 @@ const OrdersPage: React.FC = () => {
       ));
       message.error('Ошибка обновления статуса');
     }
-  };
+  }, [orders]);
 
   const handleCreateOrder = async (values: any) => {
     try {
@@ -449,11 +457,11 @@ const OrdersPage: React.FC = () => {
   };
 
   // Edit Contact Logic
-  const handleEditContact = (contact: Contact) => {
+  const handleEditContact = useCallback((contact: Contact) => {
     setEditingContact(contact);
     editContactForm.setFieldsValue({ name: contact.name });
     setIsEditContactModalVisible(true);
-  };
+  }, [editContactForm]);
 
   const handleUpdateContactName = async (values: any) => {
     if (!editingContact) return;
