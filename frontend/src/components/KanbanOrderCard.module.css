@@ -37,13 +37,19 @@
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 8px;
+  gap: 8px;
+  /* Add gap to prevent overlap */
 }
 
 .titleRow {
   display: flex;
   align-items: center;
   gap: 6px;
-  max-width: 75%;
+  max-width: 60%;
+  /* Reduced from 75% to leave more space for date */
+  flex: 1;
+  min-width: 0;
+  /* Allow shrinking */
 }
 
 .title {
@@ -63,6 +69,8 @@
   cursor: pointer;
   transition: color 0.15s;
   padding: 2px;
+  flex-shrink: 0;
+  /* Prevent icon from shrinking */
 }
 
 .editIcon:hover {
@@ -74,6 +82,10 @@
   color: #8c8c8c;
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
+  white-space: nowrap;
+  /* Prevent date from wrapping */
+  min-width: fit-content;
+  /* Ensure date has space */
 }
 
 /* Content Section */
@@ -125,6 +137,8 @@
 .lastMessage {
   flex: 1;
   min-width: 0;
+  max-width: 65%;
+  /* Limit message width to leave space for status */
   background: #f7f7f7;
   border-radius: 8px 8px 8px 0;
   padding: 6px 10px;

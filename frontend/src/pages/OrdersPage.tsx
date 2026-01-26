@@ -153,6 +153,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClic
                 textAlign: 'center',
                 color: '#bfbfbf',
                 fontSize: 13,
+                minHeight: '200px', // Ensure droppable area exists
               }}
             >
               <Button
@@ -360,9 +361,8 @@ const OrdersPage: React.FC = () => {
     setLoading(true);
     try {
       const tagId = searchParams.get('tag');
-      // Backend defaults to limit=50 if not specified, so we MUST send a limit
+      // No limit = backend loads ALL orders
       const { orders: fetchedOrders } = await ordersAPI.getAll({
-        limit: 10000, // High limit to get all orders
         minimal: true,
         // @ts-ignore
         tag_id: tagId ? parseInt(tagId) : undefined
