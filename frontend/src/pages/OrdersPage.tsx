@@ -80,6 +80,11 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClic
   const orderIds = orders.map(d => d.id);
   const columnColor = COLUMN_COLORS[status] || '#8c8c8c';
 
+  // Pagination state
+  const [visibleCount, setVisibleCount] = useState(50);
+  const hasMore = orders.length > visibleCount;
+  const visibleOrders = orders.slice(0, visibleCount);
+
   const { setNodeRef, isOver } = useDroppable({
     id: status,
   });
@@ -166,7 +171,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClic
             </div>
           ) : (
             <div style={{ height: '100%', overflowY: 'auto' }}>
-              {orders.map((order) => (
+              {visibleOrders.map((order) => (
                 <KanbanOrderCard
                   key={order.id}
                   order={order}
@@ -175,6 +180,22 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClic
                   onEditContact={onEditContact}
                 />
               ))}
+
+              {hasMore && (
+                <Button
+                  type="dashed"
+                  onClick={() => setVisibleCount(prev => prev + 50)}
+                  style={{
+                    width: '100%',
+                    marginTop: 8,
+                    marginBottom: 8,
+                    borderRadius: 6,
+                  }}
+                >
+                  Показать ещё {Math.min(50, orders.length - visibleCount)} ({orders.length - visibleCount} скрыто)
+                </Button>
+              )}
+
               <Button
                 type="text"
                 icon={<PlusOutlined />}
