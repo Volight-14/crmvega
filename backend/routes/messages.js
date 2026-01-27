@@ -88,12 +88,12 @@ router.get('/lead/:leadId', auth, async (req, res) => {
       .from('messages')
       .select(`*`)
       .eq('main_id', leadId)
-      .order('"Created Date"', { ascending: true })
+      .order('"Created Date"', { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (error) throw error;
 
-    res.json(data);
+    res.json((data || []).reverse());
   } catch (error) {
     console.error('Error fetching messages:', error);
     res.status(400).json({ error: error.message });
@@ -141,25 +141,32 @@ router.get('/contact/:contactId', auth, async (req, res) => {
     const leadIdsArray = Array.from(leadIds);
 
 
-    // Получаем сообщения одним запросом
+    // Получаем сообщения с пагинацией (сначала новые)
     let allMessages = [];
     if (leadIdsArray.length > 0) {
-      const { data: messages, error: messagesError } = await supabase
+      const from = parseInt(offset);
+      const to = from + parseInt(limit) - 1;
+
+      const { data: messages, count, error: messagesError } = await supabase
         .from('messages')
-        .select('*')
+        .select('*', { count: 'exact' })
         .in('main_id', leadIdsArray)
-        .order('"Created Date"', { ascending: true });
+        .order('"Created Date"', { ascending: false })
+        .range(from, to);
 
       if (messagesError) throw messagesError;
       allMessages = messages || [];
     }
 
-    // Убираем дубликаты по id и применяем пагинацию
+    // Убираем дубликаты по id и разворачиваем (чтобы были от старых к новым)
     const uniqueMessages = allMessages
       .filter((msg, index, self) => index === self.findIndex(m => m.id === msg.id))
-      .slice(parseInt(offset), parseInt(offset) + parseInt(limit));
+      .reverse();
 
-    res.json(uniqueMessages);
+    res.json({
+      messages: uniqueMessages,
+      total: allMessages.length > 0 ? (count || 0) : 0 // approximate total if filtering duplicates reduces it, but usually close enough
+    });
   } catch (error) {
     console.error('Error fetching contact messages:', error);
     res.status(400).json({ error: error.message });

@@ -57,6 +57,9 @@ const InboxPage: React.FC = () => {
     const selectedContactRef = useRef<number | null>(null);
     const socketRef = useRef<Socket | null>(null);
 
+    const [totalMessages, setTotalMessages] = useState(0);
+    const [loadingMore, setLoadingMore] = useState(false);
+
     // Initial load & URL params
     useEffect(() => {
         const filterParam = searchParams.get('filter');
@@ -230,13 +233,26 @@ const InboxPage: React.FC = () => {
         }
     };
 
-    const fetchMessages = async (contactId: number) => {
+    const fetchMessages = async (contactId: number, loadMore = false) => {
         try {
-            setIsLoadingMessages(true);
-            const data = await contactMessagesAPI.getByContactId(contactId, { limit: 50 });
+            if (!loadMore) {
+                setIsLoadingMessages(true);
+            } else {
+                setLoadingMore(true);
+            }
+
+            const limit = 50;
+            const offset = loadMore ? messages.length : 0;
+            const data = await contactMessagesAPI.getByContactId(contactId, { limit, offset });
+
             if (selectedContactRef.current === contactId) {
-                setMessages(data);
-                scrollToBottom();
+                if (loadMore) {
+                    setMessages(prev => [...data.messages, ...prev]);
+                } else {
+                    setMessages(data.messages);
+                    setTotalMessages(data.total);
+                    scrollToBottom();
+                }
             }
         } catch (error: any) {
             console.error('Error fetching messages:', error);
@@ -247,6 +263,7 @@ const InboxPage: React.FC = () => {
         } finally {
             if (selectedContactRef.current === contactId) {
                 setIsLoadingMessages(false);
+                setLoadingMore(false);
             }
         }
     };
@@ -259,6 +276,7 @@ const InboxPage: React.FC = () => {
         // Clear state immediately to avoid showing old data
         setActiveOrder(null);
         setMessages([]);
+        setTotalMessages(0);
 
         fetchMessages(contact.id);
 
@@ -590,41 +608,56 @@ const InboxPage: React.FC = () => {
                             }}>
                                 {isLoadingMessages ? (
                                     <div style={{ textAlign: 'center', marginTop: 40 }}><Spin /></div>
-                                ) : messages.length === 0 ? (
-                                    <Empty description="История сообщений пуста" style={{ marginTop: 60 }} />
                                 ) : (
-                                    (() => {
-                                        const groupedMessages: { date: string, msgs: Message[] }[] = [];
-                                        messages.forEach(msg => {
-                                            const dateKey = formatDate(msg['Created Date'] || msg.created_at);
-                                            const lastGroup = groupedMessages[groupedMessages.length - 1];
-                                            if (lastGroup && lastGroup.date === dateKey) {
-                                                lastGroup.msgs.push(msg);
-                                            } else {
-                                                groupedMessages.push({ date: dateKey, msgs: [msg] });
-                                            }
-                                        });
-
-                                        return groupedMessages.map(group => (
-                                            <div key={group.date}>
-                                                <div style={{ textAlign: 'center', margin: '24px 0 16px', opacity: 0.5, fontSize: 12 }}>
-                                                    <span style={{ background: '#e0e0e0', padding: '4px 12px', borderRadius: 12 }}>{group.date}</span>
-                                                </div>
-                                                {group.msgs.map(msg => {
-                                                    const isOwn = !isClientMessage(msg.author_type);
-                                                    return (
-                                                        <UnifiedMessageBubble
-                                                            key={msg.id}
-                                                            msg={msg}
-                                                            isOwn={isOwn}
-                                                            onAddReaction={handleAddReaction}
-                                                        // Reply logic can be added here if we implement onReply/replyTo state
-                                                        />
-                                                    );
-                                                })}
+                                    <>
+                                        {messages.length < totalMessages && (
+                                            <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                                                <Button
+                                                    size="small"
+                                                    onClick={() => selectedContact && fetchMessages(selectedContact.id, true)}
+                                                    loading={loadingMore}
+                                                >
+                                                    Загрузить предыдущие
+                                                </Button>
                                             </div>
-                                        ));
-                                    })()
+                                        )}
+                                        {messages.length === 0 ? (
+                                            <Empty description="История сообщений пуста" style={{ marginTop: 60 }} />
+                                        ) : (
+                                            (() => {
+                                                const groupedMessages: { date: string, msgs: Message[] }[] = [];
+                                                messages.forEach(msg => {
+                                                    const dateKey = formatDate(msg['Created Date'] || msg.created_at);
+                                                    const lastGroup = groupedMessages[groupedMessages.length - 1];
+                                                    if (lastGroup && lastGroup.date === dateKey) {
+                                                        lastGroup.msgs.push(msg);
+                                                    } else {
+                                                        groupedMessages.push({ date: dateKey, msgs: [msg] });
+                                                    }
+                                                });
+
+                                                return groupedMessages.map(group => (
+                                                    <div key={group.date}>
+                                                        <div style={{ textAlign: 'center', margin: '24px 0 16px', opacity: 0.5, fontSize: 12 }}>
+                                                            <span style={{ background: '#e0e0e0', padding: '4px 12px', borderRadius: 12 }}>{group.date}</span>
+                                                        </div>
+                                                        {group.msgs.map(msg => {
+                                                            const isOwn = !isClientMessage(msg.author_type);
+                                                            return (
+                                                                <UnifiedMessageBubble
+                                                                    key={msg.id}
+                                                                    msg={msg}
+                                                                    isOwn={isOwn}
+                                                                    onAddReaction={handleAddReaction}
+                                                                // Reply logic can be added here if we implement onReply/replyTo state
+                                                                />
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ));
+                                            })()
+                                        )}
+                                    </>
                                 )}
                                 <div ref={messagesEndRef} />
                             </div>

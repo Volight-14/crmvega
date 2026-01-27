@@ -208,8 +208,12 @@ export const notesAPI = {
 
 // Messages API - расширение для контактов
 export const contactMessagesAPI = {
-  getByContactId: async (contactId: number, params?: { limit?: number; offset?: number }): Promise<Message[]> => {
+  getByContactId: async (contactId: number, params?: { limit?: number; offset?: number }): Promise<{ messages: Message[], total: number }> => {
     const response = await api.get(`/messages/contact/${contactId}`, { params });
+    // Support new backend format { messages: [], total: 0 } and legacy []
+    if (Array.isArray(response.data)) {
+      return { messages: response.data, total: response.data.length };
+    }
     return response.data;
   },
 

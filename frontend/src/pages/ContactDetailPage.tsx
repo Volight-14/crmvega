@@ -173,7 +173,8 @@ const ContactDetailPage: React.FC = () => {
     try {
       setSending(true);
       // 1. Fetch direct contact messages
-      const contactMsgs = await contactMessagesAPI.getByContactId(parseInt(id));
+      const contactMsgsData = await contactMessagesAPI.getByContactId(parseInt(id));
+      const contactMsgs = contactMsgsData.messages || [];
 
       // 2. Fetch messages from all orders
       // We need orders to be loaded first. If not, we fetch them here or rely on passed orders.

@@ -47,18 +47,21 @@ router.get('/:orderId/client', auth, async (req, res) => {
       });
     }
 
-    // Один оптимизированный запрос для всех сообщений
+    // Один оптимизированный запрос для всех сообщений (сначала новые)
     const { data: messages, count, error: messagesError } = await supabase
       .from('messages')
       .select('*', { count: 'exact' })
       .eq('main_id', order.main_id)
-      .order('"Created Date"', { ascending: true })
+      .order('"Created Date"', { ascending: false })
       .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
     if (messagesError) throw messagesError;
 
+    // Разворачиваем для хронологического порядка
+    const sortedMessages = (messages || []).reverse();
+
     res.json({
-      messages: messages || [],
+      messages: sortedMessages,
       total: count || 0,
       mainId: order.main_id,
     });
@@ -480,7 +483,7 @@ router.get('/:orderId/internal', auth, async (req, res) => {
         )
       `)
       .eq('order_id', orderId)
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: false })
       .range(offset, offset + parseInt(limit) - 1);
 
     if (error) throw error;
@@ -491,7 +494,7 @@ router.get('/:orderId/internal', auth, async (req, res) => {
       .eq('order_id', orderId);
 
     res.json({
-      messages: data || [],
+      messages: (data || []).reverse(),
       total: count || 0,
     });
   } catch (error) {
