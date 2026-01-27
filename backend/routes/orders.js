@@ -201,7 +201,7 @@ router.get('/unread-count', auth, async (req, res) => {
     // 3. Считаем количество ордеров, соответствующих этим main_id и фильтру статусов
     let query = supabase
       .from('orders')
-      .select('id', { count: 'exact', head: true })
+      .select('id', { count: 'exact' })
       .in('main_id', distinctMainIds);
 
     // Если "Все уведомления" выключены и есть выбранные статусы - фильтруем по ним

@@ -143,11 +143,13 @@ router.get('/contact/:contactId', auth, async (req, res) => {
 
     // Получаем сообщения с пагинацией (сначала новые)
     let allMessages = [];
+    let count = 0;
+
     if (leadIdsArray.length > 0) {
       const from = parseInt(offset);
       const to = from + parseInt(limit) - 1;
 
-      const { data: messages, count, error: messagesError } = await supabase
+      const { data: messages, count: totalCount, error: messagesError } = await supabase
         .from('messages')
         .select('*', { count: 'exact' })
         .in('main_id', leadIdsArray)
@@ -156,6 +158,7 @@ router.get('/contact/:contactId', auth, async (req, res) => {
 
       if (messagesError) throw messagesError;
       allMessages = messages || [];
+      count = totalCount;
     }
 
     // Убираем дубликаты по id и разворачиваем (чтобы были от старых к новым)
