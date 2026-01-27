@@ -290,12 +290,12 @@ const OrdersPage: React.FC = () => {
     });
   };
 
-  const rowSelection = {
+  const rowSelection = useMemo(() => ({
     selectedRowKeys,
     onChange: (newSelectedRowKeys: React.Key[]) => {
       setSelectedRowKeys(newSelectedRowKeys);
     },
-  };
+  }), [selectedRowKeys]);
 
   const [activeMobileColumn, setActiveMobileColumn] = useState<OrderStatus>('unsorted');
   const socketRef = useRef<Socket | null>(null);
@@ -1119,6 +1119,30 @@ const OrdersPage: React.FC = () => {
             rules={[{ required: true, message: 'Введите имя' }]}
           >
             <Input placeholder="Имя клиента" autoFocus />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Bulk Status Modal */}
+      <Modal
+        title={`Изменить этап для ${selectedRowKeys.length} заявок`}
+        open={isBulkStatusModalVisible}
+        onCancel={() => setIsBulkStatusModalVisible(false)}
+        onOk={() => bulkStatusForm.submit()}
+      >
+        <Form
+          form={bulkStatusForm}
+          layout="vertical"
+          onFinish={handleBulkStatusChange}
+        >
+          <Form.Item name="status" label="Новый этап" rules={[{ required: true, message: 'Выберите этап' }]}>
+            <Select>
+              {sortedStatuses.map((status) => (
+                <Option key={status} value={status}>
+                  {ORDER_STATUSES[status].icon} {ORDER_STATUSES[status].label}
+                </Option>
+              ))}
+            </Select>
           </Form.Item>
         </Form>
       </Modal>
