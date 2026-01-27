@@ -511,4 +511,131 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
+// Массовое изменение статуса
+router.post('/bulk/status', auth, async (req, res) => {
+  try {
+    const { ids, status } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'ids array is required' });
+    }
+    if (!status) {
+      return res.status(400).json({ error: 'status is required' });
+    }
+
+    // 1. Получаем текущие сделки для сравнения статусов (для вебхуков и логов)
+    const { data: oldOrders, error: fetchError } = await supabase
+      .from('orders')
+      .select('id, status, main_id, OrderName')
+      .in('id', ids);
+
+    if (fetchError) throw fetchError;
+
+    // 2. Обновляем статус в БД
+    const { data: updatedOrders, error: updateError } = await supabase
+      .from('orders')
+      .update({ status })
+      .in('id', ids)
+      .select('*, contact:contacts(name, phone, email)');
+
+    if (updateError) throw updateError;
+
+    // Сбрасываем кэш
+    clearCache('orders');
+
+    const io = req.app.get('io');
+    const { ORDER_STATUSES } = require('../utils/statuses');
+    const managerName = req.manager.name || req.manager.email;
+
+    // 3. Обрабатываем побочные эффекты для каждой сделки
+    // Используем Promise.all для параллельного выполнения, но с catch, чтобы одна ошибка не ломала всё
+    await Promise.all(updatedOrders.map(async (newOrder) => {
+      const oldOrder = oldOrders.find(o => o.id === newOrder.id);
+
+      // Если статус реально изменился
+      if (oldOrder && oldOrder.status !== status) {
+
+        // A. Системное сообщение
+        try {
+          const oldLabel = ORDER_STATUSES[oldOrder.status]?.label || oldOrder.status;
+          const newLabel = ORDER_STATUSES[status]?.label || status;
+          const systemContent = `🔄 ${managerName} смена этапа (массово): ${newLabel} (было: ${oldLabel})`;
+
+          const { data: sysMsg } = await supabase
+            .from('internal_messages')
+            .insert({
+              order_id: newOrder.id,
+              sender_id: req.manager.id,
+              content: systemContent,
+              is_read: false,
+              attachment_type: 'system'
+            })
+            .select()
+            .single();
+
+          if (sysMsg && io) {
+            io.to(`order_${newOrder.id}`).emit('new_internal_message', sysMsg);
+          }
+        } catch (e) {
+          console.error(`[Bulk] Error creating system msg for order ${newOrder.id}:`, e);
+        }
+
+        // B. Автоматизации
+        runAutomations('order_status_changed', newOrder, { io }).catch(err => {
+          console.error(`[Bulk] Automation error order ${newOrder.id}:`, err);
+        });
+
+        // C. Bubble Webhook
+        if (newOrder.main_id) {
+          sendBubbleStatusWebhook({
+            mainId: newOrder.main_id,
+            newStatus: status,
+            oldStatus: oldOrder.status
+          }).catch(err => {
+            console.error(`[Bulk] Bubble webhook error order ${newOrder.id}:`, err);
+          });
+        }
+      }
+
+      // Socket event update
+      if (io) {
+        io.emit('order_updated', newOrder);
+      }
+    }));
+
+    res.json({ success: true, updatedCount: updatedOrders.length });
+  } catch (error) {
+    console.error('Error in bulk status update:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Массовое удаление
+router.post('/bulk/delete', auth, async (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'ids array is required' });
+    }
+
+    // Удаляем
+    const { error, count } = await supabase
+      .from('orders')
+      .delete({ count: 'exact' })
+      .in('id', ids);
+
+    if (error) throw error;
+
+    clearCache('orders');
+
+    console.log(`[Orders] Bulk deleted ${count} orders by ${req.manager.email}`);
+
+    res.json({ success: true, count });
+  } catch (error) {
+    console.error('Error in bulk delete:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
 module.exports = router;

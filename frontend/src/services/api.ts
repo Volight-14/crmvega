@@ -177,6 +177,16 @@ export const ordersAPI = {
     const response = await api.get('/orders/unread-count');
     return response.data;
   },
+
+  bulkUpdateStatus: async (ids: number[], status: string): Promise<{ success: boolean; updatedCount: number }> => {
+    const response = await api.post('/orders/bulk/status', { ids, status });
+    return response.data;
+  },
+
+  bulkDelete: async (ids: number[]): Promise<{ success: boolean; count: number }> => {
+    const response = await api.post('/orders/bulk/delete', { ids });
+    return response.data;
+  },
 };
 
 // Notes API

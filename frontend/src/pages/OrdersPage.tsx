@@ -240,6 +240,63 @@ const OrdersPage: React.FC = () => {
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [editContactForm] = Form.useForm();
 
+  // Bulk Actions State
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [isBulkStatusModalVisible, setIsBulkStatusModalVisible] = useState(false);
+  const [bulkStatusForm] = Form.useForm();
+
+  // Reset selection when changing view mode or search
+  useEffect(() => {
+    setSelectedRowKeys([]);
+  }, [viewMode, debouncedSearchText]);
+
+  const handleBulkStatusChange = async (values: { status: OrderStatus }) => {
+    try {
+      const ids = selectedRowKeys.map(key => Number(key));
+      const { updatedCount } = await ordersAPI.bulkUpdateStatus(ids, values.status);
+
+      message.success(`Обновлено сделок: ${updatedCount}`);
+      setIsBulkStatusModalVisible(false);
+      setSelectedRowKeys([]); // Clear selection
+      fetchOrders(); // Refresh data
+    } catch (error: any) {
+      console.error('Bulk update error:', error);
+      message.error(error.response?.data?.error || 'Ошибка массового обновления');
+    }
+  };
+
+  const handleBulkDelete = () => {
+    modal.confirm({
+      title: `Удалить ${selectedRowKeys.length} сделок?`,
+      icon: <ExclamationCircleOutlined />,
+      content: 'Вы уверены? Это действие нельзя отменить.',
+      okText: 'Удалить',
+      okType: 'danger',
+      cancelText: 'Отмена',
+      zIndex: 10000,
+      onOk: async () => {
+        try {
+          const ids = selectedRowKeys.map(key => Number(key));
+          const { count } = await ordersAPI.bulkDelete(ids);
+
+          message.success(`Удалено сделок: ${count}`);
+          setSelectedRowKeys([]); // Clear selection
+          fetchOrders(); // Refresh data
+        } catch (error: any) {
+          console.error('Bulk delete error:', error);
+          message.error(error.response?.data?.error || 'Ошибка удаления');
+        }
+      },
+    });
+  };
+
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: (newSelectedRowKeys: React.Key[]) => {
+      setSelectedRowKeys(newSelectedRowKeys);
+    },
+  };
+
   const [activeMobileColumn, setActiveMobileColumn] = useState<OrderStatus>('unsorted');
   const socketRef = useRef<Socket | null>(null);
   const kanbanRef = useRef<HTMLDivElement>(null);
@@ -597,9 +654,60 @@ const OrdersPage: React.FC = () => {
       flexDirection: 'column',
       background: '#f0f2f5',
       overflow: 'hidden',
+      position: 'relative', // For absolute positioning of bulk bar if needed
     }}>
       {contextHolder}
+
+      {/* Bulk Actions Bar (Sticky) */}
+      {selectedRowKeys.length > 0 && viewMode === 'list' && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 100,
+          background: '#fff',
+          padding: '12px 24px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          animation: 'slideDown 0.2s ease-out',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <span style={{ fontWeight: 600, fontSize: 14 }}>
+              Выбрано: {selectedRowKeys.length}
+            </span>
+            <Button
+              onClick={() => setSelectedRowKeys([])}
+              type="text"
+              size="small"
+              style={{ color: '#8c8c8c' }}
+            >
+              Отмена
+            </Button>
+          </div>
+
+          <Space>
+            <Button
+              icon={<SearchOutlined rotate={90} />} // Use similar icon to "Change status"
+              onClick={() => setIsBulkStatusModalVisible(true)}
+            >
+              Изм. этап
+            </Button>
+            <Button
+              danger
+              icon={<DeleteOutlined />}
+              onClick={handleBulkDelete}
+            >
+              Удалить
+            </Button>
+          </Space>
+        </div>
+      )}
+
       {/* Header */}
+
       {/* Header */}
       {/* Desktop Header */}
       <div className="mobile-hidden" style={{
