@@ -199,23 +199,30 @@ router.get('/unread-count', auth, async (req, res) => {
     }
 
     // 3. Считаем количество ордеров, соответствующих этим main_id и фильтру статусов
+    // SAFETY: Limit number of main_ids to avoid URL overflow
+    const SAFE_LIMIT = 200;
+    let finalIds = distinctMainIds;
+    if (distinctMainIds.length > SAFE_LIMIT) {
+      console.warn(`[UnreadCount] Too many unread chats (${distinctMainIds.length}), truncating to ${SAFE_LIMIT} for safety`);
+      finalIds = distinctMainIds.slice(0, SAFE_LIMIT);
+    }
+
     let query = supabase
       .from('orders')
       .select('id', { count: 'exact' })
-      .in('main_id', distinctMainIds);
+      .in('main_id', finalIds);
 
     // Если "Все уведомления" выключены и есть выбранные статусы - фильтруем по ним
-    // Если "Все уведомления" включены - считаем по всем статусам (или можно игнорировать settings.statuses)
-    // ТЗ: "Если выбраны свои уведомления - в колокольчике показывается количество сделок ... только в этих этапах"
-    // ТЗ: "Если включены все уведомления - показываются ... непрочитанные записи в Диалогах" (видимо все)
-
     if (!all_active && statuses && statuses.length > 0) {
       query = query.in('status', statuses);
     }
 
     const { count, error: countError } = await query;
 
-    if (countError) throw countError;
+    if (countError) {
+      console.error('[UnreadCount] Query error:', countError);
+      throw countError;
+    }
 
     res.json({ count: count || 0 });
 

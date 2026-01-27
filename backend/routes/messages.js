@@ -145,6 +145,8 @@ router.get('/contact/:contactId', auth, async (req, res) => {
     let allMessages = [];
     let count = 0;
 
+    console.log(`[ContactMessages] Fetching for contact ${contactId}, leadIds: ${leadIdsArray.join(',')}`);
+
     if (leadIdsArray.length > 0) {
       const from = parseInt(offset);
       const to = from + parseInt(limit) - 1;
@@ -158,7 +160,7 @@ router.get('/contact/:contactId', auth, async (req, res) => {
 
       if (messagesError) throw messagesError;
       allMessages = messages || [];
-      count = totalCount;
+      count = totalCount || 0;
     }
 
     // Убираем дубликаты по id и разворачиваем (чтобы были от старых к новым)
@@ -166,9 +168,11 @@ router.get('/contact/:contactId', auth, async (req, res) => {
       .filter((msg, index, self) => index === self.findIndex(m => m.id === msg.id))
       .reverse();
 
+    // console.log(`[ContactMessages] Found ${uniqueMessages.length} unique messages, total: ${count}`);
+
     res.json({
       messages: uniqueMessages,
-      total: allMessages.length > 0 ? (count || 0) : 0 // approximate total if filtering duplicates reduces it, but usually close enough
+      total: allMessages.length > 0 ? count : 0 // Safe usage of count
     });
   } catch (error) {
     console.error('Error fetching contact messages:', error);
