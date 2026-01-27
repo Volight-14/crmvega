@@ -490,7 +490,7 @@ router.get('/:orderId/internal', auth, async (req, res) => {
 
     const { count } = await supabase
       .from('internal_messages')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact' })
       .eq('order_id', orderId);
 
     res.json({
