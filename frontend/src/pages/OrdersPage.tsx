@@ -450,9 +450,9 @@ const OrdersPage: React.FC = () => {
     if (!debouncedSearchText) return orders;
     const search = debouncedSearchText.toLowerCase();
     return orders.filter(order =>
-      order.title.toLowerCase().includes(search) ||
-      order.contact?.name?.toLowerCase().includes(search) ||
-      order.description?.toLowerCase().includes(search)
+      (order.title || '').toLowerCase().includes(search) ||
+      (order.contact?.name || '').toLowerCase().includes(search) ||
+      (order.description || '').toLowerCase().includes(search)
     );
   }, [orders, debouncedSearchText]);
 
