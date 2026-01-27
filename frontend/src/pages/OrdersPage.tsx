@@ -27,7 +27,7 @@ import {
 } from '@ant-design/icons';
 import { Table, Radio } from 'antd';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
+import { DndContext, DragOverlay, closestCorners, pointerWithin, KeyboardSensor, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Order, ORDER_STATUSES, Contact, OrderStatus, Tag as TagData } from '../types';
 import { ordersAPI, contactsAPI, tagsAPI } from '../services/api';
@@ -757,7 +757,7 @@ const OrdersPage: React.FC = () => {
 
           <DndContext
             sensors={sensors}
-            collisionDetection={closestCorners}
+            collisionDetection={pointerWithin}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
