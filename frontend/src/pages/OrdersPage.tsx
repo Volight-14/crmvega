@@ -917,6 +917,7 @@ const OrdersPage: React.FC = () => {
           {/* Desktop Table - Hidden on Mobile */}
           <div className="mobile-hidden" style={{ flex: 1, overflow: 'auto', padding: 24 }}>
             <Table
+              rowSelection={rowSelection}
               dataSource={filteredOrders}
               rowKey="id"
               pagination={{
