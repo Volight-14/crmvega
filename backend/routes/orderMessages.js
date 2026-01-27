@@ -709,7 +709,7 @@ router.get('/:orderId/internal/unread', auth, async (req, res) => {
 
     const { count, error } = await supabase
       .from('internal_messages')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact' }) // Changed from head:true to simple select id to avoid header overflow issues on HEAD
       .eq('order_id', orderId)
       .eq('is_read', false)
       .neq('sender_id', req.manager.id);
