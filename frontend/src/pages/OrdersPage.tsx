@@ -647,6 +647,98 @@ const OrdersPage: React.FC = () => {
     }
   };
 
+  const onRowProp = useCallback((record: Order) => ({
+    onClick: () => navigate(`/order/${record.id}`),
+    style: { cursor: 'pointer' } as React.CSSProperties
+  }), [navigate]);
+
+  const tableColumns = useMemo(() => [
+    {
+      title: 'Название сделки',
+      dataIndex: 'title',
+      key: 'title',
+      render: (text: string, record: Order) => (
+        <div style={{ color: '#1890ff', fontWeight: 500 }}>
+          {record.OrderName || text || `Заявка #${record.id}`}
+        </div>
+      )
+    },
+    {
+      title: 'Основной контакт',
+      key: 'contact',
+      render: (_: any, record: Order) => record.contact?.name || 'Без контакта'
+    },
+    {
+      title: 'Этап сделки',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: OrderStatus, record: Order) => {
+        return (
+          <div onClick={e => e.stopPropagation()}>
+            <Select
+              size="small"
+              value={status}
+              onChange={(newVal) => handleStatusChange(record.id, newVal)}
+              style={{ width: '100%', minWidth: 140 }}
+              bordered={false}
+              showArrow={false}
+              dropdownMatchSelectWidth={false}
+              labelRender={(props) => {
+                const statusInfo = ORDER_STATUSES[props.value as OrderStatus];
+                return (
+                  <div style={{
+                    backgroundColor: statusInfo?.color === 'default' ? '#f0f0f0' : `${statusInfo?.color}15`,
+                    color: statusInfo?.color || '#595959',
+                    border: `1px solid ${statusInfo?.color || '#d9d9d9'}`,
+                    padding: '2px 8px',
+                    borderRadius: 4,
+                    display: 'inline-block',
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    width: '100%'
+                  }}>
+                    {statusInfo?.label || props.label}
+                  </div>
+                );
+              }}
+            >
+              {sortedStatusOptions.map((opt) => (
+                <Option key={opt.value} value={opt.value}>
+                  <Space size={4}>
+                    <span style={{ color: opt.color }}>●</span>
+                    <span style={{ fontSize: 14 }}>{opt.label}</span>
+                  </Space>
+                </Option>
+              ))}
+            </Select>
+          </div>
+        );
+      }
+    },
+    {
+      title: 'Бюджет',
+      key: 'amount',
+      render: (_: any, record: Order) => (
+        <div>
+          {record.amount > 0 ? (
+            <span style={{ fontWeight: 600 }}>
+              {record.amount.toLocaleString('ru-RU')} {record.currency}
+            </span>
+          ) : (
+            <span style={{ color: '#bfbfbf' }}>—</span>
+          )}
+        </div>
+      )
+    },
+    {
+      title: 'Дата создания',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (date: string) => new Date(date).toLocaleDateString()
+    }
+  ], [handleStatusChange, sortedStatusOptions]);
+
   return (
     <div style={{
       height: '100%', // Changed from 100vh to 100% to fit parent
@@ -905,14 +997,6 @@ const OrdersPage: React.FC = () => {
         </>
       ) : (
         <>
-          {/* Mobile List View */}
-          <div className="mobile-only" style={{ flex: 1, overflow: 'auto', background: 'transparent' }}>
-            <MobileOrderList
-              orders={filteredOrders}
-              onOrderClick={(order) => navigate(`/order/${order.id}`)}
-              loading={loading}
-            />
-          </div>
 
           {/* Desktop Table - Hidden on Mobile */}
           <div className="mobile-hidden" style={{ flex: 1, overflow: 'auto', padding: 24 }}>
@@ -925,96 +1009,8 @@ const OrdersPage: React.FC = () => {
                 showSizeChanger: true,
                 pageSizeOptions: ['10', '20', '50', '100']
               }}
-              onRow={(record) => ({
-                onClick: () => navigate(`/order/${record.id}`),
-                style: { cursor: 'pointer' }
-              })}
-              columns={[
-                {
-                  title: 'Название сделки',
-                  dataIndex: 'title',
-                  key: 'title',
-                  render: (text, record) => (
-                    <div style={{ color: '#1890ff', fontWeight: 500 }}>
-                      {record.OrderName || text || `Заявка #${record.id}`}
-                    </div>
-                  )
-                },
-                {
-                  title: 'Основной контакт',
-                  key: 'contact',
-                  render: (_, record) => record.contact?.name || 'Без контакта'
-                },
-                {
-                  title: 'Этап сделки',
-                  dataIndex: 'status',
-                  key: 'status',
-                  render: (status, record) => {
-                    return (
-                      <div onClick={e => e.stopPropagation()}>
-                        <Select
-                          size="small"
-                          value={status}
-                          onChange={(newVal) => handleStatusChange(record.id, newVal)}
-                          style={{ width: '100%', minWidth: 140 }}
-                          bordered={false}
-                          showArrow={false}
-                          dropdownMatchSelectWidth={false}
-                          labelRender={(props) => {
-                            const statusInfo = ORDER_STATUSES[props.value as OrderStatus];
-                            return (
-                              <div style={{
-                                backgroundColor: statusInfo?.color === 'default' ? '#f0f0f0' : `${statusInfo?.color}15`,
-                                color: statusInfo?.color || '#595959',
-                                border: `1px solid ${statusInfo?.color || '#d9d9d9'}`,
-                                padding: '2px 8px',
-                                borderRadius: 4,
-                                display: 'inline-block',
-                                fontSize: 12,
-                                cursor: 'pointer',
-                                textAlign: 'center',
-                                width: '100%'
-                              }}>
-                                {statusInfo?.label || props.label}
-                              </div>
-                            );
-                          }}
-                        >
-                          {sortedStatusOptions.map((opt) => (
-                            <Option key={opt.value} value={opt.value}>
-                              <Space size={4}>
-                                <span style={{ color: opt.color }}>●</span>
-                                <span style={{ fontSize: 14 }}>{opt.label}</span>
-                              </Space>
-                            </Option>
-                          ))}
-                        </Select>
-                      </div>
-                    );
-                  }
-                },
-                {
-                  title: 'Бюджет',
-                  key: 'amount',
-                  render: (_, record) => (
-                    <div>
-                      {record.amount > 0 ? (
-                        <span style={{ fontWeight: 600 }}>
-                          {record.amount.toLocaleString('ru-RU')} {record.currency}
-                        </span>
-                      ) : (
-                        <span style={{ color: '#bfbfbf' }}>—</span>
-                      )}
-                    </div>
-                  )
-                },
-                {
-                  title: 'Дата создания',
-                  dataIndex: 'created_at',
-                  key: 'created_at',
-                  render: (date) => new Date(date).toLocaleDateString()
-                }
-              ]}
+              onRow={onRowProp}
+              columns={tableColumns}
             />
           </div>
 
