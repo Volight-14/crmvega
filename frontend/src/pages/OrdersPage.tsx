@@ -87,6 +87,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClic
 
   const { setNodeRef, isOver } = useDroppable({
     id: status,
+    data: { type: 'column', status },
   });
 
   // Calculate total amount
@@ -416,11 +417,15 @@ const OrdersPage: React.FC = () => {
     // Определяем целевой статус: либо это ID колонки, либо ID карточки
     let newStatus: OrderStatus | null = null;
 
+    const overData = over.data.current;
+
     // Convert to string for checking against status keys
     const overIdString = String(over.id);
 
-    if (validStatuses.includes(overIdString)) {
-      // Брошено на колонку
+    if (overData?.type === 'column' && validStatuses.includes(overData.status)) {
+      newStatus = overData.status;
+    } else if (validStatuses.includes(overIdString)) {
+      // Брошено на колонку (fallback)
       newStatus = overIdString as OrderStatus;
     } else {
       // Брошено на другую карточку - найдем статус этой карточки
