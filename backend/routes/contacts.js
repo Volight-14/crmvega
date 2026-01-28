@@ -126,15 +126,15 @@ router.get('/summary', auth, async (req, res) => {
       ordersByContact[order.contact_id].push(order);
     });
 
-    // Собираем все main_id для получения сообщений
-    const allMainIds = [...new Set(allOrders?.map(o => String(o.main_id)).filter(Boolean) || [])];
+    // Собираем все main_id для получения сообщений (конвертируем в числа)
+    const allMainIds = [...new Set(allOrders?.map(o => o.main_id).filter(Boolean) || [])];
 
     // ОПТИМИЗАЦИЯ: Получаем последние сообщения для всех main_id ОДНИМ запросом
     const { data: allMessages } = await supabase
       .from('messages')
       .select('main_id, content, "Created Date", author_type')
       .in('main_id', allMainIds)
-      .order('\"Created Date\"', { ascending: false });
+      .order('"Created Date"', { ascending: false });
 
     // Группируем сообщения по main_id (берём только последнее для каждого)
     const lastMessageByMainId = {};
