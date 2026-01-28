@@ -321,7 +321,7 @@ router.get('/:id', auth, async (req, res) => {
       .select(`
         *,
         contact:contacts(*),
-        manager:managers!orders_manager_id_fkey(id, name, email),
+        manager:managers!deals_manager_id_fkey(id, name, email),
         tags:order_tags(tag:tags(*))
       `);
 
@@ -345,7 +345,7 @@ router.get('/:id', auth, async (req, res) => {
           .select(`
              *,
              contact:contacts(*),
-             manager:managers!orders_manager_id_fkey(id, name, email),
+             manager:managers!deals_manager_id_fkey(id, name, email),
              tags:order_tags(tag:tags(*))
            `)
           .eq('id', numericId)
