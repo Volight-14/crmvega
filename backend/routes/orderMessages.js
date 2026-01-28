@@ -188,7 +188,10 @@ router.post('/:orderId/client', auth, async (req, res) => {
         user: senderName || senderEmail,
         manager_id: req.manager.id
       })
-      .select()
+      .select(`
+        *,
+        sender:managers!manager_id(id, name, email)
+      `)
       .single();
 
     if (messageError) throw messageError;
