@@ -325,12 +325,14 @@ router.get('/:id', auth, async (req, res) => {
       `);
 
     // 1. Try by main_id (most common for external links)
-    let { data, error } = await query.eq('main_id', id).maybeSingle();
+    // Convert to number since main_id is bigint
+    const numericId = parseInt(id);
+    let { data, error } = await query.eq('main_id', numericId).maybeSingle();
 
     // 2. If not found, try by internal id (if it looks like a valid int4)
-    if (!data) {
+    if (!data && !isNaN(numericId)) {
       // Reset query builder? Supabase objects are immutable-ish, better create new chain
-      const isInt4 = /^\d{1,9}$/.test(id) || (id.length === 10 && id <= "2147483647");
+      const isInt4 = numericId <= 2147483647;
 
       if (isInt4) {
         const { data: byId, error: errId } = await supabase
@@ -341,7 +343,7 @@ router.get('/:id', auth, async (req, res) => {
              manager:managers(name),
              tags:order_tags(tag:tags(*))
            `)
-          .eq('id', id)
+          .eq('id', numericId)
           .maybeSingle();
 
         if (byId) {
