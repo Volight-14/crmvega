@@ -29,6 +29,13 @@ code {
   animation: highlight-pulse 1s ease-in-out 2;
 }
 
+/* Spinner animation for loaders */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Link styles in chat messages */
 .message-content a {
   transition: opacity 0.2s ease;

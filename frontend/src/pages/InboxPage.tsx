@@ -487,6 +487,22 @@ const InboxPage: React.FC = () => {
                     <div style={{ height: 'calc(100% - 140px)', overflowY: 'auto', padding: isMobile ? '0 12px' : 0 }}>
                         {isLoadingContacts && contacts.length === 0 ? (
                             <div style={{ textAlign: 'center', padding: 20 }}><Spin /></div>
+                        ) : contacts.length === 0 ? (
+                            <div style={{
+                                textAlign: 'center',
+                                padding: 40,
+                                color: '#8c8c8c'
+                            }}>
+                                <div style={{ fontSize: 40, marginBottom: 16, opacity: 0.3 }}>💬</div>
+                                <div style={{ fontSize: 14, marginBottom: 8, fontWeight: 500, color: '#262626' }}>
+                                    Диалогов не найдено
+                                </div>
+                                <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+                                    {showUnreadOnly || filterStages.length > 0
+                                        ? 'Попробуйте изменить фильтры или показать все диалоги'
+                                        : 'Здесь будут отображаться диалоги с клиентами'}
+                                </div>
+                            </div>
                         ) : (
                             <List
                                 itemLayout="horizontal"

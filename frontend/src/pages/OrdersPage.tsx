@@ -1050,29 +1050,83 @@ const OrdersPage: React.FC = () => {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
-            <div
-              ref={kanbanRef}
-              className="kanban-scroll-view"
-            >
-              <div className="kanban-track">
-                {sortedStatuses.map((status) => (
-                  <div
-                    key={status}
-                    ref={el => { columnRefs.current[status] = el; }}
-                    className="kanban-column-wrapper"
-                  >
-                    <KanbanColumn
-                      status={status}
-                      orders={ordersByStatus[status] || []}
-                      onOrderClick={(order) => navigate(`/order/${order.main_id || order.id}`)}
-                      onAddOrder={() => openCreateModal(status)}
-                      onStatusChange={handleStatusChange}
-                      onEditContact={handleEditContact}
-                    />
-                  </div>
-                ))}
+            {loading && orders.length === 0 ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '400px',
+                background: '#fafafa',
+                borderRadius: 12
+              }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{
+                    width: 40,
+                    height: 40,
+                    border: '3px solid #f0f0f0',
+                    borderTop: '3px solid #1890ff',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite',
+                    margin: '0 auto 16px'
+                  }} />
+                  <div style={{ color: '#8c8c8c', fontSize: 14 }}>Загрузка заявок...</div>
+                </div>
               </div>
-            </div>
+            ) : orders.length === 0 ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '400px',
+                background: '#fafafa',
+                borderRadius: 12,
+                flexDirection: 'column',
+                gap: 16
+              }}>
+                <div style={{
+                  fontSize: 48,
+                  opacity: 0.15
+                }}>📦</div>
+                <div style={{
+                  fontSize: 16,
+                  fontWeight: 500,
+                  color: '#262626'
+                }}>Заявок пока нет</div>
+                <div style={{
+                  fontSize: 14,
+                  color: '#8c8c8c',
+                  maxWidth: 320,
+                  textAlign: 'center',
+                  lineHeight: 1.6
+                }}>
+                  Создайте первую заявку, нажав кнопку "НОВАЯ ЗАЯВКА" выше
+                </div>
+              </div>
+            ) : (
+              <div
+                ref={kanbanRef}
+                className="kanban-scroll-view"
+              >
+                <div className="kanban-track">
+                  {sortedStatuses.map((status) => (
+                    <div
+                      key={status}
+                      ref={el => { columnRefs.current[status] = el; }}
+                      className="kanban-column-wrapper"
+                    >
+                      <KanbanColumn
+                        status={status}
+                        orders={ordersByStatus[status] || []}
+                        onOrderClick={(order) => navigate(`/order/${order.main_id || order.id}`)}
+                        onAddOrder={() => openCreateModal(status)}
+                        onStatusChange={handleStatusChange}
+                        onEditContact={handleEditContact}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <DragOverlay>
               {draggedOrder ? (
                 <KanbanOrderCard
