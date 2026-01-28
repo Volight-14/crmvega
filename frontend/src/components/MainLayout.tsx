@@ -116,6 +116,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   // Notifications Logic
   const socketRef = React.useRef<any>(null);
+  const lastSoundTimeRef = React.useRef(0); // Debounce sound
   const [unreadTotal, setUnreadTotal] = useState(0);
 
   // Sound function using Web Audio API
@@ -175,9 +176,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     socketRef.current.on('connect', () => {
       console.log('✅ Global socket connected for notifications');
     });
-
-    // Keep track of last played sound to debounce (double sound fix)
-    const lastSoundTimeRef = React.useRef(0);
 
     socketRef.current.on('new_message_global', (msg: any) => {
       console.log('📨 Global message received:', msg);
