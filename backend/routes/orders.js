@@ -181,7 +181,7 @@ router.get('/', auth, async (req, res) => {
               .select('*')
               .in('main_id', mainIds.map(String)),
             supabase
-              .from('unread_counts')
+              .from('unread_client_consecutive_counts')
               .select('*')
               .in('main_id', mainIds.map(String))
           ]);

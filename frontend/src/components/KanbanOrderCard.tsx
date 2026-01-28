@@ -81,6 +81,28 @@ const KanbanOrderCard: React.FC<KanbanOrderCardProps> = memo(({ order, onClick, 
             className={`${styles.card} ${isDragging ? styles.dragging : ''}`}
             onClick={onClick}
         >
+            {order.unread_count && order.unread_count > 0 ? (
+                <div style={{
+                    position: 'absolute',
+                    top: -6,
+                    right: -6,
+                    backgroundColor: '#ff4d4f',
+                    color: '#fff',
+                    borderRadius: '10px',
+                    minWidth: 20,
+                    height: 20,
+                    padding: '0 6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    zIndex: 1002, // Higher than card content and dragging overlay
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                }}>
+                    {order.unread_count}
+                </div>
+            ) : null}
             {/* Header */}
             <div className={styles.header}>
                 <div className={styles.titleRow}>

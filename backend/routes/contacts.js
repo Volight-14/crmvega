@@ -137,12 +137,24 @@ router.get('/summary', auth, async (req, res) => {
       .order('"Created Date"', { ascending: false });
 
     // Группируем сообщения по main_id (берём только последнее для каждого)
+    // Группируем сообщения по main_id (берём только последнее для каждого)
     const lastMessageByMainId = {};
     allMessages?.forEach(msg => {
       const mainId = String(msg.main_id);
       if (!lastMessageByMainId[mainId]) {
         lastMessageByMainId[mainId] = msg;
       }
+    });
+
+    // ОПТИМИЗАЦИЯ: Получаем количество непрочитанных (tail consecutive)
+    const { data: unreadData } = await supabase
+      .from('unread_client_consecutive_counts')
+      .select('main_id, unread_count')
+      .in('main_id', allMainIds);
+
+    const unreadMap = {};
+    unreadData?.forEach(item => {
+      unreadMap[String(item.main_id)] = item.unread_count;
     });
 
     // Собираем данные для каждого контакта
@@ -185,7 +197,9 @@ router.get('/summary', auth, async (req, res) => {
         latest_order_id: latestOrder?.id || null, // Используем реальный order.id, НЕ main_id!
         latest_order_main_id: latestOrder?.main_id || null, // Добавляем main_id для ссылок
         last_order_status: latestOrder?.status,
-        responsible_person: latestOrder?.manager?.name
+        last_order_status: latestOrder?.status,
+        responsible_person: latestOrder?.manager?.name,
+        unread_count: orders.reduce((sum, o) => sum + (unreadMap[String(o.main_id)] || 0), 0)
       };
     });
 

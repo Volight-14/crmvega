@@ -511,6 +511,25 @@ const InboxPage: React.FC = () => {
                                                 title={
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                                                         <Text strong style={{ flex: 1, minWidth: 0, marginRight: 8 }} ellipsis>{contact.name}</Text>
+                                                        {contact.unread_count && contact.unread_count > 0 ? (
+                                                            <div style={{
+                                                                backgroundColor: '#ff4d4f',
+                                                                color: '#fff',
+                                                                borderRadius: '10px',
+                                                                minWidth: 20,
+                                                                height: 20,
+                                                                padding: '0 6px',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                fontSize: '11px',
+                                                                fontWeight: 'bold',
+                                                                marginRight: 8,
+                                                                flexShrink: 0
+                                                            }}>
+                                                                {contact.unread_count}
+                                                            </div>
+                                                        ) : null}
                                                         {contact.last_active && (
                                                             <Text type="secondary" style={{ fontSize: 12, flexShrink: 0 }}>
                                                                 {formatTime(contact.last_active)}
