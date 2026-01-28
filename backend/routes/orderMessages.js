@@ -49,8 +49,10 @@ router.get('/:orderId/client', auth, async (req, res) => {
 
     // Один оптимизированный запрос для всех сообщений (сначала новые)
     const { data: messages, count, error: messagesError } = await supabase
-      .from('messages')
-      .select('*', { count: 'exact' })
+      .select(`
+        *,
+        sender:managers!manager_id(id, name, email)
+      `, { count: 'exact' })
       .eq('main_id', order.main_id)
       .order('"Created Date"', { ascending: false })
       .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
@@ -184,6 +186,7 @@ router.post('/:orderId/client', auth, async (req, res) => {
         reply_to_mess_id_tg: reply_to_message_id || null,
         'Created Date': new Date().toISOString(),
         user: senderName || senderEmail,
+        manager_id: req.manager.id
       })
       .select()
       .single();

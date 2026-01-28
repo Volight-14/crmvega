@@ -153,7 +153,10 @@ router.get('/contact/:contactId', auth, async (req, res) => {
 
       const { data: messages, count: totalCount, error: messagesError } = await supabase
         .from('messages')
-        .select('*', { count: 'exact' })
+        .select(`
+          *,
+          sender:managers!manager_id(id, name, email)
+        `, { count: 'exact' })
         .in('main_id', leadIdsArray)
         .order('"Created Date"', { ascending: false })
         .range(from, to);
@@ -299,6 +302,7 @@ router.post('/contact/:contactId', auth, async (req, res) => {
         message_id_tg: telegramMessageId,
         'Created Date': new Date().toISOString(),
         user: senderName || senderEmail,
+        manager_id: req.manager.id
       })
       .select(`*`)
       .single();
