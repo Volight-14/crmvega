@@ -54,6 +54,7 @@ const ContactDetailPage: React.FC = () => {
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
   const [sending, setSending] = useState(false);
+  const [notFound, setNotFound] = useState(false);
   const [form] = Form.useForm();
   const [noteForm] = Form.useForm();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -139,12 +140,17 @@ const ContactDetailPage: React.FC = () => {
   const fetchContact = async () => {
     if (!id) return;
     try {
+      setNotFound(false);
       const data = await contactsAPI.getById(parseInt(id));
       setContact(data);
       form.setFieldsValue(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching contact:', error);
-      message.error('Ошибка загрузки контакта');
+      if (error.response?.status === 404) {
+        setNotFound(true);
+      } else {
+        message.error('Ошибка загрузки контакта');
+      }
     }
   };
 
@@ -376,6 +382,42 @@ const ContactDetailPage: React.FC = () => {
 
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
+
+  if (notFound) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      }}>
+        <div style={{
+          background: 'white',
+          padding: 40,
+          borderRadius: 16,
+          boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+          textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 64, marginBottom: 16, opacity: 0.3 }}>🔍</div>
+          <Title level={3} style={{ margin: '0 0 16px 0' }}>Контакт не найден</Title>
+          <Text style={{ display: 'block', marginBottom: 24, color: '#8c8c8c' }}>
+            Контакт с ID {id} не существует или был удален
+          </Text>
+          <Button
+            type="primary"
+            onClick={() => navigate('/contacts')}
+            style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              border: 'none',
+            }}
+          >
+            Вернуться к контактам
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (!contact) {
     return <div>Загрузка...</div>;

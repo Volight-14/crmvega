@@ -33,7 +33,7 @@ import {
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Order, Note, ORDER_STATUSES, NOTE_PRIORITIES } from '../types';
-import { ordersAPI, notesAPI } from '../services/api';
+import { ordersAPI, notesAPI, orderMessagesAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import io from 'socket.io-client';
 import OrderChat from '../components/OrderChat';
@@ -55,6 +55,7 @@ const OrderDetailPage: React.FC = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(false);
+  const [notFound, setNotFound] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
   const [isTagsModalVisible, setIsTagsModalVisible] = useState(false);
@@ -108,6 +109,7 @@ const OrderDetailPage: React.FC = () => {
     if (!id) return;
     try {
       setLoading(true);
+      setNotFound(false);
       const orderData = await ordersAPI.getById(parseInt(id));
       setOrder(orderData);
       form.setFieldsValue(orderData);
@@ -120,9 +122,13 @@ const OrderDetailPage: React.FC = () => {
           console.error('Error marking messages as read:', error);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching order:', error);
-      message.error('Ошибка загрузки заявки');
+      if (error.response?.status === 404) {
+        setNotFound(true);
+      } else {
+        message.error('Ошибка загрузки заявки');
+      }
     } finally {
       setLoading(false);
     }
@@ -191,6 +197,42 @@ const OrderDetailPage: React.FC = () => {
       icon: value.icon,
       color: value.color,
     }));
+
+  if (notFound) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      }}>
+        <div style={{
+          background: 'white',
+          padding: 40,
+          borderRadius: 16,
+          boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+          textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 64, marginBottom: 16, opacity: 0.3 }}>🔍</div>
+          <Title level={3} style={{ margin: '0 0 16px 0' }}>Заявка не найдена</Title>
+          <Text style={{ display: 'block', marginBottom: 24, color: '#8c8c8c' }}>
+            Заявка с ID {id} не существует или была удалена
+          </Text>
+          <Button
+            type="primary"
+            onClick={() => navigate('/orders')}
+            style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              border: 'none',
+            }}
+          >
+            Вернуться к заявкам
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (!order) {
     return (
