@@ -129,12 +129,12 @@ router.get('/summary', auth, async (req, res) => {
     // Собираем все main_id для получения сообщений (конвертируем в числа)
     const allMainIds = [...new Set(allOrders?.map(o => o.main_id).filter(Boolean) || [])];
 
-    // ОПТИМИЗАЦИЯ: Получаем последние сообщения для всех main_id ОДНИМ запросом
+    // ОПТИМИЗАЦИЯ: Получаем последние сообщения для всех main_id ОДНИМ запросом (через RPC)
     const { data: allMessages } = await supabase
-      .from('messages')
-      .select('main_id, content, "Created Date", author_type')
-      .in('main_id', allMainIds)
-      .order('"Created Date"', { ascending: false });
+      .rpc('get_latest_messages', {
+        target_main_ids: allMainIds.map(String),
+        only_client: false
+      });
 
     // Группируем сообщения по main_id (берём только последнее для каждого)
     // Группируем сообщения по main_id (берём только последнее для каждого)

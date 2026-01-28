@@ -177,9 +177,10 @@ router.get('/', auth, async (req, res) => {
 
           const [latestMsgResult, unreadCountResult] = await Promise.all([
             supabase
-              .from('latest_client_messages')
-              .select('*')
-              .in('main_id', mainIds.map(String)),
+              .rpc('get_latest_messages', {
+                target_main_ids: mainIds.map(String),
+                only_client: true
+              }),
             supabase
               .rpc('get_unread_client_counts', {
                 target_main_ids: mainIds.map(String)
