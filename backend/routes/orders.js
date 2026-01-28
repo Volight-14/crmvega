@@ -71,6 +71,49 @@ router.get('/', auth, async (req, res) => {
       query = query.eq('order_tags.tag_id', tag_id);
     }
 
+    // NEW FILTERS (VEG-58)
+    // Date range filter
+    if (req.query.dateFrom) {
+      query = query.gte('created_at', req.query.dateFrom);
+    }
+    if (req.query.dateTo) {
+      query = query.lte('created_at', req.query.dateTo);
+    }
+
+    // Amount range filter (uses SumInput field)
+    if (req.query.amountMin) {
+      query = query.gte('SumInput', parseFloat(req.query.amountMin));
+    }
+    if (req.query.amountMax) {
+      query = query.lte('SumInput', parseFloat(req.query.amountMax));
+    }
+
+    // Currency filter
+    if (req.query.currency) {
+      query = query.eq('CurrPair1', req.query.currency);
+    }
+
+    // Source filter (array support)
+    if (req.query.sources) {
+      const sources = Array.isArray(req.query.sources)
+        ? req.query.sources
+        : req.query.sources.split(',');
+      query = query.in('source', sources);
+    }
+
+    // Closed by manager filter
+    if (req.query.closedBy) {
+      query = query.eq('closed_by_manager_id', parseInt(req.query.closedBy));
+    }
+
+    // Statuses array filter (overrides single status)
+    if (req.query.statuses) {
+      const statuses = Array.isArray(req.query.statuses)
+        ? req.query.statuses
+        : req.query.statuses.split(',');
+      query = query.in('status', statuses);
+    }
+
     const { data, error } = await query;
 
     if (error) throw error;
@@ -380,6 +423,12 @@ router.patch('/:id', auth, async (req, res) => {
         .single();
 
       oldOrder = existingOrder;
+
+      // AUTO-TRACK: Set closed_by_manager_id if moving to a final status
+      const FINAL_STATUSES = ['completed', 'client_rejected', 'scammer', 'partially_completed', 'postponed'];
+      if (FINAL_STATUSES.includes(updateData.status) && oldOrder && !FINAL_STATUSES.includes(oldOrder.status)) {
+        updateData.closed_by_manager_id = req.manager.id;
+      }
     }
 
     const { data, error } = await supabase

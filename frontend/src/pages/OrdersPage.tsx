@@ -24,17 +24,20 @@ import {
   ExclamationCircleOutlined,
   UnorderedListOutlined,
   AppstoreOutlined,
+  FilterOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import { Table, Radio } from 'antd';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DndContext, DragOverlay, closestCorners, pointerWithin, KeyboardSensor, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Order, ORDER_STATUSES, Contact, OrderStatus, Tag as TagData } from '../types';
-import { ordersAPI, contactsAPI, tagsAPI } from '../services/api';
+import { Order, ORDER_STATUSES, Contact, OrderStatus, Tag as TagData, Manager } from '../types';
+import { ordersAPI, contactsAPI, tagsAPI, managersAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import io from 'socket.io-client';
 import KanbanOrderCard from '../components/KanbanOrderCard';
 import MobileOrderList from '../components/MobileOrderList';
+import OrderFilters from '../components/OrderFilters';
 import { Badge } from 'antd';
 
 const { Title } = Typography;
@@ -225,6 +228,7 @@ const OrdersPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [allTags, setAllTags] = useState<TagData[]>([]);
+  const [managers, setManagers] = useState<Manager[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [debouncedSearchText, setDebouncedSearchText] = useState('');
@@ -234,6 +238,10 @@ const OrdersPage: React.FC = () => {
   const [form] = Form.useForm();
   const [modal, contextHolder] = Modal.useModal();
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
+
+  // Filters state
+  const [filters, setFilters] = useState<any>({});
+  const [isFiltersDrawerVisible, setIsFiltersDrawerVisible] = useState(false);
 
   // Edit Contact state
   const [isEditContactModalVisible, setIsEditContactModalVisible] = useState(false);
@@ -326,13 +334,14 @@ const OrdersPage: React.FC = () => {
     fetchOrders();
     fetchContacts();
     fetchTags();
+    fetchManagers();
     setupSocket();
 
     return () => {
       socketRef.current?.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, [searchParams, filters]);
 
   // Debounce search input
   useEffect(() => {
@@ -366,6 +375,15 @@ const OrdersPage: React.FC = () => {
       setAllTags(tags);
     } catch (error) {
       console.error('Error fetching tags:', error);
+    }
+  };
+
+  const fetchManagers = async () => {
+    try {
+      const fetchedManagers = await managersAPI.getAll();
+      setManagers(fetchedManagers);
+    } catch (error) {
+      console.error('Error fetching managers:', error);
     }
   };
 
@@ -423,7 +441,8 @@ const OrdersPage: React.FC = () => {
       const { orders: fetchedOrders } = await ordersAPI.getAll({
         minimal: true,
         // @ts-ignore
-        tag_id: tagId ? parseInt(tagId) : undefined
+        tag_id: tagId ? parseInt(tagId) : undefined,
+        ...filters, // Apply active filters
       });
 
       setOrders(fetchedOrders);
@@ -856,6 +875,24 @@ const OrdersPage: React.FC = () => {
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', justifyContent: 'flex-end', flex: '1 1 auto' }}>
+          <Badge count={Object.keys(filters).length} offset={[-5, 5]}>
+            <Button
+              icon={<FilterOutlined />}
+              onClick={() => setIsFiltersDrawerVisible(true)}
+              style={{ borderRadius: 8 }}
+            >
+              Фильтры
+            </Button>
+          </Badge>
+
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={fetchOrders}
+            style={{ borderRadius: 8 }}
+          >
+            Обновить
+          </Button>
+
           {manager?.role === 'admin' && (
             <Button
               danger
@@ -1142,6 +1179,14 @@ const OrdersPage: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* Filters Drawer */}
+      <OrderFilters
+        visible={isFiltersDrawerVisible}
+        onClose={() => setIsFiltersDrawerVisible(false)}
+        onApply={(newFilters) => setFilters(newFilters)}
+        managers={managers}
+      />
     </div>
   );
 };
