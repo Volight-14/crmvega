@@ -220,6 +220,38 @@ router.post('/:orderId/client', auth, async (req, res) => {
   }
 });
 
+// Отметить сообщения клиента как прочитанные
+router.post('/:orderId/client/read', auth, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    // Получаем main_id заявки
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('main_id')
+      .eq('id', orderId)
+      .single();
+
+    if (orderError) throw orderError;
+    if (!order.main_id) return res.json({ success: true });
+
+    // Обновляем статус сообщений
+    const { error: updateError } = await supabase
+      .from('messages')
+      .update({ is_read: true })
+      .eq('main_id', order.main_id)
+      .in('author_type', ['user', 'bubbleUser', 'Клиент', 'Client', 'customer'])
+      .eq('is_read', false);
+
+    if (updateError) throw updateError;
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error marking client messages as read:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // Отправить файл клиенту
 router.post('/:orderId/client/file', auth, upload.single('file'), async (req, res) => {
   try {

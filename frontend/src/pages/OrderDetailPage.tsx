@@ -111,6 +111,15 @@ const OrderDetailPage: React.FC = () => {
       const orderData = await ordersAPI.getById(parseInt(id));
       setOrder(orderData);
       form.setFieldsValue(orderData);
+
+      // Mark client messages as read
+      if (orderData.unread_count && orderData.unread_count > 0) {
+        try {
+          await orderMessagesAPI.markClientMessagesAsRead(parseInt(id));
+        } catch (error) {
+          console.error('Error marking messages as read:', error);
+        }
+      }
     } catch (error) {
       console.error('Error fetching order:', error);
       message.error('Ошибка загрузки заявки');

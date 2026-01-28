@@ -1,3 +1,4 @@
+-- Update function to use is_read field
 CREATE OR REPLACE FUNCTION get_unread_client_counts(target_main_ids text[])
 RETURNS TABLE (main_id text, unread_count bigint)
 LANGUAGE sql
@@ -18,5 +19,6 @@ AS $$
         m.main_id = ANY(target_main_ids::numeric[])
         AND m.author_type IN ('user', 'bubbleUser', 'Клиент', 'Client', 'customer')
         AND (lmt.last_msg_date IS NULL OR m."Created Date" > lmt.last_msg_date)
+        AND (m.is_read IS NOT TRUE)
     GROUP BY m.main_id;
 $$;

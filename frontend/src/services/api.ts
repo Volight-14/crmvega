@@ -312,6 +312,11 @@ export const orderMessagesAPI = {
     return response.data;
   },
 
+  // Отметить сообщения клиента как прочитанные
+  markClientMessagesAsRead: async (orderId: number): Promise<void> => {
+    await api.post(`/order-messages/${orderId}/client/read`);
+  },
+
   // Получить внутренние сообщения
   getInternalMessages: async (orderId: number, params?: { limit?: number; offset?: number }): Promise<{
     messages: InternalMessage[];

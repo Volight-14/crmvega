@@ -296,6 +296,19 @@ const InboxPage: React.FC = () => {
                 setActiveOrder(null);
             }
         }
+
+        // Mark client messages as read
+        if (contact.latest_order_id && contact.unread_count && contact.unread_count > 0) {
+            try {
+                await orderMessagesAPI.markClientMessagesAsRead(contact.latest_order_id);
+                // Update local state
+                setContacts(prev => prev.map(c =>
+                    c.id === contact.id ? { ...c, unread_count: 0 } : c
+                ));
+            } catch (error) {
+                console.error('Error marking messages as read:', error);
+            }
+        }
     };
 
 
