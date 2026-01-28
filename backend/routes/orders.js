@@ -314,6 +314,7 @@ router.get('/unread-count', auth, async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;
+    console.log(`[Orders GET /:id] Searching for order with id: ${id}`);
 
     let query = supabase
       .from('orders')
@@ -327,12 +328,16 @@ router.get('/:id', auth, async (req, res) => {
     // 1. Try by main_id (most common for external links)
     // Convert to number since main_id is bigint
     const numericId = parseInt(id);
+    console.log(`[Orders GET /:id] Trying main_id lookup with: ${numericId} (type: ${typeof numericId})`);
     let { data, error } = await query.eq('main_id', numericId).maybeSingle();
+
+    console.log(`[Orders GET /:id] main_id search result:`, { found: !!data, error: error?.message });
 
     // 2. If not found, try by internal id (if it looks like a valid int4)
     if (!data && !isNaN(numericId)) {
-      // Reset query builder? Supabase objects are immutable-ish, better create new chain
+      // Reset query builder? Supbase objects are immutable-ish, better create new chain
       const isInt4 = numericId <= 2147483647;
+      console.log(`[Orders GET /:id] Trying internal id lookup. isInt4: ${isInt4}`);
 
       if (isInt4) {
         const { data: byId, error: errId } = await supabase
@@ -346,6 +351,8 @@ router.get('/:id', auth, async (req, res) => {
           .eq('id', numericId)
           .maybeSingle();
 
+        console.log(`[Orders GET /:id] internal id search result:`, { found: !!byId, error: errId?.message });
+
         if (byId) {
           data = byId;
           error = null;
@@ -354,6 +361,7 @@ router.get('/:id', auth, async (req, res) => {
     }
 
     if (!data) {
+      console.log(`[Orders GET /:id] Order not found with id: ${id}`);
       return res.status(404).json({ error: 'Order not found' });
     }
 
