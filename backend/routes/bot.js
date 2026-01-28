@@ -242,7 +242,7 @@ async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null
         content: content,
         message_id_tg: telegramMessageId,
         reply_to_mess_id_tg: replyToMessageId, // Save reply ID
-        author_type: 'Клиент',
+        author_type: 'user',
         message_type: messageType,
         file_url: finalAttachmentUrl,
         'Created Date': new Date().toISOString()
