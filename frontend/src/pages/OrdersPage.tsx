@@ -710,7 +710,7 @@ const OrdersPage: React.FC = () => {
   };
 
   const onRowProp = useCallback((record: Order) => ({
-    onClick: () => navigate(`/order/${record.id}`),
+    onClick: () => navigate(`/order/${record.main_id || record.id}`),
     style: { cursor: 'pointer' } as React.CSSProperties
   }), [navigate]);
 
@@ -1064,7 +1064,7 @@ const OrdersPage: React.FC = () => {
                     <KanbanColumn
                       status={status}
                       orders={ordersByStatus[status] || []}
-                      onOrderClick={(order) => navigate(`/order/${order.id}`)}
+                      onOrderClick={(order) => navigate(`/order/${order.main_id || order.id}`)}
                       onAddOrder={() => openCreateModal(status)}
                       onStatusChange={handleStatusChange}
                       onEditContact={handleEditContact}
@@ -1107,7 +1107,7 @@ const OrdersPage: React.FC = () => {
           <div className="mobile-only" style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
             <MobileOrderList
               orders={filteredOrders}
-              onOrderClick={(order) => navigate(`/order/${order.id}`)}
+              onOrderClick={(order) => navigate(`/order/${order.main_id || order.id}`)}
               loading={loading}
             />
           </div>
