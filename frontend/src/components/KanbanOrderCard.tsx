@@ -78,6 +78,9 @@ const KanbanOrderCard: React.FC<KanbanOrderCardProps> = memo(({ order, onClick, 
             style={style}
             {...attributes}
             {...listeners}
+            className={`${styles.card} ${isDragging ? styles.dragging : ''}`}
+            onClick={onClick}
+        >
             {/* Header */}
             <div className={styles.header}>
                 <div className={styles.titleRow}>
@@ -115,92 +118,92 @@ const KanbanOrderCard: React.FC<KanbanOrderCardProps> = memo(({ order, onClick, 
                 <div className={styles.date}>{formatDate(order.created_at)}</div>
             </div>
 
-            {/* City Subtitle */ }
-    {
-        clean(order.CityEsp02) && (
-            <div className={styles.city}>{clean(order.CityEsp02)}</div>
-        )
-    }
+            {/* City Subtitle */}
+            {
+                clean(order.CityEsp02) && (
+                    <div className={styles.city}>{clean(order.CityEsp02)}</div>
+                )
+            }
 
-    {/* Main Info */ }
-    <div className={styles.mainInfo}>
-        {mainInfoString}
-    </div>
+            {/* Main Info */}
+            <div className={styles.mainInfo}>
+                {mainInfoString}
+            </div>
 
-    {/* Tags */ }
-    {
-        order.tags && order.tags.length > 0 && (
-            <div className={styles.tags}>
-                {order.tags.map(tag => (
-                    <div
-                        key={tag.id}
-                        className={styles.tag}
-                        style={{
-                            backgroundColor: (tag.color || '#d9d9d9') + '20', // 12% opacity
-                            color: tag.color || '#595959',
-                            border: `1px solid ${(tag.color || '#d9d9d9')}`
+            {/* Tags */}
+            {
+                order.tags && order.tags.length > 0 && (
+                    <div className={styles.tags}>
+                        {order.tags.map(tag => (
+                            <div
+                                key={tag.id}
+                                className={styles.tag}
+                                style={{
+                                    backgroundColor: (tag.color || '#d9d9d9') + '20', // 12% opacity
+                                    color: tag.color || '#595959',
+                                    border: `1px solid ${(tag.color || '#d9d9d9')}`
+                                }}
+                            >
+                                {tag.name}
+                            </div>
+                        ))}
+                    </div>
+                )
+            }
+
+            {/* Footer */}
+            <div className={styles.footer}>
+                {/* Last Message */}
+                <div className={styles.lastMessage}>
+                    <div className={styles.avatar}>
+                        <UserOutlined style={{ fontSize: 10 }} />
+                    </div>
+                    <div className={styles.messageText}>
+                        {order.last_message?.content || ''}
+                    </div>
+                </div>
+
+                {/* Status Dropdown - kept lightweight using Ant Design Select but styled minimally */}
+                <div onClick={handleStatusClick} onMouseDown={handleStatusClick}>
+                    <Select
+                        size="small"
+                        value={order.status}
+                        onChange={(val) => onStatusChange?.(val)}
+                        dropdownMatchSelectWidth={false}
+                        bordered={false}
+                        showArrow={false}
+                        style={{ width: 'auto', minWidth: 20 }}
+                        labelRender={(props) => {
+                            const conf = ORDER_STATUSES[props.value as OrderStatus];
+                            const bg = conf?.color === 'default' ? '#f0f0f0' : (conf?.color + '15');
+                            const fg = conf?.color || '#595959';
+                            const border = conf?.color || '#d9d9d9';
+
+                            return (
+                                <div
+                                    className={styles.statusTrigger}
+                                    style={{
+                                        backgroundColor: bg,
+                                        color: fg,
+                                        border: `1px solid ${border}`
+                                    }}
+                                >
+                                    {conf?.label || props.label}
+                                </div>
+                            );
                         }}
                     >
-                        {tag.name}
-                    </div>
-                ))}
+                        {SORTED_STATUS_OPTIONS.map(opt => (
+                            <Option key={opt.value} value={opt.value}>
+                                <Space>
+                                    <span style={{ color: opt.color }}>●</span>
+                                    {opt.label}
+                                </Space>
+                            </Option>
+                        ))}
+                    </Select>
+                </div>
             </div>
-        )
-    }
-
-    {/* Footer */ }
-    <div className={styles.footer}>
-        {/* Last Message */}
-        <div className={styles.lastMessage}>
-            <div className={styles.avatar}>
-                <UserOutlined style={{ fontSize: 10 }} />
-            </div>
-            <div className={styles.messageText}>
-                {order.last_message?.content || ''}
-            </div>
-        </div>
-
-        {/* Status Dropdown - kept lightweight using Ant Design Select but styled minimally */}
-        <div onClick={handleStatusClick} onMouseDown={handleStatusClick}>
-            <Select
-                size="small"
-                value={order.status}
-                onChange={(val) => onStatusChange?.(val)}
-                dropdownMatchSelectWidth={false}
-                bordered={false}
-                showArrow={false}
-                style={{ width: 'auto', minWidth: 20 }}
-                labelRender={(props) => {
-                    const conf = ORDER_STATUSES[props.value as OrderStatus];
-                    const bg = conf?.color === 'default' ? '#f0f0f0' : (conf?.color + '15');
-                    const fg = conf?.color || '#595959';
-                    const border = conf?.color || '#d9d9d9';
-
-                    return (
-                        <div
-                            className={styles.statusTrigger}
-                            style={{
-                                backgroundColor: bg,
-                                color: fg,
-                                border: `1px solid ${border}`
-                            }}
-                        >
-                            {conf?.label || props.label}
-                        </div>
-                    );
-                }}
-            >
-                {SORTED_STATUS_OPTIONS.map(opt => (
-                    <Option key={opt.value} value={opt.value}>
-                        <Space>
-                            <span style={{ color: opt.color }}>●</span>
-                            {opt.label}
-                        </Space>
-                    </Option>
-                ))}
-            </Select>
-        </div>
-    </div>
         </div >
     );
 });
