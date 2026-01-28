@@ -300,40 +300,52 @@ const SettingsPage: React.FC = () => {
             <div style={{ padding: isMobile ? 0 : '0 24px' }}>
               <Title level={4} style={{ fontSize: isMobile ? 18 : 20 }}>Уведомления</Title>
               <Space direction="vertical" style={{ width: '100%' }} size="middle">
-                <Card size="small" bordered={false} style={{ background: '#f5f5f5' }}>
-                  <Row justify="space-between" align="middle">
-                    <Col span={20}>
-                      <Text strong>Все уведомления</Text>
-                      <div style={{ fontSize: 12, color: '#666' }}>Звук и пуш для всех входящих</div>
-                    </Col>
-                    <Col>
-                      <Switch
-                        checked={notificationSettings.all_active}
-                        onChange={(checked) => handleNotificationChange('all_active', checked)}
-                      />
-                    </Col>
-                  </Row>
-                </Card>
 
-                <Card size="small" bordered={false} style={{ background: '#f5f5f5', opacity: notificationSettings.all_active ? 0.5 : 1, pointerEvents: notificationSettings.all_active ? 'none' : 'auto' }}>
+                <Card size="small" bordered={false} style={{ background: '#f5f5f5' }}>
                   <Space direction="vertical" style={{ width: '100%' }}>
-                    <Text strong>Фильтр по этапам</Text>
+                    <Text strong>Только мои уведомления</Text>
+                    <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
+                      Выберите этапы, за которые вы отвечаете. Если выбрано хотя бы одно значение, вы будете получать уведомления <b>только</b> о сообщениях в этих этапах. Глобальный переключатель ниже будет проигнорирован.
+                    </div>
                     <Select
                       mode="multiple"
                       style={{ width: '100%' }}
-                      placeholder="Выберите статусы..."
+                      placeholder="Выберите статусы (например, Неразобранное)..."
                       value={notificationSettings.statuses}
                       onChange={(vals) => handleNotificationChange('statuses', vals)}
                       options={Object.entries(ORDER_STATUSES).map(([key, val]) => ({
                         label: `${val.icon} ${val.label}`,
                         value: key
                       }))}
-                      disabled={notificationSettings.all_active}
                     />
                   </Space>
                 </Card>
 
                 <Card size="small" bordered={false} style={{ background: '#f5f5f5' }}>
+                  <Row justify="space-between" align="middle">
+                    <Col span={20}>
+                      <Text strong>Все уведомления</Text>
+                      <div style={{ fontSize: 12, color: '#666' }}>
+                        Включить уведомления обо <b>всех</b> сообщениях (если выше ничего не выбрано).
+                      </div>
+                    </Col>
+                    <Col>
+                      <Switch
+                        checked={notificationSettings.all_active}
+                        onChange={(checked) => handleNotificationChange('all_active', checked)}
+                        disabled={notificationSettings.statuses && notificationSettings.statuses.length > 0}
+                      />
+                    </Col>
+                  </Row>
+                  {notificationSettings.statuses && notificationSettings.statuses.length > 0 && (
+                    <div style={{ fontSize: 12, color: '#faad14', marginTop: 8 }}>
+                      * Отключено, так как активен фильтр "Только мои уведомления"
+                    </div>
+                  )}
+                </Card>
+
+                {/* Legacy or Future settings */}
+                <Card size="small" bordered={false} style={{ background: '#f5f5f5', display: 'none' }}>
                   <Row justify="space-between" align="middle">
                     <Col>
                       <Text strong>Обновления контактов</Text>
@@ -346,7 +358,6 @@ const SettingsPage: React.FC = () => {
                     </Col>
                   </Row>
                 </Card>
-                {/* More settings if needed */}
               </Space>
             </div>
           ),

@@ -176,23 +176,66 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       console.log('✅ Global socket connected for notifications');
     });
 
+    // Keep track of last played sound to debounce (double sound fix)
+    const lastSoundTimeRef = React.useRef(0);
+
     socketRef.current.on('new_message_global', (msg: any) => {
       console.log('📨 Global message received:', msg);
 
       // Logic for alerts
       if (!manager) return;
 
-      // Optimistically play sound if it might match (we'll refresh count anyway)
-      playAlertSound();
+      // 1. Read Settings locally (to be fresh)
+      let settings = { all_active: true, statuses: [] as string[] };
+      try {
+        const stored = localStorage.getItem(`crm_notification_settings_${manager.id}`);
+        if (stored) settings = JSON.parse(stored);
+      } catch (e) { console.error('Error parsing settings', e); }
 
-      // Refresh count from DB to be accurate
+      // 2. Determine if we should notify
+      // Don't notify for own messages (author_type !== Client is shaky, better check author)
+      const isClient = msg.author_type === 'Client' || msg.author_type === 'Клиент' || msg.author_type === 'client';
+      if (!isClient) return;
+
+      let shouldNotify = false;
+
+      // Priority 1: Status Filter
+      if (settings.statuses && settings.statuses.length > 0) {
+        if (settings.statuses.includes(msg.order_status)) {
+          shouldNotify = true;
+          console.log(`🔔 Notification allowed by Status Filter (${msg.order_status})`);
+        } else {
+          console.log(`🔕 Notification blocked by Status Filter (Msg Status: ${msg.order_status}, Allowed: ${settings.statuses})`);
+        }
+      }
+      // Priority 2: Global Switch (only if no specific status filter set)
+      else {
+        if (settings.all_active) {
+          shouldNotify = true;
+          console.log(`🔔 Notification allowed by Global Switch`);
+        } else {
+          console.log(`🔕 Notification blocked by Global Switch`);
+        }
+      }
+
+      // 3. Play Sound & Show Toast
+      if (shouldNotify) {
+        // Debounce sound: prevent playing twice within 500ms for same event
+        const now = Date.now();
+        if (now - lastSoundTimeRef.current > 500) {
+          playAlertSound();
+          lastSoundTimeRef.current = now;
+        }
+
+        notification.open({
+          message: 'Новое сообщение',
+          description: `От клиента. Статус: ${msg.order_status || '?'}.`,
+          duration: 3,
+        });
+      }
+
+      // Always Refresh count from DB to be accurate
       fetchUnreadCount();
-
-      notification.open({
-        message: 'Новое сообщение',
-        description: `От: ${msg.author_type || 'Клиента'}.`,
-        duration: 3,
-      });
     });
 
     return () => {

@@ -262,11 +262,17 @@ async function sendMessageToCRM(telegramUserId, content, telegramUserInfo = null
     if (req) {
       const io = req.app.get('io');
       if (io && savedMessage) {
+        // Prepare payload with order status for filtering
+        const socketPayload = {
+          ...savedMessage,
+          order_status: currentOrder ? currentOrder.status : 'unsorted'
+        };
+
         io.to(`order_${currentOrder.id}`).emit('new_client_message', savedMessage);
         // Legacy room support
         io.to(`lead_${linkId}`).emit('new_message', savedMessage);
-        // Global emit for Inbox
-        io.emit('new_message_global', savedMessage);
+        // Global emit for Inbox - WITH STATUS
+        io.emit('new_message_global', socketPayload);
         // Emit for specific contact
         io.emit('contact_message', { contact_id: contactId, message: savedMessage });
       }
