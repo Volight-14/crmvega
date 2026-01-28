@@ -452,7 +452,7 @@ const InboxPage: React.FC = () => {
                                 size="small"
                                 onClick={() => setShowUnreadOnly(!showUnreadOnly)}
                             >
-                                {showUnreadOnly ? 'Непрочитанные' : 'Все'}
+                                {showUnreadOnly ? 'Все' : 'Непрочитанные'}
                             </Button>
                         </div>
 
