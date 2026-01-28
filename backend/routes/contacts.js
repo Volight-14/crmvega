@@ -18,7 +18,7 @@ router.get('/', auth, async (req, res) => {
       .from('contacts')
       .select(`
         *,
-        manager:managers(name),
+        manager:managers!contacts_manager_id_fkey(name),
         tags:contact_tags(tag:tags(*))
       `)
       .order('created_at', { ascending: false })
@@ -113,7 +113,7 @@ router.get('/summary', auth, async (req, res) => {
     const contactIds = contacts.map(c => c.id);
     const { data: allOrders } = await supabase
       .from('orders')
-      .select('id, contact_id, main_id, created_at, status, manager:managers(name)')
+      .select('id, contact_id, main_id, created_at, status, manager:managers!deals_manager_id_fkey(name)')
       .in('contact_id', contactIds)
       .order('created_at', { ascending: false });
 
@@ -212,7 +212,7 @@ router.get('/:id', auth, async (req, res) => {
       .from('contacts')
       .select(`
         *,
-        manager:managers(name),
+        manager:managers!contacts_manager_id_fkey(name),
         tags:contact_tags(tag:tags(*))
       `);
 

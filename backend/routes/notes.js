@@ -17,7 +17,7 @@ router.get('/contact/:contactId', auth, async (req, res) => {
       .from('notes')
       .select(`
         *,
-        manager:managers(name)
+        manager:managers!notes_manager_id_fkey(name)
       `)
       .eq('contact_id', contactId)
       .order('created_at', { ascending: false });
@@ -58,7 +58,7 @@ router.get('/order/:orderId', auth, async (req, res) => {
       .from('notes')
       .select(`
         *,
-        manager:managers(name)
+        manager:managers!notes_manager_id_fkey(name)
       `)
       .eq('order_id', internalOrderId)
       .order('created_at', { ascending: false });
@@ -88,7 +88,7 @@ router.post('/', auth, async (req, res) => {
       })
       .select(`
         *,
-        manager:managers(name)
+        manager:managers!notes_manager_id_fkey(name)
       `)
       .single();
 

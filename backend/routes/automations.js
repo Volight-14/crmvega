@@ -17,7 +17,7 @@ router.get('/', auth, async (req, res) => {
       .from('automations')
       .select(`
         *,
-        manager:managers(name)
+        manager:managers!automations_manager_id_fkey(name)
       `)
       .order('created_at', { ascending: false });
 
@@ -45,7 +45,7 @@ router.get('/:id', auth, async (req, res) => {
       .from('automations')
       .select(`
         *,
-        manager:managers(name)
+        manager:managers!automations_manager_id_fkey(name)
       `)
       .eq('id', id)
       .single();
