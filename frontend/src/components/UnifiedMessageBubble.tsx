@@ -397,8 +397,8 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
                                 letterSpacing: '0.5px'
                             }}>
                                 {(() => {
-                                    // Use sender profile name if available, otherwise use snapshot name (user), fallback to 'Оператор'
-                                    const rawName = msg.sender?.name || msg.user || 'Оператор';
+                                    // User explicitly requested to use NAME (stored in msg.user) ONLY
+                                    const rawName = msg.user || 'Оператор';
                                     return rawName?.includes('@') ? rawName.split('@')[0] : rawName;
                                 })()}
                             </div>
