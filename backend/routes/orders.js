@@ -35,7 +35,7 @@ router.get('/', auth, async (req, res) => {
       // Минимальный режим для канбан-доски
       query = supabase
         .from('orders')
-        .select(`id, contact_id, "OrderName", "SumInput", "CurrPair1", status, created_at, main_id, "CityEsp02", "DeliveryTime", "NextDay", "SumOutput", "CurrPair2", contact:contacts(id, name)${tag_id ? ', order_tags!inner(tag_id)' : ''}`)
+        .select(`id, contact_id, "OrderName", "SumInput", "CurrPair1", status, created_at, main_id, "CityEsp02", "DeliveryTime", "NextDay", "SumOutput", "CurrPair2", contact:contacts(id, name), manager:managers!deals_manager_id_fkey(id, name)${tag_id ? ', order_tags!inner(tag_id)' : ''}`)
         .order('created_at', { ascending: false });
 
       // Apply range ONLY if limit is specified
@@ -49,7 +49,7 @@ router.get('/', auth, async (req, res) => {
         .select(`
           *,
           contact:contacts(id, name, email, phone),
-          manager:managers(id, name)${tag_id ? ', order_tags!inner(tag_id)' : ''}
+          manager:managers!deals_manager_id_fkey(id, name)${tag_id ? ', order_tags!inner(tag_id)' : ''}
         `)
         .order('created_at', { ascending: false });
 
