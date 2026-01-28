@@ -181,9 +181,9 @@ router.get('/', auth, async (req, res) => {
               .select('*')
               .in('main_id', mainIds.map(String)),
             supabase
-              .from('unread_client_consecutive_counts')
-              .select('*')
-              .in('main_id', mainIds.map(String))
+              .rpc('get_unread_client_counts', {
+                target_main_ids: mainIds.map(String)
+              })
           ]);
 
           const latestMessages = latestMsgResult.data || [];

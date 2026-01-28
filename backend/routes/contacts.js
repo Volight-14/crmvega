@@ -148,9 +148,9 @@ router.get('/summary', auth, async (req, res) => {
 
     // ОПТИМИЗАЦИЯ: Получаем количество непрочитанных (tail consecutive)
     const { data: unreadData } = await supabase
-      .from('unread_client_consecutive_counts')
-      .select('main_id, unread_count')
-      .in('main_id', allMainIds);
+      .rpc('get_unread_client_counts', {
+        target_main_ids: allMainIds.map(String)
+      });
 
     const unreadMap = {};
     unreadData?.forEach(item => {
