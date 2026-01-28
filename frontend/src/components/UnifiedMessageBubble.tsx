@@ -397,7 +397,7 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
                                 letterSpacing: '0.5px'
                             }}>
                                 {(() => {
-                                    const rawName = msg.user || msg.author_type;
+                                    const rawName = msg.sender?.name || msg.user || msg.author_type;
                                     return rawName?.includes('@') ? rawName.split('@')[0] : rawName;
                                 })()}
                             </div>
