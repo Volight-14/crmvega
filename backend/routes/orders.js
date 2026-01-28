@@ -114,6 +114,24 @@ router.get('/', auth, async (req, res) => {
       query = query.in('status', statuses);
     }
 
+    // Output amount range filter (SumOutput)
+    if (req.query.amountOutputMin) {
+      query = query.gte('SumOutput', parseFloat(req.query.amountOutputMin));
+    }
+    if (req.query.amountOutputMax) {
+      query = query.lte('SumOutput', parseFloat(req.query.amountOutputMax));
+    }
+
+    // Output currency filter (CurrPair2)
+    if (req.query.currencyOutput) {
+      query = query.eq('CurrPair2', req.query.currencyOutput);
+    }
+
+    // Location filter (CityEsp02)
+    if (req.query.location) {
+      query = query.ilike('CityEsp02', `%${req.query.location}%`);
+    }
+
     const { data, error } = await query;
 
     if (error) throw error;

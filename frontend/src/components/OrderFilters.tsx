@@ -11,6 +11,7 @@ import {
     Divider,
     Row,
     Col,
+    Input,
 } from 'antd';
 import { FilterOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
@@ -79,6 +80,22 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
 
         if (values.currency) {
             filters.currency = values.currency;
+        }
+
+        if (values.amountOutputMin !== undefined && values.amountOutputMin !== null) {
+            filters.amountOutputMin = values.amountOutputMin;
+        }
+
+        if (values.amountOutputMax !== undefined && values.amountOutputMax !== null) {
+            filters.amountOutputMax = values.amountOutputMax;
+        }
+
+        if (values.currencyOutput) {
+            filters.currencyOutput = values.currencyOutput;
+        }
+
+        if (values.location) {
+            filters.location = values.location;
         }
 
         if (values.sources && values.sources.length > 0) {
@@ -175,13 +192,45 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
                     </Space.Compact>
                 </Form.Item>
 
-                <Form.Item name="currency" label="Валюта">
+                <Form.Item name="currency" label="Валюта (отдает)">
                     <Select placeholder="Выберите валюту" allowClear>
                         <Option value="RUB">RUB (₽)</Option>
                         <Option value="EUR">EUR (€)</Option>
                         <Option value="USD">USD ($)</Option>
                         <Option value="USDT">USDT</Option>
                     </Select>
+                </Form.Item>
+
+                <Form.Item label="Клиент получает">
+                    <Space.Compact style={{ width: '100%' }}>
+                        <Form.Item name="amountOutputMin" noStyle>
+                            <InputNumber
+                                style={{ width: '50%' }}
+                                placeholder="Минимум"
+                                min={0}
+                            />
+                        </Form.Item>
+                        <Form.Item name="amountOutputMax" noStyle>
+                            <InputNumber
+                                style={{ width: '50%' }}
+                                placeholder="Максимум"
+                                min={0}
+                            />
+                        </Form.Item>
+                    </Space.Compact>
+                </Form.Item>
+
+                <Form.Item name="currencyOutput" label="Валюта (получает)">
+                    <Select placeholder="Выберите валюту" allowClear>
+                        <Option value="RUB">RUB (₽)</Option>
+                        <Option value="EUR">EUR (€)</Option>
+                        <Option value="USD">USD ($)</Option>
+                        <Option value="USDT">USDT</Option>
+                    </Select>
+                </Form.Item>
+
+                <Form.Item name="location" label="Геолокация">
+                    <Input placeholder="Город или страна" allowClear />
                 </Form.Item>
 
                 <Divider />

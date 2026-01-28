@@ -261,6 +261,10 @@ const OrdersPage: React.FC = () => {
         if (parsed.amountMin !== undefined) apiFilters.amountMin = parsed.amountMin;
         if (parsed.amountMax !== undefined) apiFilters.amountMax = parsed.amountMax;
         if (parsed.currency) apiFilters.currency = parsed.currency;
+        if (parsed.amountOutputMin !== undefined) apiFilters.amountOutputMin = parsed.amountOutputMin;
+        if (parsed.amountOutputMax !== undefined) apiFilters.amountOutputMax = parsed.amountOutputMax;
+        if (parsed.currencyOutput) apiFilters.currencyOutput = parsed.currencyOutput;
+        if (parsed.location) apiFilters.location = parsed.location;
         if (parsed.sources?.length > 0) apiFilters.sources = parsed.sources;
         if (parsed.closedBy) apiFilters.closedBy = parsed.closedBy;
         if (parsed.statuses?.length > 0) apiFilters.statuses = parsed.statuses;
