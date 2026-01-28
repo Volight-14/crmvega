@@ -25,6 +25,7 @@ interface OrderFiltersProps {
     onClose: () => void;
     onApply: (filters: any) => void;
     managers?: Array<{ id: number; name: string }>;
+    tags?: Array<{ id: number; name: string; color?: string }>;
 }
 
 const STORAGE_KEY = 'crm_order_filters';
@@ -34,6 +35,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
     onClose,
     onApply,
     managers = [],
+    tags = [],
 }) => {
     const [form] = Form.useForm();
 
@@ -108,6 +110,10 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
 
         if (values.statuses && values.statuses.length > 0) {
             filters.statuses = values.statuses;
+        }
+
+        if (values.tags && values.tags.length > 0) {
+            filters.tags = values.tags;
         }
 
         // Save to localStorage
@@ -267,6 +273,22 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
                         options={Object.entries(ORDER_STATUSES).map(([key, val]) => ({
                             label: `${val.icon} ${val.label}`,
                             value: key,
+                        }))}
+                    />
+                </Form.Item>
+
+                <Form.Item name="tags" label="Теги">
+                    <Select
+                        mode="multiple"
+                        placeholder="Выберите теги"
+                        allowClear
+                        showSearch
+                        filterOption={(input, option) =>
+                            (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                        }
+                        options={tags.map((tag) => ({
+                            label: tag.name,
+                            value: tag.id,
                         }))}
                     />
                 </Form.Item>

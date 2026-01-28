@@ -268,6 +268,7 @@ const OrdersPage: React.FC = () => {
         if (parsed.sources?.length > 0) apiFilters.sources = parsed.sources;
         if (parsed.closedBy) apiFilters.closedBy = parsed.closedBy;
         if (parsed.statuses?.length > 0) apiFilters.statuses = parsed.statuses;
+        if (parsed.tags?.length > 0) apiFilters.tags = parsed.tags;
 
         setFilters(apiFilters);
       }
@@ -1237,6 +1238,7 @@ const OrdersPage: React.FC = () => {
         onClose={() => setIsFiltersDrawerVisible(false)}
         onApply={(newFilters) => setFilters(newFilters)}
         managers={managers}
+        tags={allTags}
       />
     </div>
   );

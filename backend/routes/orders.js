@@ -136,14 +136,30 @@ router.get('/', auth, async (req, res) => {
 
     if (error) throw error;
 
-    // Преобразуем amount (из строки в число)
+    // Post-filter for tags (many-to-many relationship)
     let orders = data.map(order => ({
       ...order,
-      title: order.OrderName, // Alias for backward compatibility if useful
+      title: order.OrderName,
       amount: parseFloat(order.SumInput) || 0,
       currency: order.CurrPair1 || 'RUB',
-      description: order.Comment // Alias for backward compatibility
+      description: order.Comment
     }));
+
+    // Filter by tags if provided (after initial query)
+    if (req.query.tags) {
+      const tagsFilter = Array.isArray(req.query.tags)
+        ? req.query.tags.map(t => parseInt(t))
+        : req.query.tags.split(',').map(t => parseInt(t));
+
+      // Get order IDs that have ANY of the selected tags
+      const { data: orderTagsData } = await supabase
+        .from('order_tags')
+        .select('order_id')
+        .in('tag_id', tagsFilter);
+
+      const orderIdsWithTags = new Set(orderTagsData?.map(ot => ot.order_id) || []);
+      orders = orders.filter(order => orderIdsWithTags.has(order.id));
+    }
 
     // Для минимального режима (Канбан) подгружаем последние сообщения клиентов
     // Для минимального режима (Канбан) подгружаем последние сообщения клиентов
