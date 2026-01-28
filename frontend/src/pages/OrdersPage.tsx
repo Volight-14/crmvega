@@ -243,6 +243,44 @@ const OrdersPage: React.FC = () => {
   const [filters, setFilters] = useState<any>({});
   const [isFiltersDrawerVisible, setIsFiltersDrawerVisible] = useState(false);
 
+  // Load saved filters from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedFilters = localStorage.getItem('crm_order_filters');
+      if (savedFilters) {
+        const parsed = JSON.parse(savedFilters);
+
+        // Convert to API format
+        const apiFilters: any = {};
+
+        if (parsed.dateRange && parsed.dateRange[0] && parsed.dateRange[1]) {
+          apiFilters.dateFrom = new Date(parsed.dateRange[0]).toISOString();
+          apiFilters.dateTo = new Date(parsed.dateRange[1]).toISOString();
+        }
+
+        if (parsed.amountMin !== undefined) apiFilters.amountMin = parsed.amountMin;
+        if (parsed.amountMax !== undefined) apiFilters.amountMax = parsed.amountMax;
+        if (parsed.currency) apiFilters.currency = parsed.currency;
+        if (parsed.sources?.length > 0) apiFilters.sources = parsed.sources;
+        if (parsed.closedBy) apiFilters.closedBy = parsed.closedBy;
+        if (parsed.statuses?.length > 0) apiFilters.statuses = parsed.statuses;
+
+        setFilters(apiFilters);
+      }
+    } catch (e) {
+      console.error('Error loading saved filters:', e);
+    }
+  }, []);
+
+  const handleClearFilters = () => {
+    setFilters({});
+    try {
+      localStorage.removeItem('crm_order_filters');
+    } catch (e) {
+      console.error('Error clearing filters:', e);
+    }
+  };
+
   // Edit Contact state
   const [isEditContactModalVisible, setIsEditContactModalVisible] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
@@ -884,6 +922,15 @@ const OrdersPage: React.FC = () => {
               Фильтры
             </Button>
           </Badge>
+
+          {Object.keys(filters).length > 0 && (
+            <Button
+              onClick={handleClearFilters}
+              style={{ borderRadius: 8 }}
+            >
+              Сбросить фильтры
+            </Button>
+          )}
 
           <Button
             icon={<ReloadOutlined />}

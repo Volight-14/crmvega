@@ -26,6 +26,8 @@ interface OrderFiltersProps {
     managers?: Array<{ id: number; name: string }>;
 }
 
+const STORAGE_KEY = 'crm_order_filters';
+
 const OrderFilters: React.FC<OrderFiltersProps> = ({
     visible,
     onClose,
@@ -33,6 +35,28 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
     managers = [],
 }) => {
     const [form] = Form.useForm();
+
+    // Load saved filters on mount
+    React.useEffect(() => {
+        try {
+            const savedFilters = localStorage.getItem(STORAGE_KEY);
+            if (savedFilters) {
+                const parsed = JSON.parse(savedFilters);
+
+                // Convert date strings back to dayjs objects
+                if (parsed.dateRange) {
+                    parsed.dateRange = [
+                        dayjs(parsed.dateRange[0]),
+                        dayjs(parsed.dateRange[1])
+                    ];
+                }
+
+                form.setFieldsValue(parsed);
+            }
+        } catch (e) {
+            console.error('Error loading saved filters:', e);
+        }
+    }, [form]);
 
     const handleApply = () => {
         const values = form.getFieldsValue();
@@ -69,12 +93,27 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
             filters.statuses = values.statuses;
         }
 
+        // Save to localStorage
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(values));
+        } catch (e) {
+            console.error('Error saving filters:', e);
+        }
+
         onApply(filters);
         onClose();
     };
 
     const handleReset = () => {
         form.resetFields();
+
+        // Clear from localStorage
+        try {
+            localStorage.removeItem(STORAGE_KEY);
+        } catch (e) {
+            console.error('Error clearing filters:', e);
+        }
+
         onApply({});
         onClose();
     };
