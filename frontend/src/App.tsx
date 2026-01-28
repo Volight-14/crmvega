@@ -1,28 +1,44 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ConfigProvider } from 'antd';
+import { ConfigProvider, Spin } from 'antd';
 import ruRU from 'antd/locale/ru_RU';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import MainLayout from './components/MainLayout';
 import Login from './pages/Login';
 
-// import LeadDetail from './pages/LeadDetail'; // Deprecated
-import OrdersPage from './pages/OrdersPage';
-import ContactsPage from './pages/ContactsPage';
-import ContactDetailPage from './pages/ContactDetailPage';
-import OrderDetailPage from './pages/OrderDetailPage';
-import AnalyticsPage from './pages/AnalyticsPage';
-import AutomationPage from './pages/AutomationPage';
-import SettingsPage from './pages/SettingsPage';
-import AIAgentPage from './pages/AIAgentPage';
-import ResetPassword from './pages/ResetPassword';
-import InboxPage from './pages/InboxPage';
+// Lazy load all page components for better code splitting
+const OrdersPage = lazy(() => import('./pages/OrdersPage'));
+const ContactsPage = lazy(() => import('./pages/ContactsPage'));
+const ContactDetailPage = lazy(() => import('./pages/ContactDetailPage'));
+const OrderDetailPage = lazy(() => import('./pages/OrderDetailPage'));
+const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
+const AutomationPage = lazy(() => import('./pages/AutomationPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const AIAgentPage = lazy(() => import('./pages/AIAgentPage'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const InboxPage = lazy(() => import('./pages/InboxPage'));
+
+// Loading fallback component
+const PageLoader = () => (
+  <div style={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100vh',
+    background: '#f0f2f5'
+  }}>
+    <div style={{ textAlign: 'center' }}>
+      <Spin size="large" />
+      <div style={{ marginTop: 16, color: '#8c8c8c' }}>Загрузка...</div>
+    </div>
+  </div>
+);
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { manager, isLoading } = useAuth();
 
   if (isLoading) {
-    return <div>Загрузка...</div>;
+    return <PageLoader />;
   }
 
   return manager ? <MainLayout>{children}</MainLayout> : <Navigate to="/login" />;
@@ -31,17 +47,16 @@ const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 const AppRoutes: React.FC = () => {
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
-
-      {/* Deprecated legacy lead route */}
-      {/* <Route path="/lead/:id" element={<PrivateRoute><LeadDetail /></PrivateRoute>} /> */}
+      <Route path="/login" element={<Suspense fallback={<PageLoader />}><Login /></Suspense>} />
+      <Route path="/reset-password" element={<Suspense fallback={<PageLoader />}><ResetPassword /></Suspense>} />
 
       <Route
         path="/inbox"
         element={
           <PrivateRoute>
-            <InboxPage />
+            <Suspense fallback={<PageLoader />}>
+              <InboxPage />
+            </Suspense>
           </PrivateRoute>
         }
       />
@@ -50,7 +65,9 @@ const AppRoutes: React.FC = () => {
         path="/orders"
         element={
           <PrivateRoute>
-            <OrdersPage />
+            <Suspense fallback={<PageLoader />}>
+              <OrdersPage />
+            </Suspense>
           </PrivateRoute>
         }
       />
@@ -58,7 +75,9 @@ const AppRoutes: React.FC = () => {
         path="/contacts"
         element={
           <PrivateRoute>
-            <ContactsPage />
+            <Suspense fallback={<PageLoader />}>
+              <ContactsPage />
+            </Suspense>
           </PrivateRoute>
         }
       />
@@ -66,7 +85,9 @@ const AppRoutes: React.FC = () => {
         path="/contact/:id"
         element={
           <PrivateRoute>
-            <ContactDetailPage />
+            <Suspense fallback={<PageLoader />}>
+              <ContactDetailPage />
+            </Suspense>
           </PrivateRoute>
         }
       />
@@ -74,7 +95,9 @@ const AppRoutes: React.FC = () => {
         path="/order/:id"
         element={
           <PrivateRoute>
-            <OrderDetailPage />
+            <Suspense fallback={<PageLoader />}>
+              <OrderDetailPage />
+            </Suspense>
           </PrivateRoute>
         }
       />
@@ -82,7 +105,9 @@ const AppRoutes: React.FC = () => {
         path="/analytics"
         element={
           <PrivateRoute>
-            <AnalyticsPage />
+            <Suspense fallback={<PageLoader />}>
+              <AnalyticsPage />
+            </Suspense>
           </PrivateRoute>
         }
       />
@@ -90,7 +115,9 @@ const AppRoutes: React.FC = () => {
         path="/automation"
         element={
           <PrivateRoute>
-            <AutomationPage />
+            <Suspense fallback={<PageLoader />}>
+              <AutomationPage />
+            </Suspense>
           </PrivateRoute>
         }
       />
@@ -98,7 +125,9 @@ const AppRoutes: React.FC = () => {
         path="/settings"
         element={
           <PrivateRoute>
-            <SettingsPage />
+            <Suspense fallback={<PageLoader />}>
+              <SettingsPage />
+            </Suspense>
           </PrivateRoute>
         }
       />
@@ -106,7 +135,9 @@ const AppRoutes: React.FC = () => {
         path="/ai-agent"
         element={
           <PrivateRoute>
-            <AIAgentPage />
+            <Suspense fallback={<PageLoader />}>
+              <AIAgentPage />
+            </Suspense>
           </PrivateRoute>
         }
       />

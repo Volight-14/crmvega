@@ -10,5 +10,21 @@ export default defineConfig({
     },
     build: {
         outDir: 'build',
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    // Core vendor libraries
+                    'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+                    // Large UI library
+                    'vendor-antd': ['antd'],
+                    // DnD libraries
+                    'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable'],
+                    // Socket.io
+                    'vendor-socket': ['socket.io-client'],
+                },
+            },
+        },
+        // Increase chunk size warning limit to 1000 kB since we're splitting properly
+        chunkSizeWarningLimit: 1000,
     },
 });
