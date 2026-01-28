@@ -277,17 +277,28 @@ router.post('/contact/:contactId', auth, async (req, res) => {
       });
     }
 
+    // Get fresh manager info
+    const { data: managerData } = await supabase
+      .from('managers')
+      .select('name, email')
+      .eq('id', req.manager.id)
+      .single();
+
+    const senderName = managerData?.name || req.manager.name;
+    const senderEmail = managerData?.email || req.manager.email;
+
     // Создаем сообщение
     const { data: message, error: messageError } = await supabase
       .from('messages')
       .insert({
         main_id: leadId,
         content,
-        author_type: sender_type === 'user' ? 'user' : 'Менеджер',
+        author_type: senderName || (sender_type === 'user' ? 'user' : 'Менеджер'),
         status: messageStatus,
         error_message: errorMessage,
         message_id_tg: telegramMessageId,
         'Created Date': new Date().toISOString(),
+        user: senderName || senderEmail,
       })
       .select(`*`)
       .single();

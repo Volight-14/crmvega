@@ -161,6 +161,16 @@ router.post('/:orderId/client', auth, async (req, res) => {
       }
     }
 
+    // Get fresh manager info
+    const { data: managerData } = await supabase
+      .from('managers')
+      .select('name, email')
+      .eq('id', req.manager.id)
+      .single();
+
+    const senderName = managerData?.name || req.manager.name;
+    const senderEmail = managerData?.email || req.manager.email;
+
     // Сохраняем сообщение в базе
     const { data: message, error: messageError } = await supabase
       .from('messages')
@@ -168,12 +178,12 @@ router.post('/:orderId/client', auth, async (req, res) => {
         lead_id: order.main_id, // Backward compatibility if needed, using main_id value
         main_id: order.main_id,
         content: content.trim(),
-        author_type: req.manager.name || 'Оператор',
+        author_type: senderName || 'Оператор',
         message_type: 'text',
         message_id_tg: telegramMessageId,
         reply_to_mess_id_tg: reply_to_message_id || null,
         'Created Date': new Date().toISOString(),
-        user: req.manager.name || req.manager.email,
+        user: senderName || senderEmail,
       })
       .select()
       .single();
