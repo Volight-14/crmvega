@@ -136,16 +136,8 @@ router.get('/', auth, async (req, res) => {
 
     if (error) throw error;
 
-    // Post-filter for tags (many-to-many relationship)
-    let orders = data.map(order => ({
-      ...order,
-      title: order.OrderName,
-      amount: parseFloat(order.SumInput) || 0,
-      currency: order.CurrPair1 || 'RUB',
-      description: order.Comment
-    }));
-
-    // Filter by tags if provided (after initial query)
+    // Filter by tags if provided (many-to-many relationship) - BEFORE mapping
+    let filteredData = data;
     if (req.query.tags) {
       const tagsFilter = Array.isArray(req.query.tags)
         ? req.query.tags.map(t => parseInt(t))
@@ -158,8 +150,17 @@ router.get('/', auth, async (req, res) => {
         .in('tag_id', tagsFilter);
 
       const orderIdsWithTags = new Set(orderTagsData?.map(ot => ot.order_id) || []);
-      orders = orders.filter(order => orderIdsWithTags.has(order.id));
+      filteredData = data.filter(order => orderIdsWithTags.has(order.id));
     }
+
+    // Преобразуем amount (из строки в число)
+    let orders = filteredData.map(order => ({
+      ...order,
+      title: order.OrderName,
+      amount: parseFloat(order.SumInput) || 0,
+      currency: order.CurrPair1 || 'RUB',
+      description: order.Comment
+    }));
 
     // Для минимального режима (Канбан) подгружаем последние сообщения клиентов
     // Для минимального режима (Канбан) подгружаем последние сообщения клиентов
