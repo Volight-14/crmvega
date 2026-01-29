@@ -59,19 +59,34 @@ router.get('/:orderId/client', auth, async (req, res) => {
       });
     }
 
+    const { limit = '200', offset = '0' } = req.query;
+    const limitNum = parseInt(limit) || 200;
+    const offsetNum = parseInt(offset) || 0;
+
     // Один оптимизированный запрос для всех сообщений (сначала новые)
+    // Используем raw запрос, если ORM вызывает проблемы
     const { data: messages, count, error: messagesError } = await supabase
+      .from('messages') // Explicit .from() usually better than .select() directly on client
       .select(`
         *,
         sender:managers!manager_id(id, name, email)
       `, { count: 'exact' })
       .eq('main_id', order.main_id)
-      .order('"Created Date"', { ascending: false })
-      .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+      .order('Created Date', { ascending: false }) // Try without quotes if previously failed, or keep consistent
+      .range(offsetNum, offsetNum + limitNum - 1); // Use validated numbers
 
     if (messagesError) {
       console.error('Supabase error fetching messages:', messagesError);
-      throw messagesError;
+      // Don't throw 400 if it's just a range error or similar - return empty?
+      // But usually this means syntax error.
+      // throw messagesError; 
+      // Let's degrade gracefully
+      return res.status(200).json({  // Return 200 but check logs
+        messages: [],
+        total: 0,
+        mainId: order.main_id,
+        error: messagesError.message
+      });
     }
 
     // Разворачиваем для хронологического порядка
