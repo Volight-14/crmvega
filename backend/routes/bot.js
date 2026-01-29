@@ -458,21 +458,21 @@ router.post('/webhook', async (req, res) => {
 
       console.log(`[bot.js] Received callback_query: "${messageText}" from user ${telegramUserId}`);
 
-      // Отправляем как сообщение в CRM
-      // Используем sendMessageToCRM, чтобы оно появилось в чате как сообщение от клиента
-      await sendMessageToCRM(telegramUserId, messageText, telegramUserInfo, req);
-
-      // Отвечаем на callback_query, чтобы убрать часики
+      // 1. Сразу отвечаем Telegram, чтобы убрать часики (UX)
       const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
       if (TELEGRAM_BOT_TOKEN) {
-        try {
-          const axios = require('axios');
-          await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-            callback_query_id: callbackQuery.id
-          });
-        } catch (e) {
-          console.error('Error answering callback query:', e.message);
-        }
+        // Не ждем завершения (fire and forget), но логируем ошибку
+        const axios = require('axios');
+        axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+          callback_query_id: callbackQuery.id
+        }).catch(err => console.error('[bot.js] Error answering callback:', err.message));
+      }
+
+      // 2. Отправляем сообщение в CRM
+      try {
+        await sendMessageToCRM(telegramUserId, messageText, telegramUserInfo, req);
+      } catch (err) {
+        console.error('[bot.js] Error processing callback message to CRM:', err);
       }
     }
 
