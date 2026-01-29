@@ -34,9 +34,21 @@ router.get('/:orderId/client', auth, async (req, res) => {
       .from('orders')
       .select('id, main_id')
       .eq('id', orderId)
-      .single();
+      .maybeSingle();
 
-    if (orderError) throw orderError;
+    if (orderError) {
+      console.error('Supabase error fetching order:', orderError);
+      throw orderError;
+    }
+
+    if (!order) {
+      console.warn(`Order ${orderId} not found`);
+      return res.json({
+        messages: [],
+        total: 0,
+        mainId: null,
+      });
+    }
 
     // Если нет main_id - нет сообщений
     if (!order.main_id) {
@@ -57,7 +69,10 @@ router.get('/:orderId/client', auth, async (req, res) => {
       .order('"Created Date"', { ascending: false })
       .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
-    if (messagesError) throw messagesError;
+    if (messagesError) {
+      console.error('Supabase error fetching messages:', messagesError);
+      throw messagesError;
+    }
 
     // Разворачиваем для хронологического порядка
     const sortedMessages = (messages || []).reverse();
@@ -66,10 +81,11 @@ router.get('/:orderId/client', auth, async (req, res) => {
       messages: sortedMessages,
       total: count || 0,
       mainId: order.main_id,
+      debug_time: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error fetching order client messages:', error);
-    res.status(400).json({ error: error.message });
+    console.error('Error fetching order client messages [FULL]:', error);
+    res.status(400).json({ error: error.message || 'Unknown error', details: error });
   }
 });
 
