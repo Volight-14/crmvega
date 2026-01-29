@@ -486,7 +486,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                             onChange={handleFileChange}
                         />
 
-                        {onSendFile && !selectedFile && (
+                        {!selectedFile && (
                             <Button
                                 icon={<PaperClipOutlined />}
                                 shape="circle"

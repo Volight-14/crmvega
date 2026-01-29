@@ -117,11 +117,47 @@ router.post('/:orderId/client', auth, async (req, res) => {
         // Импортируем функцию экранирования
         const { escapeMarkdownV2 } = require('./bot');
 
+        // Logic to support JSON content (text + buttons)
+        let messageText = content;
+        let replyMarkup = null;
+
+        if (content && content.trim().startsWith('{')) {
+          try {
+            const parsed = JSON.parse(content);
+            if (parsed.text || parsed.buttons) {
+              messageText = parsed.text || ''; // Use parsed text for Telegram
+
+              if (parsed.buttons && Array.isArray(parsed.buttons) && parsed.buttons.length > 0) {
+                const inlineKeyboard = parsed.buttons.map(btn => {
+                  if (btn.type === 'url' && btn.url) {
+                    return { text: btn.text, url: btn.url };
+                  }
+                  // default to callback_data
+                  return { text: btn.text, callback_data: btn.text.substring(0, 64) };
+                });
+                replyMarkup = { inline_keyboard: inlineKeyboard.map(b => [b]) }; // One button per row
+              }
+            }
+          } catch (e) {
+            // Ignore parse error, treat as raw text
+          }
+        }
+
+        if (!messageText.trim()) {
+          // Fallback if parsing resulted in empty text but buttons exist? 
+          // Telegram requires text.
+          if (replyMarkup) messageText = 'Сообщение';
+        }
+
         const telegramPayload = {
           chat_id: telegramUserId,
-          text: escapeMarkdownV2(content),
+          text: escapeMarkdownV2(messageText),
           parse_mode: 'MarkdownV2', // Включаем поддержку Markdown
         };
+
+        if (replyMarkup) {
+          telegramPayload.reply_markup = replyMarkup;
+        }
 
         if (reply_to_message_id) {
           telegramPayload.reply_to_message_id = reply_to_message_id;
@@ -139,10 +175,35 @@ router.post('/:orderId/client', auth, async (req, res) => {
         if (tgError.response?.data?.description?.includes('parse')) {
           try {
             console.log('[orderMessages] Retrying without MarkdownV2 due to parse error');
+
+            // Re-calculate messageText and markup for retry (scope is tricky, let's just copy logic or rely on variables)
+            // Variables messageText and replyMarkup are available here
+
+            // Need to re-parse matching logic if I want to use messageText correctly? 
+            // Actually messageText is already derived above.
+
+            // Logic to support JSON content (text + buttons) AGAIN for context? No, variables are available.
+            let retryText = content; // Default
+            let retryMarkup = null;
+
+            if (content && content.trim().startsWith('{')) {
+              try {
+                const parsed = JSON.parse(content);
+                if (parsed.text) retryText = parsed.text;
+                // Re-construct markup if needed, or just use replyMarkup variable
+                // replyMarkup variable is accessible
+                retryMarkup = replyMarkup; // Use previously calculated markup
+              } catch (e) { }
+            }
+
             const telegramPayload = {
               chat_id: telegramUserId,
-              text: content, // Отправляем оригинальный текст без экранирования
+              text: retryText, // Отправляем текст без экранирования
             };
+
+            if (retryMarkup) {
+              telegramPayload.reply_markup = retryMarkup;
+            }
 
             if (reply_to_message_id) {
               telegramPayload.reply_to_message_id = reply_to_message_id;
