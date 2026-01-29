@@ -160,26 +160,29 @@ router.post('/:orderId/client', auth, async (req, res) => {
               // Intelligent Keyboard Switching
               const urlButtons = parsed.buttons.filter(b => b.type === 'url');
               const actionButtons = parsed.buttons.filter(b => b.type !== 'url');
+              let secondaryMarkup = null;
 
-              // If we have "action" buttons (quick_reply), we MUST use Reply Keyboard for Bubble compatibility
+              // 1. Handle URL Buttons (Always Inline)
+              if (urlButtons.length > 0) {
+                const inlineKeyboard = urlButtons.map(b => ({ text: b.text, url: b.url }));
+                replyMarkup = { inline_keyboard: inlineKeyboard.map(b => [b]) };
+              }
+
+              // 2. Handle Action Buttons (Always Reply Keyboard for Bubble)
               if (actionButtons.length > 0) {
                 const keyboardRows = actionButtons.map(b => [{ text: b.text }]);
-                replyMarkup = {
+                const actionMarkup = {
                   keyboard: keyboardRows,
                   resize_keyboard: true,
                   one_time_keyboard: true
                 };
 
-                // If we also had URL buttons, we can't hide them, so we append them to text
-                if (urlButtons.length > 0) {
-                  const linksText = urlButtons.map(b => `${b.text}: ${b.url}`).join('\n');
-                  messageText += (messageText ? '\n\n' : '') + linksText;
+                // If we ALREADY have replyMarkup (for URLs), we need a secondary message for actions
+                if (replyMarkup) {
+                  secondaryMarkup = actionMarkup;
+                } else {
+                  replyMarkup = actionMarkup;
                 }
-              }
-              // If ONLY URL buttons, we can use Inline Keyboard (Telegram handles this fine usually, even with basic webhooks)
-              else if (urlButtons.length > 0) {
-                const inlineKeyboard = urlButtons.map(b => ({ text: b.text, url: b.url }));
-                replyMarkup = { inline_keyboard: inlineKeyboard.map(b => [b]) };
               }
             }
           } catch (e) {
@@ -191,7 +194,7 @@ router.post('/:orderId/client', auth, async (req, res) => {
           if (replyMarkup) messageText = 'Сообщение';
         }
 
-        // Apply escaping AFTER modifying messageText (e.g. appending links)
+        // Apply escaping AFTER modifying messageText
         const escapedText = escapeMarkdownV2(messageText);
 
         const telegramPayload = {
@@ -213,6 +216,23 @@ router.post('/:orderId/client', auth, async (req, res) => {
           telegramPayload
         );
         telegramMessageId = response.data?.result?.message_id;
+
+        // Send Secondary Message (Actions) if needed
+        if (typeof secondaryMarkup !== 'undefined' && secondaryMarkup) {
+          try {
+            await axios.post(
+              `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+              {
+                chat_id: telegramUserId,
+                text: escapeMarkdownV2('Выберите действие:'),
+                parse_mode: 'MarkdownV2',
+                reply_markup: secondaryMarkup
+              }
+            );
+          } catch (secErr) {
+            console.error('Error sending secondary action menu:', secErr.message);
+          }
+        }
       } catch (tgError) {
         console.error('Telegram send error:', tgError.response?.data || tgError.message);
 
