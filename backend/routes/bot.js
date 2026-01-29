@@ -449,6 +449,33 @@ router.post('/webhook', async (req, res) => {
       }
     }
 
+    // Обработка callback_query (нажатие на инлайн-кнопки)
+    if (update.callback_query) {
+      const callbackQuery = update.callback_query;
+      const telegramUserId = callbackQuery.from.id;
+      const messageText = callbackQuery.data;
+      const telegramUserInfo = callbackQuery.from;
+
+      console.log(`[bot.js] Received callback_query: "${messageText}" from user ${telegramUserId}`);
+
+      // Отправляем как сообщение в CRM
+      // Используем sendMessageToCRM, чтобы оно появилось в чате как сообщение от клиента
+      await sendMessageToCRM(telegramUserId, messageText, telegramUserInfo, req);
+
+      // Отвечаем на callback_query, чтобы убрать часики
+      const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+      if (TELEGRAM_BOT_TOKEN) {
+        try {
+          const axios = require('axios');
+          await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+            callback_query_id: callbackQuery.id
+          });
+        } catch (e) {
+          console.error('Error answering callback query:', e.message);
+        }
+      }
+    }
+
     // Обработка реакций на сообщения
     if (update.message_reaction) {
       const reaction = update.message_reaction;
