@@ -4,44 +4,6 @@ const auth = require('../middleware/auth');
 
 const router = express.Router();
 
-// DEBUG ENDPOINT
-router.get('/debug-status', async (req, res) => {
-  try {
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-    if (!token) return res.json({ error: 'No token' });
-    const axios = require('axios');
-    const response = await axios.get(`https://api.telegram.org/bot${token}/getWebhookInfo`);
-    res.json(response.data);
-  } catch (e) {
-    res.json({ error: e.message, data: e.response?.data });
-  }
-});
-
-// FIX WEBHOOK ENDPOINT
-router.get('/fix-webhook', async (req, res) => {
-  try {
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-    if (!token) return res.json({ error: 'No token' });
-
-    // Hardcoded correct backend URL based on verification
-    const webhookUrl = 'https://crmvega-g766.onrender.com/api/bot/webhook';
-
-    const axios = require('axios');
-    const response = await axios.post(`https://api.telegram.org/bot${token}/setWebhook`, {
-      url: webhookUrl,
-      allowed_updates: ["message", "edited_message", "callback_query", "message_reaction"]
-    });
-
-    res.json({
-      success: true,
-      result: response.data,
-      new_url: webhookUrl
-    });
-  } catch (e) {
-    res.json({ error: e.message, data: e.response?.data });
-  }
-});
-
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
@@ -515,13 +477,9 @@ router.post('/webhook', async (req, res) => {
 
       // 2. Отправляем сообщение в CRM
       try {
-        const leadId = await sendMessageToCRM(telegramUserId, messageText, telegramUserInfo, req);
-        console.log(`[bot.js] Callback processed. Result LeadID: ${leadId}`);
-        if (!leadId) {
-          console.error('[bot.js] sendMessageToCRM returned null leadId for callback');
-        }
+        await sendMessageToCRM(telegramUserId, messageText, telegramUserInfo, req);
       } catch (err) {
-        console.error('[bot.js] Error processing callback message to CRM:', err);
+        console.error('[bot.js] CRM processing error:', err.message);
       }
     }
 
