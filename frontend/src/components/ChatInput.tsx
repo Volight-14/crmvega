@@ -293,6 +293,25 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         }
     };
 
+    // Helper to parse template content for preview
+    const getTemplatePreview = (content?: string) => {
+        if (!content) return '';
+        try {
+            const parsed = JSON.parse(content);
+            // Check if it's our structured format
+            if (parsed.text !== undefined || parsed.attachments !== undefined || parsed.buttons !== undefined) {
+                const parts = [];
+                if (parsed.attachments?.length) parts.push('📎');
+                if (parsed.buttons?.length) parts.push('🔘');
+                if (parsed.text) parts.push(parsed.text);
+                return parts.join(' ') || 'Пустой шаблон';
+            }
+            return content;
+        } catch {
+            return content;
+        }
+    };
+
     // --- Render ---
     return (
         <div style={{
@@ -334,7 +353,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                         >
                             <div style={{ fontWeight: 500 }}>{t.title}</div>
                             <div style={{ fontSize: 11, color: '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {t.content?.slice(0, 50)}
+                                {getTemplatePreview(t.content).slice(0, 50)}
                             </div>
                         </div>
                     ))}
