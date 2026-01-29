@@ -466,6 +466,12 @@ router.post('/webhook', async (req, res) => {
         axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
           callback_query_id: callbackQuery.id
         }).catch(err => console.error('[bot.js] Error answering callback:', err.message));
+
+        // NEW: Echo button text back to chat
+        axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          chat_id: telegramUserId,
+          text: messageText
+        }).catch(err => console.error('[bot.js] Error echoing callback:', err.message));
       }
 
       // 2. Отправляем сообщение в CRM
