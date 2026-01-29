@@ -319,6 +319,27 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
         return null;
     };
 
+    const parseContent = (content: string) => {
+        try {
+            // If content looks like JSON
+            if (content.trim().startsWith('{') && content.trim().endsWith('}')) {
+                const parsed = JSON.parse(content);
+                if (parsed && (parsed.text !== undefined || parsed.buttons !== undefined)) {
+                    return {
+                        text: parsed.text || '',
+                        buttons: parsed.buttons || [],
+                        isJson: true
+                    };
+                }
+            }
+        } catch (e) {
+            // ignore
+        }
+        return { text: content, buttons: [], isJson: false };
+    };
+
+    const { text: displayText, buttons: displayButtons } = msg.content ? parseContent(msg.content) : { text: '', buttons: [] };
+
     return (
         <div style={{
             display: 'flex',
@@ -345,7 +366,10 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
                 }}>
                     <RollbackOutlined style={{ fontSize: 10 }} />
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        В ответ на: {replyMessage.content || 'Вложение'}
+                        {(() => {
+                            const repContent = replyMessage.content ? parseContent(replyMessage.content).text : '';
+                            return repContent || 'Вложение';
+                        })()}
                     </span>
                 </div>
             )}
@@ -406,7 +430,7 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
 
                         {renderAttachment()}
 
-                        {msg.content && (
+                        {displayText && (
                             <div style={{
                                 fontSize: 14,
                                 lineHeight: '1.5',
@@ -414,7 +438,23 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
                                 wordBreak: 'break-word',
                                 marginTop: msg.file_url ? 8 : 0
                             }}>
-                                {linkifyText(msg.content)}
+                                {linkifyText(displayText)}
+                            </div>
+                        )}
+
+                        {displayButtons && displayButtons.length > 0 && (
+                            <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4, opacity: 0.8 }}>
+                                {displayButtons.map((btn: any, idx: number) => (
+                                    <div key={idx} style={{
+                                        fontSize: 10,
+                                        padding: '2px 8px',
+                                        borderRadius: 4,
+                                        background: 'rgba(0,0,0,0.1)',
+                                        border: '1px solid rgba(0,0,0,0.1)'
+                                    }}>
+                                        [{btn.text}]
+                                    </div>
+                                ))}
                             </div>
                         )}
 

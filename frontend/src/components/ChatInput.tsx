@@ -10,39 +10,46 @@ import {
 import { formatDuration } from '../utils/chatUtils';
 import { templatesAPI } from '../services/api';
 import { WebsiteContent } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 const { TextArea } = Input;
 const { Text } = Typography;
 
 interface ChatInputProps {
-    onSendText: (text: string) => Promise<void> | void;
-    onSendVoice: (voice: Blob, duration: number) => Promise<void> | void;
-    sending: boolean;
+    onSendText: (text: string) => Promise<void>;
+    onSendVoice: (voice: Blob, duration: number) => Promise<void>;
+    onSendFile: (file: File, caption?: string) => Promise<void>;
     onTyping?: () => void;
-    onSendFile?: (file: File, caption?: string) => Promise<void> | void;
+    sending?: boolean;
+    replacements?: Record<string, string>;
 }
 
-export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, sending, onTyping, onSendFile }) => {
+export const ChatInput: React.FC<ChatInputProps> = ({
+    onSendText,
+    onSendVoice,
+    onSendFile,
+    onTyping,
+    sending = false,
+    replacements = {}
+}) => {
+    const { manager } = useAuth();
     const [messageInput, setMessageInput] = useState('');
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
-    // File/Image Preview State
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-
-    // Voice Recording State
     const [isRecording, setIsRecording] = useState(false);
+    const [recordingDuration, setRecordingDuration] = useState(0);
     const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null);
     const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
-    const [recordingDuration, setRecordingDuration] = useState(0);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
     const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
     // Template State
     const [templates, setTemplates] = useState<WebsiteContent[]>([]);
     const [showTemplates, setShowTemplates] = useState(false);
     const [filteredTemplates, setFilteredTemplates] = useState<WebsiteContent[]>([]);
+    const [templateButtons, setTemplateButtons] = useState<any[]>([]);
 
     useEffect(() => {
         templatesAPI.getAll().then(setTemplates).catch(console.error);
@@ -52,6 +59,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
         const val = e.target.value;
         setMessageInput(val);
         if (onTyping) onTyping();
+
+        // Clear buttons if input is cleared completely?
+        // Or keep them until manually cleared? Let's keep for now but maybe show indicator.
+        if (!val) setTemplateButtons([]);
 
         const slashIndex = val.lastIndexOf('/');
         if (slashIndex !== -1) {
@@ -71,12 +82,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
 
         let contentText = '';
         let attachments: any[] = [];
+        let buttons: any[] = [];
 
         try {
             const parsed = JSON.parse(template.content || '{}');
-            if (parsed.text !== undefined || parsed.attachments !== undefined) {
+            if (parsed.text !== undefined || parsed.attachments !== undefined || parsed.buttons !== undefined) {
                 contentText = parsed.text || '';
                 attachments = parsed.attachments || [];
+                buttons = parsed.buttons || [];
             } else {
                 contentText = template.content || '';
             }
@@ -84,7 +97,17 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
             contentText = template.content || '';
         }
 
+        // Apply replacements
+        if (replacements) {
+            Object.entries(replacements).forEach(([key, value]) => {
+                // Escape key for regex
+                const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                contentText = contentText.replace(new RegExp(escapedKey, 'g'), value);
+            });
+        }
+
         setMessageInput(prefix + contentText);
+        setTemplateButtons(buttons);
 
         if (attachments.length > 0) {
             const att = attachments[0];
@@ -112,7 +135,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
         }
     }, [audioPreviewUrl, previewUrl]);
 
-    // --- Voice Logic ---
+    // --- Voice Logic (unchanged) ---
     const startRecording = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -174,7 +197,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
         }
     };
 
-    // --- File & Paste Logic ---
+    // --- File & Paste Logic (unchanged) ---
     const handleFileSelect = (file: File) => {
         if (previewUrl) URL.revokeObjectURL(previewUrl);
         setSelectedFile(file);
@@ -219,9 +242,23 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
         // If file exists, send file with text as caption
         if (selectedFile && onSendFile) {
             try {
-                await onSendFile(selectedFile, messageInput.trim() || undefined);
+                // If buttons exist, we might just append them as JSON text? 
+                // Currently sendFile API handles text as caption. 
+                // Backend might not parse JSON in caption. 
+                // Let's assume buttons are mostly for text messages for now.
+                // Or try to wrap:
+                let caption = messageInput.trim();
+                if (templateButtons.length > 0) {
+                    // For file caption, probably keep it simple or user didn't ask for buttons on images specifically
+                    // But to be consistent:
+                    // caption = JSON.stringify({ text: caption, buttons: templateButtons });
+                    // Let's skip buttons for file/image uploads for safety unless requested
+                }
+
+                await onSendFile(selectedFile, caption || undefined);
                 clearFile();
                 setMessageInput('');
+                setTemplateButtons([]);
             } catch (error) {
                 console.error('Failed to send file:', error);
                 antMessage.error('Ошибка отправки файла');
@@ -229,11 +266,17 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendText, onSendVoice, s
             return;
         }
 
-        // If no file, send text normally
+        // If no file, send text 
         if (messageInput.trim()) {
             try {
-                await onSendText(messageInput);
+                let contentToSend = messageInput;
+                if (templateButtons.length > 0) {
+                    contentToSend = JSON.stringify({ text: messageInput, buttons: templateButtons });
+                }
+
+                await onSendText(contentToSend);
                 setMessageInput('');
+                setTemplateButtons([]);
             } catch (e) {
                 console.error('Failed to send text:', e);
             }

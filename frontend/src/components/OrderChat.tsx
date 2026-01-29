@@ -10,8 +10,8 @@ import {
   UserOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
-import { Message, InternalMessage } from '../types';
-import { orderMessagesAPI, messagesAPI } from '../services/api';
+import { Message, InternalMessage, Order } from '../types';
+import { orderMessagesAPI, messagesAPI, ordersAPI } from '../services/api'; // Ensure ordersAPI is imported
 import { useAuth } from '../contexts/AuthContext';
 import io from 'socket.io-client';
 import { UnifiedMessageBubble } from './UnifiedMessageBubble';
@@ -53,6 +53,7 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName, isMobile = 
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [order, setOrder] = useState<Order | null>(null);
 
   const [totalClientMessages, setTotalClientMessages] = useState(0);
   const [totalInternalMessages, setTotalInternalMessages] = useState(0);
@@ -69,6 +70,29 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName, isMobile = 
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
   }, []);
+
+  const fetchOrder = useCallback(async () => {
+    try {
+      const data = await ordersAPI.getById(orderId);
+      setOrder(data);
+    } catch (e) {
+      console.error("Failed to fetch order", e);
+    }
+  }, [orderId]);
+
+  useEffect(() => {
+    fetchOrder();
+  }, [fetchOrder]);
+
+  const replacements = order ? {
+    '[Клиент отдает]': order.SumInput ? String(order.SumInput) : '',
+    '[Отдает в валюте]': order.CurrPair1 || '',
+    '[Отправляет из банка]': order.BankRus01 || order.BankEsp || '',
+    '[Город РФ где отдает]': order.CityRus01 || order.CityEsp01 || '',
+    '[Сеть с какой отправляет USDT]': order.NetworkUSDT01 || '',
+    '[Оплата сейчас или при встрече?]': order.PayNow || '',
+    '[Клиент получает]': order.SumOutput ? String(order.SumOutput) : ''
+  } : {};
 
   // Fetching logic
   const fetchClientMessages = useCallback(async (loadMore = false) => {
@@ -548,10 +572,10 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName, isMobile = 
         onSendVoice={handleSendVoice}
         onSendFile={handleSendFile}
         sending={sending}
+        replacements={replacements}
       />
     </div>
   );
-
 };
 
 export default OrderChat;
