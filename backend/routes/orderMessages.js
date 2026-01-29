@@ -157,171 +157,185 @@ router.post('/:orderId/client', auth, async (req, res) => {
             if (parsed.text || parsed.buttons) {
               messageText = parsed.text || ''; // Use parsed text for Telegram
 
-              if (parsed.buttons && Array.isArray(parsed.buttons) && parsed.buttons.length > 0) {
-                const inlineKeyboard = parsed.buttons.map(btn => {
-                  if (btn.type === 'url' && btn.url) {
-                    return { text: btn.text, url: btn.url };
-                  }
-                  // default to callback_data
-                  // Safe substring to avoid exceeding 64 bytes and UTF-8 issues
-                  const safeCallback = btn.text.substring(0, 20);
-                  return { text: btn.text, callback_data: safeCallback };
-                });
-                replyMarkup = { inline_keyboard: inlineKeyboard.map(b => [b]) }; // One button per row
+              // Intelligent Keyboard Switching
+              const urlButtons = parsed.buttons.filter(b => b.type === 'url');
+              const actionButtons = parsed.buttons.filter(b => b.type !== 'url');
+
+              // If we have "action" buttons (quick_reply), we MUST use Reply Keyboard for Bubble compatibility
+              if (actionButtons.length > 0) {
+                const keyboardRows = actionButtons.map(b => [{ text: b.text }]);
+                replyMarkup = {
+                  keyboard: keyboardRows,
+                  resize_keyboard: true,
+                  one_time_keyboard: true
+                };
+
+                // If we also had URL buttons, we can't hide them, so we append them to text
+                if (urlButtons.length > 0) {
+                  const linksText = urlButtons.map(b => `${b.text}: ${b.url}`).join('\n');
+                  messageText += (messageText ? '\n\n' : '') + linksText;
+                }
+              }
+              // If ONLY URL buttons, we can use Inline Keyboard (Telegram handles this fine usually, even with basic webhooks)
+              else if (urlButtons.length > 0) {
+                const inlineKeyboard = urlButtons.map(b => ({ text: b.text, url: b.url }));
+                replyMarkup = { inline_keyboard: inlineKeyboard.map(b => [b]) };
               }
             }
+          }
           } catch (e) {
-            // Ignore parse error, treat as raw text
-          }
-        }
-
-        if (!messageText.trim()) {
-          // Fallback if parsing resulted in empty text but buttons exist? 
-          // Telegram requires text.
-          if (replyMarkup) messageText = 'Сообщение';
-        }
-
-        const telegramPayload = {
-          chat_id: telegramUserId,
-          text: escapeMarkdownV2(messageText),
-          parse_mode: 'MarkdownV2', // Включаем поддержку Markdown
-        };
-
-        if (replyMarkup) {
-          telegramPayload.reply_markup = replyMarkup;
-        }
-
-        if (reply_to_message_id) {
-          telegramPayload.reply_to_message_id = reply_to_message_id;
-        }
-
-        const response = await axios.post(
-          `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
-          telegramPayload
-        );
-        telegramMessageId = response.data?.result?.message_id;
-      } catch (tgError) {
-        console.error('Telegram send error:', tgError.response?.data || tgError.message);
-
-        // Если ошибка связана с парсингом Markdown, пробуем отправить без форматирования
-        if (tgError.response?.data?.description?.includes('parse')) {
-          try {
-            console.log('[orderMessages] Retrying without MarkdownV2 due to parse error');
-
-            // Logic to support JSON content (text + buttons)
-            let retryText = content;
-            let retryMarkup = null;
-
-            if (content && content.trim().startsWith('{')) {
-              try {
-                const parsed = JSON.parse(content);
-                if (parsed.text) retryText = parsed.text;
-                // Note: accessing "replyMarkup" variable from outer scope if defined...
-                // But in this catch block, try to reconstruct or use safe defaults
-                // Actually, "replyMarkup" was calculated in the try block above. 
-                // Let's re-calculate to be safe or assuming "replyMarkup" is available if we use let replyMarkup = null at top.
-                // Actually, scopes: replyMarkup is defined in the outer try block? No, I defined it inside "if (TELEGRAM_BOT_TOKEN) { try { ..."
-                // Wait, in my previous edit, I defined "let replyMarkup = null" INSIDE "try { ... }".
-                // Then used it.
-                // If error happens, I am in "catch".
-                // Creating "retryMarkup" again is correct.
-                // But I need to extract buttons again.
-                if (parsed.buttons && Array.isArray(parsed.buttons) && parsed.buttons.length > 0) {
-                  const inlineKeyboard = parsed.buttons.map(btn => {
-                    if (btn.type === 'url' && btn.url) return { text: btn.text, url: btn.url };
-                    return { text: btn.text, callback_data: btn.text.substring(0, 20) };
-                  });
-                  retryMarkup = { inline_keyboard: inlineKeyboard.map(b => [b]) };
-                }
-              } catch (e) { }
-            }
-
-            const telegramPayload = {
-              chat_id: telegramUserId,
-              text: retryText, // Отправляем текст без экранирования
-            };
-
-            if (retryMarkup) {
-              telegramPayload.reply_markup = retryMarkup;
-            }
-
-            if (reply_to_message_id) {
-              telegramPayload.reply_to_message_id = reply_to_message_id;
-            }
-
-            const response = await axios.post(
-              `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
-              telegramPayload
-            );
-            telegramMessageId = response.data?.result?.message_id;
-          } catch (retryError) {
-            console.error('Retry send error:', retryError.response?.data || retryError.message);
-            // proceed to Save DB (don't return error)
-            // return res.status(400).json({ error: 'Ошибка отправки в Telegram: ' + (retryError.response?.data?.description || retryError.message) });
-          }
-        } else {
-          console.error('Telegram non-parse error, proceeding to DB save.');
-          // proceed to Save DB (don't return error)
-          // return res.status(400).json({ error: 'Ошибка отправки в Telegram: ' + (tgError.response?.data?.description || tgError.message) });
+          // Ignore parse error, treat as raw text
         }
       }
+
+        if (!messageText.trim()) {
+        if (replyMarkup) messageText = 'Сообщение';
+      }
+
+      // Apply escaping AFTER modifying messageText (e.g. appending links)
+      const escapedText = escapeMarkdownV2(messageText);
+
+      const telegramPayload = {
+        chat_id: telegramUserId,
+        text: escapedText,
+        parse_mode: 'MarkdownV2',
+      };
+
+      if (replyMarkup) {
+        telegramPayload.reply_markup = replyMarkup;
+      }
+
+      if (reply_to_message_id) {
+        telegramPayload.reply_to_message_id = reply_to_message_id;
+      }
+
+      const response = await axios.post(
+        `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+        telegramPayload
+      );
+      telegramMessageId = response.data?.result?.message_id;
+    } catch (tgError) {
+      console.error('Telegram send error:', tgError.response?.data || tgError.message);
+
+      // Если ошибка связана с парсингом Markdown, пробуем отправить без форматирования
+      if (tgError.response?.data?.description?.includes('parse')) {
+        try {
+          console.log('[orderMessages] Retrying without MarkdownV2 due to parse error');
+
+          // Logic to support JSON content (text + buttons)
+          let retryText = content;
+          let retryMarkup = null;
+
+          if (content && content.trim().startsWith('{')) {
+            try {
+              const parsed = JSON.parse(content);
+              if (parsed.text) retryText = parsed.text;
+              // Note: accessing "replyMarkup" variable from outer scope if defined...
+              // But in this catch block, try to reconstruct or use safe defaults
+              // Actually, "replyMarkup" was calculated in the try block above. 
+              // Let's re-calculate to be safe or assuming "replyMarkup" is available if we use let replyMarkup = null at top.
+              // Actually, scopes: replyMarkup is defined in the outer try block? No, I defined it inside "if (TELEGRAM_BOT_TOKEN) { try { ..."
+              // Wait, in my previous edit, I defined "let replyMarkup = null" INSIDE "try { ... }".
+              // Then used it.
+              // If error happens, I am in "catch".
+              // Creating "retryMarkup" again is correct.
+              // But I need to extract buttons again.
+              if (parsed.buttons && Array.isArray(parsed.buttons) && parsed.buttons.length > 0) {
+                const inlineKeyboard = parsed.buttons.map(btn => {
+                  if (btn.type === 'url' && btn.url) return { text: btn.text, url: btn.url };
+                  return { text: btn.text, callback_data: btn.text.substring(0, 20) };
+                });
+                retryMarkup = { inline_keyboard: inlineKeyboard.map(b => [b]) };
+              }
+            } catch (e) { }
+          }
+
+          const telegramPayload = {
+            chat_id: telegramUserId,
+            text: retryText, // Отправляем текст без экранирования
+          };
+
+          if (retryMarkup) {
+            telegramPayload.reply_markup = retryMarkup;
+          }
+
+          if (reply_to_message_id) {
+            telegramPayload.reply_to_message_id = reply_to_message_id;
+          }
+
+          const response = await axios.post(
+            `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+            telegramPayload
+          );
+          telegramMessageId = response.data?.result?.message_id;
+        } catch (retryError) {
+          console.error('Retry send error:', retryError.response?.data || retryError.message);
+          // proceed to Save DB (don't return error)
+          // return res.status(400).json({ error: 'Ошибка отправки в Telegram: ' + (retryError.response?.data?.description || retryError.message) });
+        }
+      } else {
+        console.error('Telegram non-parse error, proceeding to DB save.');
+        // proceed to Save DB (don't return error)
+        // return res.status(400).json({ error: 'Ошибка отправки в Telegram: ' + (tgError.response?.data?.description || tgError.message) });
+      }
     }
+  }
 
     // Get fresh manager info
     const { data: managerData } = await supabase
-      .from('managers')
-      .select('name, email')
-      .eq('id', req.manager.id)
-      .single();
+    .from('managers')
+    .select('name, email')
+    .eq('id', req.manager.id)
+    .single();
 
-    const senderName = managerData?.name || req.manager.name;
-    const senderEmail = managerData?.email || req.manager.email;
+  const senderName = managerData?.name || req.manager.name;
+  const senderEmail = managerData?.email || req.manager.email;
 
-    // Сохраняем сообщение в базе
-    const { data: message, error: messageError } = await supabase
-      .from('messages')
-      .insert({
-        lead_id: order.main_id, // Backward compatibility if needed, using main_id value
-        main_id: order.main_id,
-        content: content.trim(),
-        author_type: senderName || 'Оператор',
-        message_type: 'text',
-        message_id_tg: telegramMessageId,
-        reply_to_mess_id_tg: reply_to_message_id || null,
-        'Created Date': new Date().toISOString(),
-        user: senderName || senderEmail,
-        manager_id: req.manager.id
-      })
-      .select(`
+  // Сохраняем сообщение в базе
+  const { data: message, error: messageError } = await supabase
+    .from('messages')
+    .insert({
+      lead_id: order.main_id, // Backward compatibility if needed, using main_id value
+      main_id: order.main_id,
+      content: content.trim(),
+      author_type: senderName || 'Оператор',
+      message_type: 'text',
+      message_id_tg: telegramMessageId,
+      reply_to_mess_id_tg: reply_to_message_id || null,
+      'Created Date': new Date().toISOString(),
+      user: senderName || senderEmail,
+      manager_id: req.manager.id
+    })
+    .select(`
         *,
         sender:managers!manager_id(id, name, email)
       `)
-      .single();
+    .single();
 
-    if (messageError) throw messageError;
+  if (messageError) throw messageError;
 
-    // Связываем сообщение с заявкой
-    await supabase
-      .from('order_messages')
-      .upsert({
-        order_id: parseInt(orderId),
-        message_id: message.id,
-      }, { onConflict: 'order_id,message_id' });
+  // Связываем сообщение с заявкой
+  await supabase
+    .from('order_messages')
+    .upsert({
+      order_id: parseInt(orderId),
+      message_id: message.id,
+    }, { onConflict: 'order_id,message_id' });
 
-    // Socket.IO уведомление
-    const io = req.app.get('io');
-    if (io) {
-      io.to(`order_${orderId}`).emit('new_client_message', message);
-      if (order.main_id) {
-        io.to(`lead_${order.main_id}`).emit('new_message', message);
-      }
+  // Socket.IO уведомление
+  const io = req.app.get('io');
+  if (io) {
+    io.to(`order_${orderId}`).emit('new_client_message', message);
+    if (order.main_id) {
+      io.to(`lead_${order.main_id}`).emit('new_message', message);
     }
-
-    res.json(message);
-  } catch (error) {
-    console.error('Error sending client message:', error);
-    res.status(400).json({ error: error.message });
   }
+
+  res.json(message);
+} catch (error) {
+  console.error('Error sending client message:', error);
+  res.status(400).json({ error: error.message });
+}
 });
 
 // Отметить сообщения клиента как прочитанные
