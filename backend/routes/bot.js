@@ -470,7 +470,11 @@ router.post('/webhook', async (req, res) => {
 
       // 2. Отправляем сообщение в CRM
       try {
-        await sendMessageToCRM(telegramUserId, messageText, telegramUserInfo, req);
+        const leadId = await sendMessageToCRM(telegramUserId, messageText, telegramUserInfo, req);
+        console.log(`[bot.js] Callback processed. Result LeadID: ${leadId}`);
+        if (!leadId) {
+          console.error('[bot.js] sendMessageToCRM returned null leadId for callback');
+        }
       } catch (err) {
         console.error('[bot.js] Error processing callback message to CRM:', err);
       }
