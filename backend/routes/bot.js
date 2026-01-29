@@ -3,6 +3,20 @@ const { createClient } = require('@supabase/supabase-js');
 const auth = require('../middleware/auth');
 
 const router = express.Router();
+
+// DEBUG ENDPOINT
+router.get('/debug-status', async (req, res) => {
+  try {
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    if (!token) return res.json({ error: 'No token' });
+    const axios = require('axios');
+    const response = await axios.get(`https://api.telegram.org/bot${token}/getWebhookInfo`);
+    res.json(response.data);
+  } catch (e) {
+    res.json({ error: e.message, data: e.response?.data });
+  }
+});
+
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
