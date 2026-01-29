@@ -59,7 +59,6 @@ router.get('/:orderId/client', auth, async (req, res) => {
       });
     }
 
-    const { limit = '200', offset = '0' } = req.query;
     const limitNum = parseInt(limit) || 200;
     const offsetNum = parseInt(offset) || 0;
 
