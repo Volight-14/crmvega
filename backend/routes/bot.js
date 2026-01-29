@@ -17,6 +17,31 @@ router.get('/debug-status', async (req, res) => {
   }
 });
 
+// FIX WEBHOOK ENDPOINT
+router.get('/fix-webhook', async (req, res) => {
+  try {
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    if (!token) return res.json({ error: 'No token' });
+
+    // Hardcoded correct backend URL based on verification
+    const webhookUrl = 'https://crmvega-g766.onrender.com/api/bot/webhook';
+
+    const axios = require('axios');
+    const response = await axios.post(`https://api.telegram.org/bot${token}/setWebhook`, {
+      url: webhookUrl,
+      allowed_updates: ["message", "edited_message", "callback_query", "message_reaction"]
+    });
+
+    res.json({
+      success: true,
+      result: response.data,
+      new_url: webhookUrl
+    });
+  } catch (e) {
+    res.json({ error: e.message, data: e.response?.data });
+  }
+});
+
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
