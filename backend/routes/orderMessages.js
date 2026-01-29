@@ -133,7 +133,9 @@ router.post('/:orderId/client', auth, async (req, res) => {
                     return { text: btn.text, url: btn.url };
                   }
                   // default to callback_data
-                  return { text: btn.text, callback_data: btn.text.substring(0, 64) };
+                  // Safe substring to avoid exceeding 64 bytes and UTF-8 issues
+                  const safeCallback = btn.text.substring(0, 20);
+                  return { text: btn.text, callback_data: safeCallback };
                 });
                 replyMarkup = { inline_keyboard: inlineKeyboard.map(b => [b]) }; // One button per row
               }
@@ -176,23 +178,31 @@ router.post('/:orderId/client', auth, async (req, res) => {
           try {
             console.log('[orderMessages] Retrying without MarkdownV2 due to parse error');
 
-            // Re-calculate messageText and markup for retry (scope is tricky, let's just copy logic or rely on variables)
-            // Variables messageText and replyMarkup are available here
-
-            // Need to re-parse matching logic if I want to use messageText correctly? 
-            // Actually messageText is already derived above.
-
-            // Logic to support JSON content (text + buttons) AGAIN for context? No, variables are available.
-            let retryText = content; // Default
+            // Logic to support JSON content (text + buttons)
+            let retryText = content;
             let retryMarkup = null;
 
             if (content && content.trim().startsWith('{')) {
               try {
                 const parsed = JSON.parse(content);
                 if (parsed.text) retryText = parsed.text;
-                // Re-construct markup if needed, or just use replyMarkup variable
-                // replyMarkup variable is accessible
-                retryMarkup = replyMarkup; // Use previously calculated markup
+                // Note: accessing "replyMarkup" variable from outer scope if defined...
+                // But in this catch block, try to reconstruct or use safe defaults
+                // Actually, "replyMarkup" was calculated in the try block above. 
+                // Let's re-calculate to be safe or assuming "replyMarkup" is available if we use let replyMarkup = null at top.
+                // Actually, scopes: replyMarkup is defined in the outer try block? No, I defined it inside "if (TELEGRAM_BOT_TOKEN) { try { ..."
+                // Wait, in my previous edit, I defined "let replyMarkup = null" INSIDE "try { ... }".
+                // Then used it.
+                // If error happens, I am in "catch".
+                // Creating "retryMarkup" again is correct.
+                // But I need to extract buttons again.
+                if (parsed.buttons && Array.isArray(parsed.buttons) && parsed.buttons.length > 0) {
+                  const inlineKeyboard = parsed.buttons.map(btn => {
+                    if (btn.type === 'url' && btn.url) return { text: btn.text, url: btn.url };
+                    return { text: btn.text, callback_data: btn.text.substring(0, 20) };
+                  });
+                  retryMarkup = { inline_keyboard: inlineKeyboard.map(b => [b]) };
+                }
               } catch (e) { }
             }
 
@@ -216,10 +226,13 @@ router.post('/:orderId/client', auth, async (req, res) => {
             telegramMessageId = response.data?.result?.message_id;
           } catch (retryError) {
             console.error('Retry send error:', retryError.response?.data || retryError.message);
-            return res.status(400).json({ error: 'Ошибка отправки в Telegram: ' + (retryError.response?.data?.description || retryError.message) });
+            // proceed to Save DB (don't return error)
+            // return res.status(400).json({ error: 'Ошибка отправки в Telegram: ' + (retryError.response?.data?.description || retryError.message) });
           }
         } else {
-          return res.status(400).json({ error: 'Ошибка отправки в Telegram: ' + (tgError.response?.data?.description || tgError.message) });
+          console.error('Telegram non-parse error, proceeding to DB save.');
+          // proceed to Save DB (don't return error)
+          // return res.status(400).json({ error: 'Ошибка отправки в Telegram: ' + (tgError.response?.data?.description || tgError.message) });
         }
       }
     }
