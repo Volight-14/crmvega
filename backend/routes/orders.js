@@ -265,8 +265,10 @@ router.get('/unread-count', auth, async (req, res) => {
       .from('messages')
       .select('main_id')
       .neq('status', 'read') // Предполагаем, что прочитанные помечены как 'read'
-      .or('author_type.eq.user,author_type.eq.customer,author_type.eq.client,author_type.eq.Client,author_type.eq.Клиент') // Отфильтровываем сообщения менеджеров
-      .not('main_id', 'is', null);
+      .in('author_type', ['user', 'customer', 'client', 'Client', 'Клиент']) // Use .in() for cleaner URL
+      .not('main_id', 'is', null)
+      .order('id', { ascending: false }) // Get latest messages first
+      .limit(500); // Limit data size to prevent HeadersOverflowError and performance issues
 
     if (msgError) throw msgError;
 
