@@ -30,20 +30,22 @@ const json5Parser = (req, res, next) => {
       // JSON5 handles unquoted alphanumeric keys, but unquoted values like `no` might be seen as strings or variables?
       // JSON5 spec: unquoted values are NOT allowed unless they are true/false/null/Infinity/NaN. 
       // Bubble sends `key: no` -> This is INVALID even in JSON5.
-      
+
       // Let's try a quick patch for the "no/yes" boolean issue specifically, then retry JSON5
       try {
-         const patched = req.body
-            .replace(/:\s*no\b/g, ': false')
-            .replace(/:\s*yes\b/g, ': true');
-         
-         req.body = json5.parse(patched);
-         console.log('[JSON5] Parsed after simple boolean patch');
-         return next();
+        const patched = req.body
+          .replace(/:\s*no\b/g, ': false')
+          .replace(/:\s*yes\b/g, ': true')
+          .replace(/:\s*нет\b/g, ': "нет"')
+          .replace(/:\s*да\b/g, ': "да"');
+
+        req.body = json5.parse(patched);
+        console.log('[JSON5] Parsed after simple boolean patch');
+        return next();
       } catch (err2) {
-          console.error('[JSON5] Formatting error:', err2.message);
-          // Don't error out here, let the next handlers deal with raw body or error
-          return next();
+        console.error('[JSON5] Formatting error:', err2.message);
+        // Don't error out here, let the next handlers deal with raw body or error
+        return next();
       }
     }
   }
