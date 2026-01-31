@@ -4,6 +4,8 @@ const auth = require('../middleware/auth');
 const multer = require('multer');
 const axios = require('axios');
 const FormData = require('form-data');
+const { notifyErrorSubscribers } = require('../utils/notifyError');
+const { convertToOgg } = require('../utils/audioConverter');
 
 const router = express.Router();
 const supabase = createClient(
@@ -141,6 +143,8 @@ router.post('/:orderId/client', auth, async (req, res) => {
     // Отправляем в Telegram
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
     let telegramMessageId = null;
+    let messageStatus = 'delivered';
+    let errorMessage = null;
 
     if (TELEGRAM_BOT_TOKEN) {
       try {
@@ -294,8 +298,18 @@ router.post('/:orderId/client', auth, async (req, res) => {
           }
         } else {
           console.error('Telegram non-parse error, proceeding to DB save.');
-          // proceed to Save DB (don't return error)
-          // return res.status(400).json({ error: 'Ошибка отправки в Telegram: ' + (tgError.response?.data?.description || tgError.message) });
+          const errorCode = tgError.response?.data?.error_code;
+          if (errorCode === 403) {
+            messageStatus = 'blocked';
+            errorMessage = 'Пользователь заблокировал бота';
+          } else if (errorCode === 400) {
+            messageStatus = 'deleted_chat';
+            errorMessage = 'Пользователь удалил чат с ботом';
+          } else {
+            messageStatus = 'error';
+            errorMessage = tgError.response?.data?.description || tgError.message;
+          }
+          notifyErrorSubscribers(`🔴 Ошибка отправки SMS (Order ${orderId}):\n${errorMessage}`);
         }
       }
     }
@@ -330,7 +344,10 @@ router.post('/:orderId/client', auth, async (req, res) => {
         reply_to_mess_id_tg: reply_to_message_id || null,
         'Created Date': new Date().toISOString(),
         user: safeUser,
-        manager_id: req.manager.id
+        user: safeUser,
+        manager_id: req.manager.id,
+        status: messageStatus,
+        error_message: errorMessage
       })
       .select(`
         *,
@@ -532,8 +549,6 @@ router.post('/:orderId/client/file', auth, upload.single('file'), async (req, re
   }
 });
 
-const { convertToOgg } = require('../utils/audioConverter');
-
 router.post('/:orderId/client/voice', auth, (req, res, next) => {
   // res.setHeader('X-App-Version', '2.2.0-ffmpeg'); // Optional: keep or remove
   upload.single('voice')(req, res, next);
@@ -581,6 +596,8 @@ router.post('/:orderId/client/voice', auth, (req, res, next) => {
     // 4. Send to Telegram
     let telegramMessageId = null;
     let telegramUserId = null;
+    let messageStatus = 'delivered';
+    let errorMessage = null;
 
     if (order.contact_id) {
       const { data: c } = await supabase.from('contacts').select('telegram_user_id').eq('id', order.contact_id).single();
@@ -604,7 +621,18 @@ router.post('/:orderId/client/voice', auth, (req, res, next) => {
         telegramMessageId = tgResponse.data?.result?.message_id;
       } catch (tgError) {
         console.error('[Voice] Telegram Error:', tgError.response?.data || tgError.message);
-        // Proceed anyway, we just want to log it
+        const errorCode = tgError.response?.data?.error_code;
+        if (errorCode === 403) {
+          messageStatus = 'blocked';
+          errorMessage = 'Пользователь заблокировал бота';
+        } else if (errorCode === 400) {
+          messageStatus = 'deleted_chat';
+          errorMessage = 'Пользователь удалил чат с ботом';
+        } else {
+          messageStatus = 'error';
+          errorMessage = tgError.response?.data?.description || tgError.message;
+        }
+        notifyErrorSubscribers(`🔴 Ошибка отправки Voice (Order ${orderId}):\n${errorMessage}`);
       }
     }
 
@@ -624,6 +652,8 @@ router.post('/:orderId/client/voice', auth, (req, res, next) => {
         voice_duration: duration ? parseInt(duration) : null,
         'Created Date': new Date().toISOString(),
         user: req.manager.name || req.manager.email,
+        status: messageStatus,
+        error_message: errorMessage
       })
       .select()
       .single();

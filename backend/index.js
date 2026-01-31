@@ -88,6 +88,7 @@ app.use('/api/webhook/bubble', require('./routes/bubble'));
 app.use('/api/order-messages', require('./routes/orderMessages')); // Renamed from deal-messages
 app.use('/api/tags', require('./routes/tags'));
 app.use('/api/upload', require('./routes/upload'));
+app.use('/api/error-bot', require('./routes/errorBot'));
 
 // Логирование всех зарегистрированных роутов
 console.log('✅ Routes registered:');

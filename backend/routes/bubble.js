@@ -3,6 +3,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { runAutomations } = require('../services/automationRunner');
 const { mapStatus } = require('../utils/statusMapping');
 const { uploadAvatarFromUrl, rehostFile } = require('../utils/storage');
+const { notifyErrorSubscribers } = require('../utils/notifyError');
 
 const router = express.Router();
 const supabase = createClient(
@@ -500,6 +501,7 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
 
   } catch (error) {
     console.error('Error creating order from Bubble:', error);
+    notifyErrorSubscribers(`🔴 Ошибка создания заявки из Bubble:\n${error.message}`);
     res.status(400).json({
       success: false,
       error: error.message
