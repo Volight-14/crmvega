@@ -82,43 +82,35 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       reply_to_mess_id_tg,
       caption,
       order_status,
-      main_ID, // Main linking key
-      telegram_user_id, // Added for fallback resolution
+      main_ID,
+      telegram_user_id,
       reactions,
+      file_url,
+      file_name
     } = req.body;
 
-    // Helper to sanitise BigInt inputs (remove decimals from Bubble timestamps)
     const sanitizeBigInt = (val) => {
-      if (val === null || val === undefined || val === 'null' || val === '') return null;
-      // If it looks like a float string "123.456", parseInt will take "123", which is what we want for BigInt
-      // We assume Bubble might send timestamp as 1234567890.123
+      if (!val) return null;
       const num = parseInt(val);
       return isNaN(num) ? null : String(num);
     };
 
-    // --- Fallback Logic for missing main_ID ---
-    let finalMainId = sanitizeBigInt(main_ID);
-    let finalContactId = null;
-    let finalOrderId = null; // Store Order ID for linking
-    let orderStatusFromDb = null;
-
-    // --- Helper Functions ---
     const cleanNull = (val) => {
-      if (val === null || val === undefined || val === 'null') return null;
+      if (val == null || val === 'null') return null;
       const str = String(val).trim();
       return str === 'null' || str === '' ? null : str;
     };
 
-    // --- Prepare Final Values ---
+    const finalMainId = sanitizeBigInt(main_ID);
     const finalContent = cleanNull(content);
-    // Extract file info if present in body (even if not verified in destructuring above)
-    const { file_url, file_name } = req.body;
     const finalFileUrl = cleanNull(file_url);
     const finalFileName = cleanNull(file_name);
     const finalReactions = reactions;
+    let finalOrderId = null;
+    let finalContactId = null;
+    let orderStatusFromDb = null;
 
-    // Normalize Author Type
-    let normalizedAuthorType = 'client'; // default
+    let normalizedAuthorType = 'client';
     if (author_type) {
       const lower = String(author_type).toLowerCase();
       if (lower.includes('manager') || lower.includes('менеджер')) normalizedAuthorType = 'manager';
@@ -126,27 +118,21 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       else normalizedAuthorType = lower;
     }
 
-    // Determine Message Type
     let finalMessageType = message_type || 'text';
     if (finalFileUrl && (!message_type || message_type === 'text')) {
       finalMessageType = 'file';
     }
 
-    // --- Fallback Logic for missing main_ID ---
     if (!finalMainId && telegram_user_id) {
-      // Try to find an active order/contact for this telegram user?
-      // For now, logging warning as we lack context to fully restore complex logic blindly
-      console.warn('[Bubble] received message without main_ID, telegram_user_id provided:', telegram_user_id);
-      // Future improvement: Lookup contact by telegram_id -> set finalMainId
+      console.warn('[Bubble] message no main_ID', telegram_user_id);
     }
 
-    // Prepare message content (safe fallback)
-    const safeContent = finalContent || '';
+    const safeContent = (finalContent === 'null' || !finalContent) ? '' : finalContent;
 
     const messageData = {
       lead_id: sanitizeBigInt(lead_id) || (finalMainId ? String(finalMainId).trim() : null),
-      main_id: finalMainId, // Already sanitized
-      content: (finalContent === 'null' || !finalContent) ? '' : finalContent,
+      main_id: finalMainId,
+      content: safeContent,
       'Created Date': createdDate || new Date().toISOString(),
       author_type: normalizedAuthorType,
       message_type: finalMessageType,
@@ -159,7 +145,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       user: cleanNull(user),
       reply_to_mess_id_tg: sanitizeBigInt(reply_to_mess_id_tg),
       caption: cleanNull(caption),
-      order_status: order_status || orderStatusFromDb || null,
+      order_status: order_status || null,
       file_url: finalFileUrl,
       file_name: finalFileName,
       ...(finalReactions !== undefined && { reactions: finalReactions }),
@@ -251,6 +237,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
     res.json({ success: true, data: result });
   } catch (error) {
     console.error('Error creating/updating message from Bubble:', error);
+    notifyErrorSubscribers(`🔴 Ошибка обработки сообщения из Bubble:\n${error.message}`);
     res.status(400).json({
       success: false,
       error: error.message,
