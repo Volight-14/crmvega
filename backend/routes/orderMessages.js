@@ -419,36 +419,52 @@ router.post('/:orderId/client/file', auth, upload.single('file'), async (req, re
     const { orderId } = req.params;
     const { caption, reply_to_message_id } = req.body;
 
+    console.log(`[OrderMessages File] Starting file upload for order ${orderId}`);
+    console.log(`[OrderMessages File] File received:`, {
+      originalname: req.file?.originalname,
+      mimetype: req.file?.mimetype,
+      size: req.file?.size
+    });
+
     if (!req.file) {
+      console.error('[OrderMessages File] No file in request');
       return res.status(400).json({ error: 'Файл не загружен' });
     }
 
     // Получаем заявку
+    console.log(`[OrderMessages File] Fetching order ${orderId}...`);
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .select('id, contact_id, main_id')
       .eq('id', orderId)
       .single();
 
-    if (orderError) throw orderError;
+    if (orderError) {
+      console.error('[OrderMessages File] Order fetch error:', orderError);
+      throw orderError;
+    }
+    console.log(`[OrderMessages File] Order found:`, { id: order.id, contact_id: order.contact_id, main_id: order.main_id });
 
     let telegramUserId = null;
 
     if (order.contact_id) {
+      console.log(`[OrderMessages File] Fetching contact ${order.contact_id}...`);
       const { data: contact } = await supabase
         .from('contacts')
         .select('telegram_user_id')
         .eq('id', order.contact_id)
         .single();
       telegramUserId = contact?.telegram_user_id;
+      console.log(`[OrderMessages File] Contact TG ID:`, telegramUserId);
     }
 
     if (!telegramUserId) {
+      console.error('[OrderMessages File] No Telegram ID found for contact');
       return res.status(400).json({ error: 'Не найден Telegram ID клиента' });
     }
 
     // Загружаем файл в Supabase Storage
-    // Sanitize filename for storage and DB to avoid encoding issues
+    console.log(`[OrderMessages File] Uploading to Supabase Storage...`);
     const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
     const ext = originalName.split('.').pop();
     const fileName = `${Date.now()}_file.${ext}`;
@@ -461,14 +477,17 @@ router.post('/:orderId/client/file', auth, upload.single('file'), async (req, re
       });
 
     if (uploadError) {
-      console.error('Storage upload error:', uploadError);
+      console.error('[OrderMessages File] ❌ Storage upload error:', uploadError);
+      throw new Error(`Storage upload failed: ${uploadError.message}`);
     }
+    console.log(`[OrderMessages File] ✅ File uploaded to storage: ${filePath}`);
 
     const { data: urlData } = supabase.storage
       .from('attachments')
       .getPublicUrl(filePath);
 
     const fileUrl = urlData?.publicUrl;
+    console.log(`[OrderMessages File] Public URL:`, fileUrl);
 
     // Отправляем в Telegram
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -476,10 +495,10 @@ router.post('/:orderId/client/file', auth, upload.single('file'), async (req, re
 
     if (TELEGRAM_BOT_TOKEN) {
       try {
+        console.log(`[OrderMessages File] Sending to Telegram user ${telegramUserId}...`);
         const formData = new FormData();
         formData.append('chat_id', telegramUserId);
 
-        // Ensure filename is handled correctly by formData
         const fileOptions = {
           filename: originalName,
           contentType: req.file.mimetype,
@@ -500,9 +519,12 @@ router.post('/:orderId/client/file', auth, upload.single('file'), async (req, re
           { headers: formData.getHeaders() }
         );
         telegramMessageId = response.data?.result?.message_id;
+        console.log(`[OrderMessages File] ✅ Sent to Telegram, message_id: ${telegramMessageId}`);
       } catch (tgError) {
-        console.error('Telegram file send error:', tgError.response?.data || tgError.message);
-        return res.status(400).json({ error: 'Ошибка отправки файла в Telegram' });
+        console.error('[OrderMessages File] ❌ Telegram send error:', tgError.response?.data || tgError.message);
+        // Don't return here - we still want to save to DB even if TG fails
+        // But we'll note the error
+        console.warn('[OrderMessages File] Continuing to save in DB despite TG error...');
       }
     }
 
@@ -510,26 +532,36 @@ router.post('/:orderId/client/file', auth, upload.single('file'), async (req, re
     const storeLeadId = order.main_id || order.lead_id;
 
     // Сохраняем сообщение
+    console.log(`[OrderMessages File] Saving message to DB...`);
+    const messagePayload = {
+      lead_id: storeLeadId,
+      main_id: order.main_id,
+      content: caption ? caption.trim() : '',
+      author_type: req.manager.name || 'Оператор',
+      message_type: 'file',
+      message_id_tg: telegramMessageId,
+      reply_to_mess_id_tg: reply_to_message_id || null,
+      file_url: fileUrl,
+      file_name: originalName,
+      'Created Date': new Date().toISOString(),
+      user: req.manager.name || req.manager.email,
+    };
+    console.log(`[OrderMessages File] Message payload:`, messagePayload);
+
     const { data: message, error: messageError } = await supabase
       .from('messages')
-      .insert({
-        lead_id: storeLeadId,
-        main_id: order.main_id,
-        content: caption ? caption.trim() : '', // Avoid duplicate filename in content
-        author_type: req.manager.name || 'Оператор',
-        message_type: 'file',
-        message_id_tg: telegramMessageId,
-        reply_to_mess_id_tg: reply_to_message_id || null,
-        file_url: fileUrl,
-        file_name: originalName,
-        'Created Date': new Date().toISOString(),
-        user: req.manager.name || req.manager.email,
-      })
+      .insert(messagePayload)
       .select()
       .single();
 
-    if (messageError) throw messageError;
+    if (messageError) {
+      console.error('[OrderMessages File] ❌ DB insert error:', messageError);
+      console.error('[OrderMessages File] Error details:', JSON.stringify(messageError, null, 2));
+      throw messageError;
+    }
+    console.log(`[OrderMessages File] ✅ Message saved to DB, id: ${message.id}`);
 
+    console.log(`[OrderMessages File] Linking message to order...`);
     await supabase
       .from('order_messages')
       .upsert({
@@ -540,11 +572,14 @@ router.post('/:orderId/client/file', auth, upload.single('file'), async (req, re
     const io = req.app.get('io');
     if (io) {
       io.to(`order_${orderId}`).emit('new_client_message', message);
+      console.log(`[OrderMessages File] ✅ Socket event emitted`);
     }
 
+    console.log(`[OrderMessages File] ✅ File send complete`);
     res.json(message);
   } catch (error) {
-    console.error('Error sending file:', error);
+    console.error('[OrderMessages File] ❌ FINAL ERROR:', error);
+    console.error('[OrderMessages File] Error stack:', error.stack);
     res.status(400).json({ error: error.message });
   }
 });
