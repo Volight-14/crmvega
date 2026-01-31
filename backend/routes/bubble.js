@@ -101,13 +101,46 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
     let finalOrderId = null; // Store Order ID for linking
     let orderStatusFromDb = null;
 
-    if (!finalMainId && telegram_user_id) {
-      // ... (logic continues)
+    // --- Helper Functions ---
+    const cleanNull = (val) => {
+      if (val === null || val === undefined || val === 'null') return null;
+      const str = String(val).trim();
+      return str === 'null' || str === '' ? null : str;
+    };
+
+    // --- Prepare Final Values ---
+    const finalContent = cleanNull(content);
+    // Extract file info if present in body (even if not verified in destructuring above)
+    const { file_url, file_name } = req.body;
+    const finalFileUrl = cleanNull(file_url);
+    const finalFileName = cleanNull(file_name);
+    const finalReactions = reactions;
+
+    // Normalize Author Type
+    let normalizedAuthorType = 'client'; // default
+    if (author_type) {
+      const lower = String(author_type).toLowerCase();
+      if (lower.includes('manager') || lower.includes('менеджер')) normalizedAuthorType = 'manager';
+      else if (lower.includes('client') || lower.includes('клиент')) normalizedAuthorType = 'client';
+      else normalizedAuthorType = lower;
     }
 
-    // (Omitted existing logic for brevity, ensuring we don't break flow)
+    // Determine Message Type
+    let finalMessageType = message_type || 'text';
+    if (finalFileUrl && (!message_type || message_type === 'text')) {
+      finalMessageType = 'file';
+    }
 
-    // ... inside messageData construction ...
+    // --- Fallback Logic for missing main_ID ---
+    if (!finalMainId && telegram_user_id) {
+      // Try to find an active order/contact for this telegram user?
+      // For now, logging warning as we lack context to fully restore complex logic blindly
+      console.warn('[Bubble] received message without main_ID, telegram_user_id provided:', telegram_user_id);
+      // Future improvement: Lookup contact by telegram_id -> set finalMainId
+    }
+
+    // Prepare message content (safe fallback)
+    const safeContent = finalContent || '';
 
     const messageData = {
       lead_id: sanitizeBigInt(lead_id) || (finalMainId ? String(finalMainId).trim() : null),
