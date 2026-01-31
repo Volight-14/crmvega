@@ -290,18 +290,25 @@ router.post('/contact/:contactId', auth, async (req, res) => {
     const senderName = managerData?.name || req.manager.name;
     const senderEmail = managerData?.email || req.manager.email;
 
+    // Truncate fields to match DB constraints (varchar(20))
+    const rawAuthor = senderName || (sender_type === 'user' ? 'user' : 'Менеджер');
+    const safeAuthorType = rawAuthor.length > 20 ? rawAuthor.substring(0, 20) : rawAuthor;
+
+    const rawUser = senderName || senderEmail || '';
+    const safeUser = rawUser.length > 20 ? rawUser.substring(0, 20) : rawUser;
+
     // Создаем сообщение
     const { data: message, error: messageError } = await supabase
       .from('messages')
       .insert({
         main_id: leadId,
         content,
-        author_type: senderName || (sender_type === 'user' ? 'user' : 'Менеджер'),
+        author_type: safeAuthorType,
         status: messageStatus,
         error_message: errorMessage,
         message_id_tg: telegramMessageId,
         'Created Date': new Date().toISOString(),
-        user: senderName || senderEmail,
+        user: safeUser,
         manager_id: req.manager.id
       })
       .select(`
