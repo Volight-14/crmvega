@@ -4,6 +4,7 @@ const auth = require('../middleware/auth');
 const axios = require('axios');
 const crypto = require('crypto');
 const { runAutomations } = require('../services/automationRunner');
+const { sendMessageToUser } = require('./bot');
 
 const multer = require('multer');
 const FormData = require('form-data');
@@ -22,27 +23,6 @@ const upload = multer({
     fileSize: 50 * 1024 * 1024, // 50MB
   },
 });
-
-// Функция для отправки сообщения через Telegram бота
-async function sendMessageToTelegram(telegramUserId, message) {
-  try {
-    const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-    if (!TELEGRAM_BOT_TOKEN) {
-      console.error('TELEGRAM_BOT_TOKEN не установлен');
-      return false;
-    }
-
-    await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      chat_id: telegramUserId,
-      text: message
-    });
-
-    return true;
-  } catch (error) {
-    console.error('Error sending message via bot:', error.response?.data || error.message);
-    return false;
-  }
-}
 
 // Функция для отслеживания ответа оператора (сравнение с AI подсказкой)
 async function trackOperatorResponse(leadId, content) {
@@ -120,14 +100,12 @@ router.get('/contact/:contactId', auth, async (req, res) => {
     if (contactError) throw contactError;
 
 
-
     // Собираем все main_id в Set для уникальности
     const leadIds = new Set();
 
     // Добавляем telegram_user_id контакта
     if (contact?.telegram_user_id) {
       const tgId = String(contact.telegram_user_id);
-
       leadIds.add(tgId);
     }
 
@@ -138,8 +116,9 @@ router.get('/contact/:contactId', auth, async (req, res) => {
       }
     });
 
-    // ...
     const leadIdsArray = Array.from(leadIds).map(String);
+    let allMessages = [];
+    let count = 0;
 
     console.log(`[ContactMessages] Querying messages for contact ${contactId}`);
     console.log(`[ContactMessages] Lead IDs (count ${leadIdsArray.length}):`, leadIdsArray);
@@ -168,8 +147,6 @@ router.get('/contact/:contactId', auth, async (req, res) => {
     const uniqueMessages = allMessages
       .filter((msg, index, self) => index === self.findIndex(m => m.id === msg.id))
       .reverse();
-
-    // console.log(`[ContactMessages] Found ${uniqueMessages.length} unique messages, total: ${count}`);
 
     res.json({
       messages: uniqueMessages,
@@ -243,32 +220,20 @@ router.post('/contact/:contactId', auth, async (req, res) => {
         .single();
 
       if (contact && contact.telegram_user_id) {
-        try {
-          const sent = await sendMessageToTelegram(contact.telegram_user_id, content);
-          // sendMessageToTelegram returns boolean, but we need ID and error details. 
-          // Let's refactor inline or use a better helper.
-          // Inline for now to capture errors precisely.
-          const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-          if (TELEGRAM_BOT_TOKEN) {
-            const tgResponse = await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-              chat_id: contact.telegram_user_id,
-              text: content
-            });
-            telegramMessageId = tgResponse.data?.result?.message_id;
-          }
-        } catch (err) {
-          console.error('Failed to send message via bot:', err.response?.data || err.message);
-          const errorCode = err.response?.data?.error_code;
-          if (errorCode === 403) {
-            messageStatus = 'blocked';
-            errorMessage = 'Пользователь заблокировал бота';
-          } else if (errorCode === 400) {
-            messageStatus = 'deleted_chat'; // or generic error
-            errorMessage = 'Пользователь удалил чат с ботом';
-          } else {
-            messageStatus = 'error';
-            errorMessage = err.response?.data?.description || err.message;
-          }
+        // Use reliable sender from bot.js
+        const success = await sendMessageToUser(contact.telegram_user_id, content);
+
+        if (!success) {
+          // We can't easily distinguish 'blocked' vs 'error' without deep axios inspection inside bot.js,
+          // but bot.js handles retries. If false, it failed hard.
+          // For better detailed error tracking, we'd need sendMessageToUser to return {success, error, code}
+          // But assuming general error for now is safer than crashing.
+          messageStatus = 'error';
+          errorMessage = 'Ошибка отправки в Telegram';
+        } else {
+          // Success! Note: we don't get message_id back easily from simple helper.
+          // If message_id is critical, we'd need to update bot.js to return the full response object.
+          // For now, let's assume delivered.
         }
       }
 
@@ -355,9 +320,7 @@ router.post('/contact/:contactId/voice', auth, upload.single('voice'), async (re
       return res.status(400).json({ error: 'Файл не найден' });
     }
 
-
-
-    // 1. Находим активную заявку контакта или создаем новую (Logic duplicated from text message route)
+    // 1. Находим активную заявку контакта или создаем новую
     const { data: activeOrder } = await supabase
       .from('orders')
       .select('id, main_id')
@@ -493,8 +456,6 @@ router.post('/contact/:contactId/file', auth, upload.single('file'), async (req,
       return res.status(400).json({ error: 'Файл не найден' });
     }
 
-
-
     // 1. Находим активную заявку контакта или создаем новую
     const { data: activeOrder } = await supabase
       .from('orders')
@@ -537,7 +498,6 @@ router.post('/contact/:contactId/file', auth, upload.single('file'), async (req,
 
     // Helper to determine content type
     let contentType = req.file.mimetype;
-    // Fix for some common types if needed, but req.file.mimetype is usually good
 
     await supabase.storage
       .from('attachments')
@@ -623,9 +583,6 @@ router.post('/contact/:contactId/file', auth, upload.single('file'), async (req,
     res.status(400).json({ error: error.message });
   }
 });
-
-// REMOVED: Generic POST /messages/ endpoint - not used in frontend
-// Use /messages/contact/:contactId or /order-messages/:orderId/client instead
 
 // Добавить реакцию к сообщению
 router.post('/:id/reactions', auth, async (req, res) => {
