@@ -99,7 +99,9 @@ const OrderDetailPage: React.FC = () => {
     });
 
     socketRef.current.on('order_updated', (updatedOrder: Order) => {
-      if (updatedOrder.id === parseInt(id || '0')) {
+      // Check if update matches current order (either by internal ID or Main ID)
+      const currentIdStr = String(id || '0');
+      if (String(updatedOrder.id) === currentIdStr || String(updatedOrder.main_id) === currentIdStr) {
         setOrder(updatedOrder);
       }
     });
@@ -110,6 +112,7 @@ const OrderDetailPage: React.FC = () => {
     try {
       setLoading(true);
       setNotFound(false);
+      // id from URL is assumed to be correct ID (Main ID preferred)
       const orderData = await ordersAPI.getById(parseInt(id));
       setOrder(orderData);
       form.setFieldsValue(orderData);
@@ -117,6 +120,7 @@ const OrderDetailPage: React.FC = () => {
       // Mark client messages as read
       if (orderData.unread_count && orderData.unread_count > 0) {
         try {
+          // Use URL id as it matches what we loaded
           await orderMessagesAPI.markClientMessagesAsRead(parseInt(id));
         } catch (error) {
           console.error('Error marking messages as read:', error);
@@ -147,6 +151,7 @@ const OrderDetailPage: React.FC = () => {
   const handleUpdateOrder = async (values: any) => {
     if (!id) return;
     try {
+      // Use URL id as it matches what we loaded (usually Main ID)
       await ordersAPI.update(parseInt(id), values);
       message.success('Заявка обновлена');
       setIsEditModalVisible(false);
@@ -157,10 +162,10 @@ const OrderDetailPage: React.FC = () => {
   };
 
   const handleCreateNote = async (values: any) => {
-    if (!id || !manager) return;
+    if (!id || !manager || !order) return;
     try {
       await notesAPI.create({
-        order_id: parseInt(id),
+        order_id: order.id, // Notes still use internal ID (FK)
         manager_id: manager.id,
         content: values.content,
         priority: values.priority || 'info',
@@ -181,7 +186,9 @@ const OrderDetailPage: React.FC = () => {
     setOrder(updatedOrder); // Optimistic update
 
     try {
-      await ordersAPI.update(order.id, { status: newStatus });
+      // Use Main ID for API call to match strict backend policy
+      const targetId = order.main_id || order.id;
+      await ordersAPI.update(targetId, { status: newStatus });
       message.success('Статус обновлен');
     } catch (error: any) {
       setOrder({ ...order, status: oldStatus }); // Rollback
