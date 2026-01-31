@@ -533,18 +533,23 @@ router.post('/:orderId/client/file', auth, upload.single('file'), async (req, re
 
     // Сохраняем сообщение
     console.log(`[OrderMessages File] Saving message to DB...`);
+
+    // Truncate fields to match DB varchar(20) constraints
+    const authorType = (req.manager.name || 'Оператор').substring(0, 20);
+    const userField = (req.manager.name || req.manager.email || '').substring(0, 20);
+
     const messagePayload = {
       lead_id: storeLeadId,
       main_id: order.main_id,
       content: caption ? caption.trim() : '',
-      author_type: req.manager.name || 'Оператор',
+      author_type: authorType,
       message_type: 'file',
       message_id_tg: telegramMessageId,
       reply_to_mess_id_tg: reply_to_message_id || null,
       file_url: fileUrl,
       file_name: originalName,
       'Created Date': new Date().toISOString(),
-      user: req.manager.name || req.manager.email,
+      user: userField,
     };
     console.log(`[OrderMessages File] Message payload:`, messagePayload);
 
@@ -673,20 +678,25 @@ router.post('/:orderId/client/voice', auth, (req, res, next) => {
 
     // 5. Save to DB
     const storeLeadId = order.main_id;
+
+    // Truncate fields to match DB varchar(20) constraints
+    const authorType = (req.manager.name || 'Оператор').substring(0, 20);
+    const userField = (req.manager.name || req.manager.email || '').substring(0, 20);
+
     const { data: message, error: messageError } = await supabase
       .from('messages')
       .insert({
         lead_id: storeLeadId,
         main_id: order.main_id,
         content: '🎤 Голосовое сообщение',
-        author_type: req.manager.name || 'Оператор',
+        author_type: authorType,
         message_type: 'voice',
         message_id_tg: telegramMessageId,
         reply_to_mess_id_tg: reply_to_message_id || null,
         file_url: fileUrl,
         voice_duration: duration ? parseInt(duration) : null,
         'Created Date': new Date().toISOString(),
-        user: req.manager.name || req.manager.email,
+        user: userField,
         status: messageStatus,
         error_message: errorMessage
       })
