@@ -310,6 +310,13 @@ router.post('/:orderId/client', auth, async (req, res) => {
     const senderName = managerData?.name || req.manager.name;
     const senderEmail = managerData?.email || req.manager.email;
 
+    // Truncate fields to match DB constraints (varchar(20))
+    const rawAuthor = senderName || 'Оператор';
+    const safeAuthorType = rawAuthor.length > 20 ? rawAuthor.substring(0, 20) : rawAuthor;
+
+    const rawUser = senderName || senderEmail || '';
+    const safeUser = rawUser.length > 20 ? rawUser.substring(0, 20) : rawUser;
+
     // Сохраняем сообщение в базе
     const { data: message, error: messageError } = await supabase
       .from('messages')
@@ -317,12 +324,12 @@ router.post('/:orderId/client', auth, async (req, res) => {
         lead_id: order.main_id, // Backward compatibility if needed, using main_id value
         main_id: order.main_id,
         content: content.trim(),
-        author_type: senderName || 'Оператор',
+        author_type: safeAuthorType,
         message_type: 'text',
         message_id_tg: telegramMessageId,
         reply_to_mess_id_tg: reply_to_message_id || null,
         'Created Date': new Date().toISOString(),
-        user: senderName || senderEmail,
+        user: safeUser,
         manager_id: req.manager.id
       })
       .select(`
