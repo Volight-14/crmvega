@@ -155,7 +155,7 @@ router.get('/contact/:contactId', auth, async (req, res) => {
           *,
           sender:managers!manager_id(id, name, email)
         `, { count: 'exact' })
-        .in('main_id', leadIdsArray)
+        .or(leadIdsArray.map(id => `main_id.eq.${id}`).join(','))
         .order('"Created Date"', { ascending: false })
         .range(from, to);
 
