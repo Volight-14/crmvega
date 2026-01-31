@@ -180,8 +180,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, orders, onOrderClic
                 <KanbanOrderCard
                   key={order.id}
                   order={order}
-                  onClick={() => onOrderClick(order)}
-                  onStatusChange={(status) => onStatusChange(order.id, status)}
+                  onOrderClick={onOrderClick}
+                  onStatusChange={onStatusChange}
                   onEditContact={onEditContact}
                 />
               ))}
@@ -226,6 +226,8 @@ const OrdersPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { manager } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
+  const ordersRef = useRef(orders);
+  ordersRef.current = orders;
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [allTags, setAllTags] = useState<TagData[]>([]);
   const [managers, setManagers] = useState<Manager[]>([]);
@@ -378,11 +380,7 @@ const OrdersPage: React.FC = () => {
     fetchContacts();
     fetchTags();
     fetchManagers();
-    setupSocket();
-
-    return () => {
-      socketRef.current?.disconnect();
-    };
+    // Socket setup moved to separate effect
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, filters]);
 
@@ -430,16 +428,19 @@ const OrdersPage: React.FC = () => {
     }
   };
 
-  const setupSocket = () => {
+  useEffect(() => {
     const socketUrl = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
     socketRef.current = io(socketUrl, {
       transports: ['websocket', 'polling'],
     });
 
+    socketRef.current.on('connect', () => {
+      console.log('✅ Socket connected');
+    });
+
     socketRef.current.on('new_order', (newOrder: Order) => {
       setOrders(prev => {
         if (prev.some(d => d.id === newOrder.id)) return prev;
-        // Prepend new order so it appears at the top (newest first)
         return [newOrder, ...prev];
       });
     });
@@ -447,7 +448,11 @@ const OrdersPage: React.FC = () => {
     socketRef.current.on('order_updated', (updatedOrder: Order) => {
       setOrders(prev => prev.map(d => d.id === updatedOrder.id ? { ...updatedOrder, contact: d.contact } : d));
     });
-  };
+
+    return () => {
+      socketRef.current?.disconnect();
+    };
+  }, []);
 
   const fetchOrders = async () => {
     const CACHE_KEY = 'crm_orders_cache';
@@ -576,7 +581,12 @@ const OrdersPage: React.FC = () => {
     }
   };
 
+  const handleOrderClick = useCallback((order: Order) => {
+    navigate(`/order/${order.main_id || order.id}`);
+  }, [navigate]);
+
   const handleStatusChange = useCallback(async (orderId: number, newStatus: OrderStatus) => {
+    const orders = ordersRef.current;
     const order = orders.find(d => d.id === orderId);
     if (!order || order.status === newStatus) return;
 
@@ -595,7 +605,7 @@ const OrdersPage: React.FC = () => {
       ));
       message.error('Ошибка обновления статуса');
     }
-  }, [orders]);
+  }, []);
 
   const handleCreateOrder = async (values: any) => {
     try {
@@ -1118,7 +1128,7 @@ const OrdersPage: React.FC = () => {
                       <KanbanColumn
                         status={status}
                         orders={ordersByStatus[status] || []}
-                        onOrderClick={(order) => navigate(`/order/${order.main_id || order.id}`)}
+                        onOrderClick={handleOrderClick}
                         onAddOrder={() => openCreateModal(status)}
                         onStatusChange={handleStatusChange}
                         onEditContact={handleEditContact}
@@ -1132,7 +1142,7 @@ const OrdersPage: React.FC = () => {
               {draggedOrder ? (
                 <KanbanOrderCard
                   order={draggedOrder}
-                  onClick={() => { }}
+                  onOrderClick={() => { }}
                 />
               ) : null}
             </DragOverlay>

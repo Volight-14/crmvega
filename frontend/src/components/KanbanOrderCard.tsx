@@ -10,8 +10,8 @@ const { Option } = Select;
 
 interface KanbanOrderCardProps {
     order: Order;
-    onClick: () => void;
-    onStatusChange?: (newStatus: OrderStatus) => void;
+    onOrderClick: (order: Order) => void;
+    onStatusChange?: (orderId: number, newStatus: OrderStatus) => void;
     onEditContact?: (contact: Contact) => void;
 }
 
@@ -40,7 +40,7 @@ const SORTED_STATUS_OPTIONS = Object.entries(ORDER_STATUSES)
     }));
 
 // Memoized component for performance
-const KanbanOrderCard: React.FC<KanbanOrderCardProps> = memo(({ order, onClick, onStatusChange, onEditContact }) => {
+const KanbanOrderCard: React.FC<KanbanOrderCardProps> = memo(({ order, onOrderClick, onStatusChange, onEditContact }) => {
     const {
         attributes,
         listeners,
@@ -79,7 +79,7 @@ const KanbanOrderCard: React.FC<KanbanOrderCardProps> = memo(({ order, onClick, 
             {...attributes}
             {...listeners}
             className={`${styles.card} ${isDragging ? styles.dragging : ''}`}
-            onClick={onClick}
+            onClick={() => onOrderClick(order)}
         >
             {/* Header */}
             <div className={styles.header}>
@@ -168,7 +168,7 @@ const KanbanOrderCard: React.FC<KanbanOrderCardProps> = memo(({ order, onClick, 
                     <Select
                         size="small"
                         value={order.status}
-                        onChange={(val) => onStatusChange?.(val)}
+                        onChange={(val) => onStatusChange?.(order.id, val)}
                         dropdownMatchSelectWidth={false}
                         bordered={false}
                         showArrow={false}
