@@ -20,6 +20,7 @@ import { formatDate, isClientMessage } from '../utils/chatUtils';
 
 interface OrderChatProps {
   orderId: number;
+  mainId?: number | string;
   contactName?: string;
   isMobile?: boolean;
 }
@@ -42,14 +43,14 @@ const adaptInternalToMessage = (im: InternalMessage): Message => {
   } as Message;
 };
 
-const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName, isMobile = false }) => {
+const OrderChat: React.FC<OrderChatProps> = ({ orderId, mainId: propMainId, contactName, isMobile = false }) => {
   const { manager } = useAuth();
   const [activeTab, setActiveTab] = useState<ChatTab>('client');
   const [clientMessages, setClientMessages] = useState<Message[]>([]);
   const [internalMessages, setInternalMessages] = useState<InternalMessage[]>([]);
   const [chatLeadId, setChatLeadId] = useState<string | undefined>();
   const [externalId, setExternalId] = useState<string | undefined>();
-  const [mainId, setMainId] = useState<string | undefined>();
+  const [mainId, setMainId] = useState<string | undefined>(propMainId ? String(propMainId) : undefined);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -67,18 +68,26 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, contactName, isMobile = 
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
     }, 100);
   }, []);
 
   const fetchOrder = useCallback(async () => {
     try {
-      const data = await ordersAPI.getById(orderId);
+      // Use propMainId (passed from parent) or state mainId (loaded previously) or orderId (internal)
+      // Note: propMainId is most reliable if passed correctly
+      const targetId = propMainId || mainId || orderId;
+      const data = await ordersAPI.getById(Number(targetId)); // Ensure number
       setOrder(data);
+      if (data.main_id) setMainId(String(data.main_id));
+      if (data.lead_id) setExternalId(String(data.lead_id)); // Assuming lead_id maps to external? Or chatLeadId?
+      // Actually chatLeadId logic might be separate.
     } catch (e) {
-      console.error("Failed to fetch order", e);
+      console.error('Failed to fetch order in chat', e);
     }
-  }, [orderId]);
+  }, [orderId, mainId, propMainId]);
 
   useEffect(() => {
     fetchOrder();

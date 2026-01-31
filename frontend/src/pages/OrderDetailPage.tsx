@@ -678,6 +678,7 @@ const OrderDetailPage: React.FC = () => {
                       {order.contact_id || order.main_id || order.external_id ? (
                         <OrderChat
                           orderId={order.id}
+                          mainId={order.main_id}
                           contactName={order.contact?.name}
                           isMobile={true}
                         />
@@ -805,6 +806,7 @@ const OrderDetailPage: React.FC = () => {
             {order.contact_id || order.main_id || order.external_id ? (
               <OrderChat
                 orderId={order.id}
+                mainId={order.main_id}
                 contactName={order.contact?.name}
               />
             ) : (
