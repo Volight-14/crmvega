@@ -439,7 +439,8 @@ const OrdersPage: React.FC = () => {
     socketRef.current.on('new_order', (newOrder: Order) => {
       setOrders(prev => {
         if (prev.some(d => d.id === newOrder.id)) return prev;
-        return [...prev, newOrder];
+        // Prepend new order so it appears at the top (newest first)
+        return [newOrder, ...prev];
       });
     });
 

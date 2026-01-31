@@ -326,40 +326,13 @@ router.get('/:id', auth, async (req, res) => {
         tags:order_tags(tag:tags(*))
       `);
 
-    // 1. Try by main_id (most common for external links)
-    // Convert to number since main_id is bigint
+    // Optimized Lookup Logic: Strict Main ID lookup only
     const numericId = parseInt(id);
-    console.log(`[Orders GET /:id] Trying main_id lookup with: ${numericId} (type: ${typeof numericId})`);
-    let { data, error } = await query.eq('main_id', numericId).maybeSingle();
 
-    console.log(`[Orders GET /:id] main_id search result:`, { found: !!data, error: error?.message });
+    // Strict lookup by main_id ONLY
+    query = query.eq('main_id', numericId);
 
-    // 2. If not found, try by internal id (if it looks like a valid int4)
-    if (!data && !isNaN(numericId)) {
-      // Reset query builder? Supbase objects are immutable-ish, better create new chain
-      const isInt4 = numericId <= 2147483647;
-      console.log(`[Orders GET /:id] Trying internal id lookup. isInt4: ${isInt4}`);
-
-      if (isInt4) {
-        const { data: byId, error: errId } = await supabase
-          .from('orders')
-          .select(`
-             *,
-             contact:contacts(*),
-             manager:managers!deals_manager_id_fkey(id, name, email),
-             tags:order_tags(tag:tags(*))
-           `)
-          .eq('id', numericId)
-          .maybeSingle();
-
-        console.log(`[Orders GET /:id] internal id search result:`, { found: !!byId, error: errId?.message });
-
-        if (byId) {
-          data = byId;
-          error = null;
-        }
-      }
-    }
+    let { data, error } = await query.maybeSingle();
 
     if (!data) {
       console.log(`[Orders GET /:id] Order not found with id: ${id}`);
