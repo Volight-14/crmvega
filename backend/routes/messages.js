@@ -138,14 +138,12 @@ router.get('/contact/:contactId', auth, async (req, res) => {
       }
     });
 
-    const leadIdsArray = Array.from(leadIds);
+    // ...
+    const leadIdsArray = Array.from(leadIds).map(String);
 
-
-    // Получаем сообщения с пагинацией (сначала новые)
-    let allMessages = [];
-    let count = 0;
-
-    console.log(`[ContactMessages] Fetching for contact ${contactId}, leadIds: ${leadIdsArray.join(',')}`);
+    console.log(`[ContactMessages] Querying messages for contact ${contactId}`);
+    console.log(`[ContactMessages] Lead IDs (count ${leadIdsArray.length}):`, leadIdsArray);
+    console.log(`[ContactMessages] Pagination: limit=${limit}, offset=${offset}`);
 
     if (leadIdsArray.length > 0) {
       const from = parseInt(offset);
