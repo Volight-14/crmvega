@@ -35,7 +35,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Order, Note, ORDER_STATUSES, NOTE_PRIORITIES } from '../types';
 import { ordersAPI, notesAPI, orderMessagesAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import io from 'socket.io-client';
+import { useSocket } from '../contexts/SocketContext';
 import OrderChat from '../components/OrderChat';
 import { OrderTags } from '../components/OrderTags';
 
@@ -64,7 +64,7 @@ const OrderDetailPage: React.FC = () => {
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
   const [activeInfoTab, setActiveInfoTab] = useState<'info' | 'notes' | 'chat'>('chat');
-  const socketRef = useRef<Socket | null>(null);
+  const { socket } = useSocket(); // Use global socket
 
   // Reset tab to info if switching to desktop while in chat tab
   useEffect(() => {
@@ -77,35 +77,30 @@ const OrderDetailPage: React.FC = () => {
     if (id) {
       fetchOrder();
       fetchNotes();
-      setupSocket();
+      // Socket setup is now in separate effect
     }
-
-    return () => {
-      socketRef.current?.disconnect();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const setupSocket = () => {
-    if (!id || !manager) return;
+  // Socket subscription logic
+  useEffect(() => {
+    if (!socket || !id) return;
 
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-    socketRef.current = io(socketUrl, {
-      transports: ['websocket', 'polling'],
-    });
+    // Join the order room
+    socket.emit('join_order', id);
 
-    socketRef.current.on('connect', () => {
-      socketRef.current?.emit('join_order', id);
-    });
-
-    socketRef.current.on('order_updated', (updatedOrder: Order) => {
-      // Check if update matches current order (either by internal ID or Main ID)
+    const handleOrderUpdated = (updatedOrder: Order) => {
       const currentIdStr = String(id || '0');
       if (String(updatedOrder.id) === currentIdStr || String(updatedOrder.main_id) === currentIdStr) {
         setOrder(updatedOrder);
       }
-    });
-  };
+    };
+
+    socket.on('order_updated', handleOrderUpdated);
+
+    return () => {
+      socket.off('order_updated', handleOrderUpdated);
+    };
+  }, [socket, id]);
 
   const fetchOrder = async () => {
     if (!id) return;

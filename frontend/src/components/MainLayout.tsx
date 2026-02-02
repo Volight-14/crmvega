@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
+import { useSocket } from '../contexts/SocketContext';
 import { Layout, Menu, Avatar, Dropdown, Badge, Space, Drawer, Grid, notification } from 'antd';
 import {
   DashboardOutlined,
@@ -115,7 +116,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const selectedKeys = [selectedKey === '/' ? '/orders' : selectedKey];
 
   // Notifications Logic
-  const socketRef = React.useRef<any>(null);
+  // const socketRef = React.useRef<any>(null); // Removed local ref
+  const { socket } = useSocket(); // Use global socket
   const lastSoundTimeRef = React.useRef(0); // Debounce sound
   const [unreadTotal, setUnreadTotal] = useState(0);
 
@@ -167,19 +169,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   }, [unreadTotal]);
 
   useEffect(() => {
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    if (!socket) return;
 
-    socketRef.current = io(socketUrl, {
-      transports: ['websocket', 'polling'],
-    });
-
-    socketRef.current.on('connect', () => {
-      // console.log('✅ Global socket connected for notifications');
-    });
-
-    socketRef.current.on('new_message_global', (msg: any) => {
-      // console.log('📨 Global message received:', msg);
-
+    const handleGlobalMessage = (msg: any) => {
       // Logic for alerts
       if (!manager) return;
 
@@ -191,7 +183,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       } catch (e) { console.error('Error parsing settings', e); }
 
       // 2. Determine if we should notify
-      // Don't notify for own messages (author_type !== Client is shaky, better check author)
+      // Don't notify for own messages
       const isClient = msg.author_type === 'Client' || msg.author_type === 'Клиент' || msg.author_type === 'client';
       if (!isClient) return;
 
@@ -201,17 +193,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       if (settings.statuses && settings.statuses.length > 0) {
         if (settings.statuses.includes(msg.order_status)) {
           shouldNotify = true;
-          // console.log(`🔔 Notification allowed by Status Filter (${msg.order_status})`);
-        } else {
-          // console.log(`🔕 Notification blocked by Status Filter`);
         }
       }
-      // Priority 2: Global Switch (only if no specific status filter set)
+      // Priority 2: Global Switch
       else {
         if (settings.all_active) {
           shouldNotify = true;
-        } else {
-          // console.log(`🔕 Notification blocked by Global Switch`);
         }
       }
 
@@ -233,12 +220,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
       // Always Refresh count from DB to be accurate
       fetchUnreadCount();
-    });
+    };
+
+    socket.on('new_message_global', handleGlobalMessage);
 
     return () => {
-      socketRef.current?.disconnect();
+      socket.off('new_message_global', handleGlobalMessage);
     };
-  }, [manager, fetchUnreadCount]);
+  }, [socket, manager, fetchUnreadCount]);
 
   const MenuContent = (
     <>

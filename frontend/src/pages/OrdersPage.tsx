@@ -34,7 +34,7 @@ import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrate
 import { Order, ORDER_STATUSES, Contact, OrderStatus, Tag as TagData, Manager } from '../types';
 import { ordersAPI, contactsAPI, tagsAPI, managersAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import io from 'socket.io-client';
+import { useSocket } from '../contexts/SocketContext';
 import KanbanOrderCard from '../components/KanbanOrderCard';
 import MobileOrderList from '../components/MobileOrderList';
 import OrderFilters from '../components/OrderFilters';
@@ -351,7 +351,8 @@ const OrdersPage: React.FC = () => {
   }), [selectedRowKeys]);
 
   const [activeMobileColumn, setActiveMobileColumn] = useState<OrderStatus>('unsorted');
-  const socketRef = useRef<Socket | null>(null);
+  // const socketRef = useRef<Socket | null>(null); // Removed local ref
+  const { socket } = useSocket(); // Use global socket
   const kanbanRef = useRef<HTMLDivElement>(null);
   // Refs for each column to scroll to them accurately
   const columnRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -429,30 +430,27 @@ const OrdersPage: React.FC = () => {
   };
 
   useEffect(() => {
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-    socketRef.current = io(socketUrl, {
-      transports: ['websocket', 'polling'],
-    });
+    if (!socket) return;
 
-    socketRef.current.on('connect', () => {
-      // console.log('✅ Socket connected');
-    });
-
-    socketRef.current.on('new_order', (newOrder: Order) => {
+    const handleNewOrder = (newOrder: Order) => {
       setOrders(prev => {
         if (prev.some(d => d.id === newOrder.id)) return prev;
         return [newOrder, ...prev];
       });
-    });
+    };
 
-    socketRef.current.on('order_updated', (updatedOrder: Order) => {
+    const handleOrderUpdated = (updatedOrder: Order) => {
       setOrders(prev => prev.map(d => d.id === updatedOrder.id ? { ...updatedOrder, contact: d.contact } : d));
-    });
+    };
+
+    socket.on('new_order', handleNewOrder);
+    socket.on('order_updated', handleOrderUpdated);
 
     return () => {
-      socketRef.current?.disconnect();
+      socket.off('new_order', handleNewOrder);
+      socket.off('order_updated', handleOrderUpdated);
     };
-  }, []);
+  }, [socket]);
 
   const fetchOrders = async () => {
     const CACHE_KEY = 'crm_orders_cache';
