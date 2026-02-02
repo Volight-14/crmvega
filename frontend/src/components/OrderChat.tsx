@@ -185,22 +185,35 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, mainId: propMainId, cont
     };
 
     socketRef.current.on('new_client_message', (msg: Message) => {
-      handleNewMessage({ ...msg, source_type: 'client', sort_date: msg['Created Date'], display_author: 'Клиент' });
+      // Validate if message belongs to this order context (by main_id)
+      const matchesMainId = mainId && msg.main_id && String(msg.main_id) === String(mainId);
+
+      // If we don't have mainId yet, or strict match fails, we shouldn't show it to avoid "ghost" messages
+      if (matchesMainId) {
+        handleNewMessage({ ...msg, source_type: 'client', sort_date: msg['Created Date'], display_author: 'Клиент' });
+      }
     });
 
     socketRef.current.on('new_internal_message', (msg: any) => {
-      handleNewMessage({
-        ...msg,
-        source_type: 'internal',
-        sort_date: msg.created_at,
-        is_system: msg.attachment_type === 'system',
-        display_author: msg.sender?.name || 'Система'
-      });
+      // Internal messages have explicit order_id
+      if (msg.order_id && Number(msg.order_id) === Number(orderId)) {
+        handleNewMessage({
+          ...msg,
+          source_type: 'internal',
+          sort_date: msg.created_at,
+          is_system: msg.attachment_type === 'system',
+          display_author: msg.sender?.name || 'Система',
+          author_type: msg.sender?.name || 'Manager' // Ensure avatar works
+        });
+      }
     });
 
     // Bubble sync
     socketRef.current.on('new_message_bubble', (msg: Message) => {
-      handleNewMessage({ ...msg, source_type: 'client', sort_date: msg['Created Date'], display_author: 'Клиент' });
+      const matchesMainId = mainId && msg.main_id && String(msg.main_id) === String(mainId);
+      if (matchesMainId) {
+        handleNewMessage({ ...msg, source_type: 'client', sort_date: msg['Created Date'], display_author: 'Клиент' });
+      }
     });
 
     return () => {
