@@ -434,14 +434,29 @@ router.patch('/:id', auth, async (req, res) => {
       ...(currency ? { CurrPair1: currency } : {})
     };
 
+    // Optimized Lookup Logic: Support both internal id and main_id (like GET endpoint)
+    const numericId = parseInt(id);
+    let lookupField = 'id';
+    let lookupValue = numericId;
+
+    // If ID looks like a main_id (large number), try main_id first
+    if (numericId > 1000000000) {
+      lookupField = 'main_id';
+      lookupValue = numericId;
+    }
+
     // Если меняется статус, получаем старый статус для вебхука
     let oldOrder = null;
     if (updateData.status) {
       const { data: existingOrder } = await supabase
         .from('orders')
-        .select('status, main_id')
-        .eq('id', id)
-        .single();
+        .select('id, status, main_id')
+        .eq(lookupField, lookupValue)
+        .maybeSingle();
+
+      if (!existingOrder) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
 
       oldOrder = existingOrder;
 
@@ -455,7 +470,7 @@ router.patch('/:id', auth, async (req, res) => {
     const { data, error } = await supabase
       .from('orders')
       .update(updateData)
-      .eq('id', id)
+      .eq(lookupField, lookupValue)
       .select('*, contact:contacts(name, phone, email)')
       .single();
 
@@ -483,7 +498,7 @@ router.patch('/:id', auth, async (req, res) => {
         const { data: sysMsg, error: sysMsgError } = await supabase
           .from('internal_messages')
           .insert({
-            order_id: parseInt(id),
+            order_id: data.id, // Use actual internal ID from database
             sender_id: req.manager.id, // Or a special system bot ID if preferred
             content: systemContent,
             is_read: false,
@@ -493,7 +508,7 @@ router.patch('/:id', auth, async (req, res) => {
           .single();
 
         if (!sysMsgError && io) {
-          io.to(`order_${id}`).emit('new_internal_message', sysMsg);
+          io.to(`order_${data.id}`).emit('new_internal_message', sysMsg);
         }
 
       } catch (sysErr) {
