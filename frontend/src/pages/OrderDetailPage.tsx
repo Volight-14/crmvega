@@ -397,7 +397,7 @@ const OrderDetailPage: React.FC = () => {
 
   return (
     <div style={{
-      height: '100%',
+      height: '100vh',
       display: 'flex',
       flexDirection: 'column',
       background: '#f0f2f5',

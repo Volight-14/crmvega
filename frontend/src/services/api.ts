@@ -149,7 +149,7 @@ export const ordersAPI = {
     return response.data;
   },
 
-  getById: async (id: number): Promise<Order> => {
+  getById: async (id: number | string): Promise<Order> => {
     const response = await api.get(`/orders/${id}`);
     return response.data;
   },
@@ -159,12 +159,12 @@ export const ordersAPI = {
     return response.data;
   },
 
-  update: async (id: number, order: Partial<Order>): Promise<Order> => {
+  update: async (id: number | string, order: Partial<Order>): Promise<Order> => {
     const response = await api.patch(`/orders/${id}`, order);
     return response.data;
   },
 
-  delete: async (id: number): Promise<void> => {
+  delete: async (id: number | string): Promise<void> => {
     await api.delete(`/orders/${id}`);
   },
 
