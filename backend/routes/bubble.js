@@ -106,13 +106,15 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
     };
 
     const finalMainId = sanitizeBigInt(main_ID);
-    const finalContent = cleanNull(content);
+    const processedContent = cleanNull(content); // Renamed from finalContent
     const finalFileUrl = cleanNull(file_url);
     const finalFileName = cleanNull(file_name);
     const finalReactions = reactions;
     let finalOrderId = null;
     let finalContactId = null;
     let orderStatusFromDb = null;
+
+    console.log('[Bubble Webhook] Processed Content:', processedContent); // Debug log
 
     let normalizedAuthorType = 'client';
     if (author_type) {
@@ -131,7 +133,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       console.warn('[Bubble] message no main_ID', telegram_user_id);
     }
 
-    const safeContent = (finalContent === 'null' || !finalContent) ? '' : finalContent;
+    const safeContent = (processedContent === 'null' || !processedContent) ? '' : processedContent;
 
     const messageData = {
       lead_id: sanitizeBigInt(lead_id) || (finalMainId ? String(finalMainId).trim() : null),
