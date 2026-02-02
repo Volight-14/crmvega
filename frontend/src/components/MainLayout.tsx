@@ -122,12 +122,25 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [unreadTotal, setUnreadTotal] = useState(0);
 
   // Sound function using Web Audio API
+  const audioContextRef = React.useRef<any>(null);
+
   const playAlertSound = () => {
     try {
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContext) return;
 
-      const ctx = new AudioContext();
+      // Initialize context only once
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContext();
+      }
+
+      const ctx = audioContextRef.current;
+
+      // Resume if suspended (browser policy)
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch((e: any) => console.error('Audio resume failed', e));
+      }
+
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
@@ -144,7 +157,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       osc.start();
       osc.stop(ctx.currentTime + 0.5);
     } catch (e) {
-      console.error('Audio play error:', e);
+      // console.error('Audio play error:', e); 
     }
   };
 
