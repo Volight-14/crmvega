@@ -750,25 +750,16 @@ router.get('/:orderId/timeline', auth, async (req, res) => {
     }
 
     // 2. Находим ВСЕ связанные ID (все сделки этого контакта)
+    // 2. Находим IDs только текущей сделки (Strict Mode для предотвращения смешивания чатов)
     let allMainIds = [];
     let allOrderIds = [parseInt(orderId)];
 
-    if (currentOrder.contact_id) {
-      const { data: relatedOrders } = await supabase
-        .from('orders')
-        .select('id, main_id')
-        .eq('contact_id', currentOrder.contact_id);
-
-      if (relatedOrders) {
-        allOrderIds = relatedOrders.map(o => o.id);
-        allMainIds = relatedOrders
-          .map(o => o.main_id)
-          .filter(id => id); // Filter nulls
-      }
-    } else {
-      // Если нет контакта, ищем только по текущей сделке
-      if (currentOrder.main_id) allMainIds.push(currentOrder.main_id);
+    if (currentOrder.main_id) {
+      allMainIds.push(currentOrder.main_id);
     }
+
+    // Раньше мы искали по всем сделкам контакта, но это вызывало путаницу (показывало чужие сообщения если контакт общий)
+    // if (currentOrder.contact_id) { ... }
 
     // Убираем дубликаты
     allMainIds = [...new Set(allMainIds)];
