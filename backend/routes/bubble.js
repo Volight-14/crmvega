@@ -89,14 +89,13 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       file_name
     } = req.body;
 
-    const sanitizeBigInt = (val) => {
+    const sanitizeNumeric = (val) => {
       if (!val) return null;
-      // Преобразуем в число с плавающей точкой, затем отбрасываем дробную часть
+      // Преобразуем в число с плавающей точкой
       const num = parseFloat(val);
       if (isNaN(num)) return null;
-      // Используем Math.floor для отбрасывания дробной части
-      const intValue = Math.floor(num);
-      return String(intValue);
+      // Возвращаем как строку, сохраняя дробную часть
+      return String(num);
     };
 
     const cleanNull = (val) => {
@@ -105,7 +104,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       return str === 'null' || str === '' ? null : str;
     };
 
-    const finalMainId = sanitizeBigInt(main_ID);
+    const finalMainId = sanitizeNumeric(main_ID);
     const processedContent = cleanNull(content); // Renamed from finalContent
     const finalFileUrl = cleanNull(file_url);
     const finalFileName = cleanNull(file_name);
@@ -136,20 +135,20 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
     const safeContent = (processedContent === 'null' || !processedContent) ? '' : processedContent;
 
     const messageData = {
-      lead_id: sanitizeBigInt(lead_id) || (finalMainId ? String(finalMainId).trim() : null),
+      lead_id: sanitizeNumeric(lead_id) || (finalMainId ? String(finalMainId).trim() : null),
       main_id: finalMainId,
       content: safeContent,
       'Created Date': createdDate || new Date().toISOString(),
       author_type: normalizedAuthorType,
       message_type: finalMessageType,
-      message_id_tg: sanitizeBigInt(message_id_tg),
+      message_id_tg: sanitizeNumeric(message_id_tg),
       timestamp: cleanNull(timestamp),
       'Modified Date': modifiedDate || new Date().toISOString(),
       'Created By': cleanNull(createdBy),
       author_amojo_id: cleanNull(author_amojo_id),
       message_id_amo: cleanNull(message_id_amo),
       user: cleanNull(user),
-      reply_to_mess_id_tg: sanitizeBigInt(reply_to_mess_id_tg),
+      reply_to_mess_id_tg: sanitizeNumeric(reply_to_mess_id_tg),
       caption: cleanNull(caption),
       order_status: order_status || null,
       file_url: finalFileUrl,
