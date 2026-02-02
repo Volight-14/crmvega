@@ -22,7 +22,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         const socketUrl = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
-        console.log('🔌 Initializing Global Socket Connection...');
+        // console.log('🔌 Initializing Global Socket Connection...');
 
         socketRef.current = io(socketUrl, {
             transports: ['websocket', 'polling'],
@@ -32,12 +32,12 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         });
 
         socketRef.current.on('connect', () => {
-            console.log('✅ Global Socket Connected ID:', socketRef.current?.id);
+            // console.log('✅ Global Socket Connected ID:', socketRef.current?.id);
             setIsConnected(true);
         });
 
         socketRef.current.on('disconnect', (reason: string) => {
-            console.log('❌ Global Socket Disconnected:', reason);
+            // console.log('❌ Global Socket Disconnected:', reason);
             setIsConnected(false);
         });
 
