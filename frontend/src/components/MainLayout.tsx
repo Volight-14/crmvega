@@ -174,11 +174,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     });
 
     socketRef.current.on('connect', () => {
-      console.log('✅ Global socket connected for notifications');
+      // console.log('✅ Global socket connected for notifications');
     });
 
     socketRef.current.on('new_message_global', (msg: any) => {
-      console.log('📨 Global message received:', msg);
+      // console.log('📨 Global message received:', msg);
 
       // Logic for alerts
       if (!manager) return;
@@ -201,18 +201,17 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       if (settings.statuses && settings.statuses.length > 0) {
         if (settings.statuses.includes(msg.order_status)) {
           shouldNotify = true;
-          console.log(`🔔 Notification allowed by Status Filter (${msg.order_status})`);
+          // console.log(`🔔 Notification allowed by Status Filter (${msg.order_status})`);
         } else {
-          console.log(`🔕 Notification blocked by Status Filter (Msg Status: ${msg.order_status}, Allowed: ${settings.statuses})`);
+          // console.log(`🔕 Notification blocked by Status Filter`);
         }
       }
       // Priority 2: Global Switch (only if no specific status filter set)
       else {
         if (settings.all_active) {
           shouldNotify = true;
-          console.log(`🔔 Notification allowed by Global Switch`);
         } else {
-          console.log(`🔕 Notification blocked by Global Switch`);
+          // console.log(`🔕 Notification blocked by Global Switch`);
         }
       }
 
