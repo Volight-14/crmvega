@@ -435,7 +435,7 @@ const OrdersPage: React.FC = () => {
     });
 
     socketRef.current.on('connect', () => {
-      console.log('✅ Socket connected');
+      // console.log('✅ Socket connected');
     });
 
     socketRef.current.on('new_order', (newOrder: Order) => {
