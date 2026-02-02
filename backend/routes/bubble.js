@@ -91,8 +91,12 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
 
     const sanitizeBigInt = (val) => {
       if (!val) return null;
-      const num = parseInt(val);
-      return isNaN(num) ? null : String(num);
+      // Преобразуем в число с плавающей точкой, затем отбрасываем дробную часть
+      const num = parseFloat(val);
+      if (isNaN(num)) return null;
+      // Используем Math.floor для отбрасывания дробной части
+      const intValue = Math.floor(num);
+      return String(intValue);
     };
 
     const cleanNull = (val) => {
