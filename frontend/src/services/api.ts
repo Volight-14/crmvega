@@ -373,6 +373,19 @@ export const orderMessagesAPI = {
     const response = await api.get(`/order-messages/${orderId}/internal/unread`);
     return response.data;
   },
+
+  // Получить единую ленту сообщений (Timeline)
+  getTimeline: async (orderId: number, params?: { limit?: number; before?: string }): Promise<{
+    messages: (Message | InternalMessage)[];
+    meta: {
+      total_fetched: number;
+      limit: number;
+      has_more: boolean;
+    }
+  }> => {
+    const response = await api.get(`/order-messages/${orderId}/timeline`, { params });
+    return response.data;
+  },
 };
 
 // Analytics API

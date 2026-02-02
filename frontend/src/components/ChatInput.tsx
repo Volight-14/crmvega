@@ -22,6 +22,7 @@ interface ChatInputProps {
     onTyping?: () => void;
     sending?: boolean;
     replacements?: Record<string, string>;
+    placeholder?: string;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -30,7 +31,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     onSendFile,
     onTyping,
     sending = false,
-    replacements = {}
+    replacements = {},
+    placeholder
 }) => {
     const { manager } = useAuth();
     const [messageInput, setMessageInput] = useState('');
@@ -466,7 +468,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     <>
                         <TextArea
                             autoSize={{ minRows: 1, maxRows: 4 }}
-                            placeholder={selectedFile ? "Добавить описание..." : "Нашите сообщение..."} // TODO: description support later
+                            placeholder={placeholder || (selectedFile ? "Добавить описание..." : "Напишите сообщение...")}
                             value={messageInput}
                             onChange={handleInputChange}
                             onPaste={handlePaste}

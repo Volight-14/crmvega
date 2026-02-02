@@ -36,6 +36,7 @@ export interface Message {
   // Для обратной совместимости
   sender_type?: 'manager' | 'user';
   sender_id?: number;
+  manager_id?: number; // Add manager_id
   telegram_message_id?: number;
   reactions?: any[];
   status?: 'delivered' | 'read' | 'error' | 'blocked' | 'deleted_chat';

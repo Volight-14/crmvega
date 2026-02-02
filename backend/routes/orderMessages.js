@@ -729,6 +729,144 @@ router.post('/:orderId/client/voice', auth, (req, res, next) => {
 });
 
 // ==============================================
+// ЕДИНАЯ ЛЕНТА (TIMELINE)
+// ==============================================
+
+router.get('/:orderId/timeline', auth, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { limit = 50, before } = req.query;
+    const limitNum = parseInt(limit) || 50;
+
+    // 1. Получаем инфо о текущей сделке и контакте
+    const { data: currentOrder, error: orderError } = await supabase
+      .from('orders')
+      .select('id, contact_id, main_id')
+      .eq('id', orderId)
+      .single();
+
+    if (orderError || !currentOrder) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    // 2. Находим ВСЕ связанные ID (все сделки этого контакта)
+    let allMainIds = [];
+    let allOrderIds = [parseInt(orderId)];
+
+    if (currentOrder.contact_id) {
+      const { data: relatedOrders } = await supabase
+        .from('orders')
+        .select('id, main_id')
+        .eq('contact_id', currentOrder.contact_id);
+
+      if (relatedOrders) {
+        allOrderIds = relatedOrders.map(o => o.id);
+        allMainIds = relatedOrders
+          .map(o => o.main_id)
+          .filter(id => id); // Filter nulls
+      }
+    } else {
+      // Если нет контакта, ищем только по текущей сделке
+      if (currentOrder.main_id) allMainIds.push(currentOrder.main_id);
+    }
+
+    // Убираем дубликаты
+    allMainIds = [...new Set(allMainIds)];
+    allOrderIds = [...new Set(allOrderIds)];
+
+    console.log(`[Timeline] Order ${orderId}, Contact ${currentOrder.contact_id}, MainIds: ${allMainIds.length}, OrderIds: ${allOrderIds.length}`);
+
+    // 3. Запрос сообщений клиента (Messages)
+    let clientQuery = supabase
+      .from('messages')
+      .select(`
+        *,
+        sender:managers!manager_id(id, name, email)
+      `)
+      .in('main_id', allMainIds)
+      .order('Created Date', { ascending: false })
+      .limit(limitNum);
+
+    if (before) {
+      clientQuery = clientQuery.lt('Created Date', before);
+    }
+
+    // 4. Запрос внутренних сообщений (Internal Messages)
+    let internalQuery = supabase
+      .from('internal_messages')
+      .select(`
+        *,
+        sender:managers(id, name, email),
+        reply_to:internal_messages!reply_to_id(
+          id,
+          content,
+          sender:managers(name)
+        )
+      `)
+      .in('order_id', allOrderIds)
+      .order('created_at', { ascending: false })
+      .limit(limitNum);
+
+    if (before) {
+      internalQuery = internalQuery.lt('created_at', before);
+    }
+
+    // Выполняем запросы параллельно
+    const [clientRes, internalRes] = await Promise.all([
+      allMainIds.length > 0 ? clientQuery : { data: [] },
+      allOrderIds.length > 0 ? internalQuery : { data: [] }
+    ]);
+
+    if (clientRes.error) console.error('[Timeline] Client error:', clientRes.error);
+    if (internalRes.error) console.error('[Timeline] Internal error:', internalRes.error);
+
+    const clientMsgs = clientRes.data || [];
+    const internalMsgs = internalRes.data || [];
+
+    // 5. Нормализация и объединение
+    const normalizedClient = clientMsgs.map(m => ({
+      ...m,
+      source_type: 'client',
+      // Нормализуем дату для сортировки
+      sort_date: m['Created Date'] || m.created_at,
+      // Адаптируем поля для единого интерфейса, если нужно
+      display_author: m.author_type === 'user' || m.author_type === 'Клиент' ? 'Клиент' : (m.sender?.name || m.author_type),
+    }));
+
+    const normalizedInternal = internalMsgs.map(m => ({
+      ...m,
+      source_type: 'internal',
+      sort_date: m.created_at,
+      // Внутренние сообщения могут быть системными
+      is_system: m.attachment_type === 'system',
+      display_author: m.sender?.name || 'Система',
+    }));
+
+    // Объединяем
+    const combined = [...normalizedClient, ...normalizedInternal];
+
+    // 6. Сортировка по убыванию даты (от новых к старым)
+    combined.sort((a, b) => new Date(b.sort_date) - new Date(a.sort_date));
+
+    // 7. Обрезаем до лимита (так как мы брали N + N)
+    const result = combined.slice(0, limitNum);
+
+    res.json({
+      messages: result,
+      meta: {
+        total_fetched: combined.length,
+        limit: limitNum,
+        has_more: combined.length > limitNum // Rough estimate
+      }
+    });
+
+  } catch (error) {
+    console.error('[Timeline] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==============================================
 // ВНУТРЕННЯЯ ПЕРЕПИСКА (между сотрудниками)
 // ==============================================
 
