@@ -97,6 +97,12 @@ console.log('  - /api/orders');
 console.log('  - /api/order-messages');
 
 
+// Root Endpoint for Health Checks (Render requires this often)
+app.get('/', (req, res) => {
+  res.status(200).send('CRM Backend is running');
+});
+
+
 // Socket.IO для real-time общения
 io.on('connection', (socket) => {
   console.log('✅ User connected:', socket.id);
