@@ -831,6 +831,7 @@ router.get('/:orderId/timeline', auth, async (req, res) => {
       // Внутренние сообщения могут быть системными
       is_system: m.attachment_type === 'system',
       display_author: m.sender?.name || 'Система',
+      author_type: m.sender?.name || 'Manager', // Populate author_type for frontend Avatars
     }));
 
     // Объединяем

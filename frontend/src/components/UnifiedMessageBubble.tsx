@@ -383,7 +383,7 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
                     }}
                     icon={msg.author_type === 'customer' ? <UserOutlined /> : undefined}
                 >
-                    {msg.author_type !== 'customer' ? msg.author_type.charAt(0).toUpperCase() : undefined}
+                    {msg.author_type && msg.author_type !== 'customer' ? msg.author_type.charAt(0).toUpperCase() : <UserOutlined />}
                 </Avatar>
 
                 <Popover
