@@ -138,6 +138,10 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, mainId: propMainId, cont
   // Initial load
   useEffect(() => {
     fetchTimeline(false);
+    // Mark client messages as read when chat opens
+    orderMessagesAPI.markClientMessagesAsRead(orderId).catch(err =>
+      console.error('Failed to mark client messages read on chat open:', err)
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
 
