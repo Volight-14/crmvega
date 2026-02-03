@@ -11,6 +11,7 @@ import {
   Modal,
   Form,
   message,
+  Divider,
   // Empty,
   // Tooltip,
 } from 'antd';
@@ -960,7 +961,35 @@ const OrdersPage: React.FC = () => {
             variant="filled" // Or 'borderless' or standard
             // showArrow
             suffixIcon={<LayoutOutlined />}
-            dropdownMatchSelectWidth={260}
+            dropdownMatchSelectWidth={300}
+            dropdownRender={(menu) => (
+              <>
+                <div style={{ padding: '8px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <Button
+                    size="small"
+                    type="default"
+                    onClick={() => setVisibleStatuses(DEFAULT_VISIBLE_STATUSES)}
+                  >
+                    По умолчанию
+                  </Button>
+                  <Button
+                    size="small"
+                    onClick={() => setVisibleStatuses(Object.keys(ORDER_STATUSES) as OrderStatus[])}
+                  >
+                    Все
+                  </Button>
+                  <Button
+                    size="small"
+                    danger
+                    onClick={() => setVisibleStatuses([])}
+                  >
+                    Сброс
+                  </Button>
+                </div>
+                <Divider style={{ margin: 0 }} />
+                {menu}
+              </>
+            )}
           >
             {sortedStatusOptions.map(opt => (
               <Option key={opt.value} value={opt.value}>
