@@ -237,8 +237,15 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
     socket.on('new_message_global', handleGlobalMessage);
 
+    // Listen for read status updates
+    const handleReadMessage = () => {
+      fetchUnreadCount();
+    };
+    socket.on('messages_read', handleReadMessage);
+
     return () => {
       socket.off('new_message_global', handleGlobalMessage);
+      socket.off('messages_read', handleReadMessage);
     };
   }, [socket, manager, fetchUnreadCount]);
 

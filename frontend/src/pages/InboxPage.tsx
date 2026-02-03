@@ -213,8 +213,8 @@ const InboxPage: React.FC = () => {
             // 2. Unread Filter
             if (showUnreadOnly) {
                 filteredContacts = filteredContacts.filter(c => {
-                    // Logic: Last message from client/user
-                    return c.last_message && isClientMessage(c.last_message.author_type);
+                    // Logic: unread_count > 0 (more accurate than just author check)
+                    return c.unread_count && c.unread_count > 0;
                 });
             }
 
@@ -302,9 +302,15 @@ const InboxPage: React.FC = () => {
             try {
                 await orderMessagesAPI.markClientMessagesAsRead(contact.latest_order_id);
                 // Update local state
-                setContacts(prev => prev.map(c =>
-                    c.id === contact.id ? { ...c, unread_count: 0 } : c
-                ));
+                setContacts(prev => {
+                    if (showUnreadOnly) {
+                        // If we are in "Unread Only" mode, remove the read contact
+                        return prev.filter(c => c.id !== contact.id);
+                    }
+                    return prev.map(c =>
+                        c.id === contact.id ? { ...c, unread_count: 0 } : c
+                    );
+                });
             } catch (error) {
                 console.error('Error marking messages as read:', error);
             }

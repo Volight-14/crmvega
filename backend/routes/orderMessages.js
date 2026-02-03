@@ -406,6 +406,14 @@ router.post('/:orderId/client/read', auth, async (req, res) => {
 
     if (updateError) throw updateError;
 
+    // Socket.IO notification to update counters
+    const io = req.app.get('io');
+    if (io) {
+      // Notify everyone (or specific room) that messages were read
+      // This forces clients to re-fetch unread counts
+      io.emit('messages_read', { orderId, mainId: order.main_id });
+    }
+
     res.json({ success: true });
   } catch (error) {
     console.error('Error marking client messages as read:', error);
