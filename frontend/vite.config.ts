@@ -24,7 +24,7 @@ export default defineConfig({
                 },
             },
         },
-        // Increase chunk size warning limit to 1000 kB since we're splitting properly
-        chunkSizeWarningLimit: 1000,
+        // Increase chunk size warning limit to 2000 kB since we're splitting properly
+        chunkSizeWarningLimit: 2000,
     },
 });
