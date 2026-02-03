@@ -429,7 +429,7 @@ router.post('/:orderId/client/read', auth, async (req, res) => {
       .from('messages')
       .update({ is_read: true })
       .eq('main_id', order.main_id)
-      .in('author_type', ['user', 'bubbleUser', 'Клиент', 'Client', 'customer'])
+      // Removed author_type filter to ensure ALL messages in this chat are marked read
       .eq('is_read', false);
 
     if (updateError) throw updateError;
