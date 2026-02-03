@@ -309,13 +309,23 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, mainId: propMainId, cont
     setMessages(prev => prev.map(m => {
       if (m.id === msg.id) {
         const currentReactions = m.reactions || [];
-        const newReaction = {
-          emoji,
-          author: manager?.name || 'Me',
-          author_id: manager?.id,
-          created_at: new Date().toISOString()
-        };
-        return { ...m, reactions: [...currentReactions, newReaction] };
+        // Remove my existing reaction
+        const otherReactions = currentReactions.filter(r => r.author_id !== manager?.id);
+        const myExistingReaction = currentReactions.find(r => r.author_id === manager?.id);
+
+        let newReactions = [...otherReactions];
+
+        // If I clicked a DIFFERENT emoji, add it. If SAME, leave it removed (toggle off).
+        if (myExistingReaction?.emoji !== emoji) {
+          newReactions.push({
+            emoji,
+            author: manager?.name || 'Me',
+            author_id: manager?.id,
+            created_at: new Date().toISOString()
+          });
+        }
+
+        return { ...m, reactions: newReactions };
       }
       return m;
     }));

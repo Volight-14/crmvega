@@ -604,24 +604,39 @@ router.post('/:id/reactions', auth, async (req, res) => {
     }
     console.log('[Reaction] Fetched message:', message);
 
-    // 2. Добавляем или удаляем реакцию (Toggle logic)
+    // 2. Добавляем или обновляем реакцию (Single reaction per manager)
     const currentReactions = message.reactions || [];
-    const existingIndex = currentReactions.findIndex(r => r.emoji === emoji && r.author_id === req.manager.id);
+    const myExistingReactionIndex = currentReactions.findIndex(r => r.author_id === req.manager.id);
 
-    let updatedReactions;
-    if (existingIndex >= 0) {
-      // Toggle OFF: Remove existing reaction from this user
-      updatedReactions = currentReactions.filter((_, i) => i !== existingIndex);
-      console.log('[Reaction] Removed existing reaction');
+    let updatedReactions = [...currentReactions];
+
+    if (myExistingReactionIndex >= 0) {
+      const existingEmoji = currentReactions[myExistingReactionIndex].emoji;
+
+      // Remove old reaction first
+      updatedReactions.splice(myExistingReactionIndex, 1);
+
+      // If the clicked emoji is different, add the new one. 
+      // If it's the same, we simply removed it (toggle off).
+      if (existingEmoji !== emoji) {
+        updatedReactions.push({
+          emoji,
+          author: req.manager.name,
+          author_id: req.manager.id,
+          created_at: new Date().toISOString()
+        });
+        console.log('[Reaction] Replaced existing reaction');
+      } else {
+        console.log('[Reaction] Removed existing reaction (toggle off)');
+      }
     } else {
-      // Toggle ON: Add new reaction
-      const newReaction = {
+      // No reaction from me yet, just add
+      updatedReactions.push({
         emoji,
         author: req.manager.name,
         author_id: req.manager.id,
         created_at: new Date().toISOString()
-      };
-      updatedReactions = [...currentReactions, newReaction];
+      });
       console.log('[Reaction] Added new reaction');
     }
 
@@ -698,12 +713,18 @@ router.post('/:id/reactions', auth, async (req, res) => {
 
         if (telegramUserId) {
           try {
-            // Collect all unique emojis to preserve multiple reactions (User says 3 are allowed)
-            const uniqueEmojis = [...new Set(updatedReactions.map(r => r.emoji))];
-            // Telegram usually limits to 1 for bots, but 3 for users. If user insists, we send all (or top 3?)
-            // We'll send all unique ones and let Telegram API handle the limit/truncation.
-            const reactionPayload = uniqueEmojis.map(e => ({ type: 'emoji', emoji: e }));
+            // Send only the current user's reaction to Telegram (since we enforced single reaction for this user)
+            // If we deleted the reaction (updatedReactions excludes it), we send empty array?
+            // Wait, if we want to sync the state "Manager likes this", we just send that.
+            // But if there are other reactions (from client), we shouldn't wipe them?
+            // Actually, `setMessageReaction` from a Bot sets the reaction FROM THE BOT.
+            // It does not affect reactions from other users (like the client).
+            // So we just need to send the reaction we just saved for the manager (Bot).
 
+            const myReaction = updatedReactions.find(r => r.author_id === req.manager.id);
+            const reactionPayload = myReaction ? [{ type: 'emoji', emoji: myReaction.emoji }] : [];
+
+            // NOTE: This call sets the BOT's reaction. It won't touch Client's reaction.
             const tgRes = await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/setMessageReaction`, {
               chat_id: telegramUserId,
               message_id: message.message_id_tg,
