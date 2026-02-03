@@ -26,6 +26,7 @@ import {
   AppstoreOutlined,
   FilterOutlined,
   ReloadOutlined,
+  LayoutOutlined,
 } from '@ant-design/icons';
 import { Table, Radio } from 'antd';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -357,6 +358,25 @@ const OrdersPage: React.FC = () => {
   // Refs for each column to scroll to them accurately
   const columnRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
+  // --- Column Visibility Optimization ---
+  const DEFAULT_VISIBLE_STATUSES = Object.keys(ORDER_STATUSES).filter(
+    key => !['completed', 'duplicate', 'scammer', 'client_rejected'].includes(key)
+  ) as OrderStatus[];
+
+  const [visibleStatuses, setVisibleStatuses] = useState<OrderStatus[]>(() => {
+    try {
+      const saved = localStorage.getItem('crm_visible_statuses');
+      return saved ? JSON.parse(saved) : DEFAULT_VISIBLE_STATUSES;
+    } catch {
+      return DEFAULT_VISIBLE_STATUSES;
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('crm_visible_statuses', JSON.stringify(visibleStatuses));
+  }, [visibleStatuses]);
+  // --------------------------------------
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -383,7 +403,7 @@ const OrdersPage: React.FC = () => {
     fetchManagers();
     // Socket setup moved to separate effect
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, filters]);
+  }, [searchParams, filters, visibleStatuses]); // Add visibleStatuses to dependency
 
   // Debounce search input
   useEffect(() => {
@@ -433,6 +453,9 @@ const OrdersPage: React.FC = () => {
     if (!socket) return;
 
     const handleNewOrder = (newOrder: Order) => {
+      // Only add if status is visible
+      if (!visibleStatuses.includes(newOrder.status)) return;
+
       setOrders(prev => {
         if (prev.some(d => d.id === newOrder.id)) return prev;
         return [newOrder, ...prev];
@@ -440,6 +463,11 @@ const OrdersPage: React.FC = () => {
     };
 
     const handleOrderUpdated = (updatedOrder: Order) => {
+      // Check if status changed to something invisible
+      if (!visibleStatuses.includes(updatedOrder.status)) {
+        setOrders(prev => prev.filter(o => o.id !== updatedOrder.id));
+        return;
+      }
       setOrders(prev => prev.map(d => d.id === updatedOrder.id ? { ...updatedOrder, contact: d.contact } : d));
     };
 
@@ -450,30 +478,38 @@ const OrdersPage: React.FC = () => {
       socket.off('new_order', handleNewOrder);
       socket.off('order_updated', handleOrderUpdated);
     };
-  }, [socket]);
+  }, [socket, visibleStatuses]);
 
   const fetchOrders = async () => {
+    // Only cache if default filters
+    const isDefaultFilters = Object.keys(filters).length === 0;
     const CACHE_KEY = 'crm_orders_cache';
     const CACHE_TTL = 60 * 1000; // 60 seconds
 
-    // Try to load from cache first
-    try {
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
-        const { data, timestamp } = JSON.parse(cached);
-        const age = Date.now() - timestamp;
+    if (isDefaultFilters) {
+      // Try to load from cache first
+      try {
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) {
+          const { data, timestamp, statuses } = JSON.parse(cached);
+          const age = Date.now() - timestamp;
 
-        if (age < CACHE_TTL) {
-          // Cache is fresh - use it immediately
-          setOrders(data);
-          console.log('✅ Loaded from cache (age:', Math.round(age / 1000), 'sec)');
-          // Still fetch in background to update cache
-          fetchInBackground();
-          return;
+          // Check if cached statuses match current visible statuses
+          const cachedStatusesStr = JSON.stringify(statuses?.sort());
+          const currentStatusesStr = JSON.stringify(visibleStatuses.slice().sort());
+
+          if (age < CACHE_TTL && cachedStatusesStr === currentStatusesStr) {
+            // Cache is fresh - use it immediately
+            setOrders(data);
+            console.log('✅ Loaded from cache (age:', Math.round(age / 1000), 'sec)');
+            // Still fetch in background to update cache
+            fetchInBackground();
+            return;
+          }
         }
+      } catch (e) {
+        console.warn('Cache read failed:', e);
       }
-    } catch (e) {
-      console.warn('Cache read failed:', e);
     }
 
     // No cache or expired - fetch normally
@@ -484,24 +520,32 @@ const OrdersPage: React.FC = () => {
     setLoading(true);
     try {
       const tagId = searchParams.get('tag');
-      // No limit = backend loads ALL orders
+
+      // Determine effective statuses to fetch
+      // If filters.statuses is set, use it. Otherwise use visibleStatuses.
+      const statusesToFetch = filters.statuses?.length > 0 ? filters.statuses : visibleStatuses;
+
       const { orders: fetchedOrders } = await ordersAPI.getAll({
         minimal: true,
         // @ts-ignore
         tag_id: tagId ? parseInt(tagId) : undefined,
         ...filters, // Apply active filters
+        statuses: statusesToFetch, // OPTIMIZATION: Only fetch what we see
       });
 
       setOrders(fetchedOrders);
 
-      // Save to cache
-      try {
-        localStorage.setItem('crm_orders_cache', JSON.stringify({
-          data: fetchedOrders,
-          timestamp: Date.now()
-        }));
-      } catch (e) {
-        console.warn('Cache write failed:', e);
+      // Save to cache only if standard view
+      if (Object.keys(filters).length === 0) {
+        try {
+          localStorage.setItem('crm_orders_cache', JSON.stringify({
+            data: fetchedOrders,
+            timestamp: Date.now(),
+            statuses: visibleStatuses
+          }));
+        } catch (e) {
+          console.warn('Cache write failed:', e);
+        }
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -683,19 +727,27 @@ const OrdersPage: React.FC = () => {
   // Группируем заявки по статусам
   const ordersByStatus = useMemo(() => {
     const grouped: Record<string, Order[]> = {};
-    Object.keys(ORDER_STATUSES).forEach(status => {
+    // Only sort/render visible statuses
+    visibleStatuses.forEach(status => {
       grouped[status] = [];
     });
+
+    // Add unsorted if missing (safety)
+    if (!grouped['unsorted'] && visibleStatuses.includes('unsorted')) {
+      grouped['unsorted'] = [];
+    }
+
     filteredOrders.forEach(order => {
       const status = order.status || 'unsorted';
       if (grouped[status]) {
         grouped[status].push(order);
       } else {
-        grouped['unsorted'].push(order);
+        // Only push to unsorted if valid, otherwise ignore (or check if it should be displayed)
+        if (grouped['unsorted']) grouped['unsorted'].push(order);
       }
     });
     return grouped;
-  }, [filteredOrders]);
+  }, [filteredOrders, visibleStatuses]);
 
 
 
@@ -704,9 +756,10 @@ const OrdersPage: React.FC = () => {
   // Сортируем статусы по order
   const sortedStatuses = useMemo(() => {
     return Object.entries(ORDER_STATUSES)
+      .filter(([key]) => visibleStatuses.includes(key as OrderStatus))
       .sort((a, b) => (a[1].order || 0) - (b[1].order || 0))
       .map(([key]) => key as OrderStatus);
-  }, []);
+  }, [visibleStatuses]);
 
   const scrollToColumn = (status: OrderStatus) => {
     setActiveMobileColumn(status);
@@ -895,6 +948,29 @@ const OrdersPage: React.FC = () => {
             style={{ width: '100%', maxWidth: 250, borderRadius: 8 }}
             allowClear
           />
+          {/* Status Visibility Selector */}
+          <Select
+            mode="multiple"
+            placeholder="Столбцы"
+            value={visibleStatuses}
+            onChange={setVisibleStatuses}
+            style={{ minWidth: 200, maxWidth: 400 }}
+            maxTagCount="responsive"
+            allowClear
+            variant="filled" // Or 'borderless' or standard
+            // showArrow
+            suffixIcon={<LayoutOutlined />}
+            dropdownMatchSelectWidth={260}
+          >
+            {sortedStatusOptions.map(opt => (
+              <Option key={opt.value} value={opt.value}>
+                <Space>
+                  <span style={{ color: opt.color && opt.color !== 'default' ? opt.color : '#d9d9d9' }}>●</span>
+                  {opt.label}
+                </Space>
+              </Option>
+            ))}
+          </Select>
           <Radio.Group
             value={viewMode}
             onChange={(e) => setViewMode(e.target.value)}
