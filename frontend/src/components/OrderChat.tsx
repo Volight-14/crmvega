@@ -220,6 +220,18 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, mainId: propMainId, cont
       }
     });
 
+    socketRef.current.on('message_updated', (updatedMsg: Message) => {
+      setMessages(prev => prev.map(m => {
+        // Match by ID, ensuring we don't accidentally swap client/internal if IDs clash (though regular IDs shouldn't)
+        // Better to check ID match
+        if (Number(m.id) === Number(updatedMsg.id)) {
+          // Preserve local props like source_type unless we want to fully replace
+          return { ...m, ...updatedMsg, reactions: updatedMsg.reactions };
+        }
+        return m;
+      }));
+    });
+
     return () => {
       socketRef.current?.emit('leave_order', orderId.toString());
       socketRef.current?.disconnect();
@@ -293,10 +305,27 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, mainId: propMainId, cont
   };
 
   const handleAddReaction = async (msg: Message, emoji: string) => {
+    // Optimistic update
+    setMessages(prev => prev.map(m => {
+      if (m.id === msg.id) {
+        const currentReactions = m.reactions || [];
+        const newReaction = {
+          emoji,
+          author: manager?.name || 'Me',
+          author_id: manager?.id,
+          created_at: new Date().toISOString()
+        };
+        return { ...m, reactions: [...currentReactions, newReaction] };
+      }
+      return m;
+    }));
+
     try {
       await messagesAPI.addReaction(msg.id, emoji);
     } catch (error) {
       console.error('Error adding reaction:', error);
+      // Rollback could be added here if needed, but rarely necessary for reactions
+      antMessage.error('Не удалось отправить реакцию');
     }
   };
 

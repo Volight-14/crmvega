@@ -685,10 +685,14 @@ router.post('/:id/reactions', auth, async (req, res) => {
 
         if (telegramUserId) {
           try {
+            // Collect all unique emojis to preserve multiple reactions
+            const uniqueEmojis = [...new Set(updatedReactions.map(r => r.emoji))];
+            const reactionPayload = uniqueEmojis.map(e => ({ type: 'emoji', emoji: e }));
+
             const tgRes = await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/setMessageReaction`, {
               chat_id: telegramUserId,
               message_id: message.message_id_tg,
-              reaction: [{ type: 'emoji', emoji: emoji }]
+              reaction: reactionPayload
             });
             console.log('[Reaction] TG Response success:', tgRes.data?.ok);
           } catch (axiosError) {
