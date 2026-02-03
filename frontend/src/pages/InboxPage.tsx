@@ -460,6 +460,25 @@ const InboxPage: React.FC = () => {
                             >
                                 {showUnreadOnly ? 'Все' : 'Непрочитанные'}
                             </Button>
+                            {/* NEW: Global Mark All Read Button */}
+                            <Button
+                                type="text"
+                                size="small"
+                                title="Пометить все как прочитанные"
+                                onClick={async () => {
+                                    if (window.confirm('Вы уверены, что хотите отметить ВСЕ сообщения как прочитанные?')) {
+                                        try {
+                                            await orderMessagesAPI.markAllRead();
+                                            antMessage.success('Все сообщения отмечены как прочитанные');
+                                            fetchContacts();
+                                        } catch (e: any) {
+                                            console.error(e);
+                                            antMessage.error('Ошибка выполнения');
+                                        }
+                                    }
+                                }}
+                                icon={<span style={{ fontSize: 16 }}>✅</span>}
+                            />
                         </div>
 
                         <Input

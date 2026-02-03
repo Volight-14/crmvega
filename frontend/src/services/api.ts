@@ -317,6 +317,12 @@ export const orderMessagesAPI = {
     await api.post(`/order-messages/${orderId}/client/read`);
   },
 
+  // Отметить ВСЕ сообщения как прочитанные (глобально)
+  markAllRead: async (): Promise<{ success: boolean; count: number }> => {
+    const response = await api.post(`/order-messages/read-all`);
+    return response.data;
+  },
+
   // Получить внутренние сообщения
   getInternalMessages: async (orderId: number, params?: { limit?: number; offset?: number }): Promise<{
     messages: InternalMessage[];

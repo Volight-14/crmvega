@@ -421,6 +421,36 @@ router.post('/:orderId/client/read', auth, async (req, res) => {
   }
 });
 
+// NEW: Отметить ВСЕ сообщения всех клиентов как прочитанные
+router.post('/read-all', auth, async (req, res) => {
+  try {
+    console.log('[OrderMessages] Marking ALL messages as read by user:', req.manager.email);
+
+    // 1. Отмечаем все сообщения непрочитанные сообщения от клиентов как is_read=true
+    const { data, error, count } = await supabase
+      .from('messages')
+      .update({ is_read: true })
+      .eq('is_read', false)
+      .in('author_type', ['user', 'bubbleUser', 'Клиент', 'Client', 'customer'])
+      .select('id', { count: 'exact' });
+
+    if (error) throw error;
+
+    console.log(`[OrderMessages] Marked ${count || 0} messages as read.`);
+
+    // 2. Отправляем сокет-событие, чтобы у всех обновились счетчики
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('messages_read', { all: true });
+    }
+
+    res.json({ success: true, count });
+  } catch (error) {
+    console.error('Error marking ALL messages as read:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // Отправить файл клиенту
 router.post('/:orderId/client/file', auth, upload.single('file'), async (req, res) => {
   try {
