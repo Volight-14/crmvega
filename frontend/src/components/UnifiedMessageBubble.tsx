@@ -386,99 +386,115 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
                     {msg.author_type && msg.author_type !== 'customer' ? msg.author_type.charAt(0).toUpperCase() : <UserOutlined />}
                 </Avatar>
 
-                <Popover
-                    content={contentMenu}
-                    trigger="contextMenu"
-                    open={menuOpen}
-                    onOpenChange={setMenuOpen}
-                    overlayInnerStyle={{ padding: 8, borderRadius: 8 }}
-                    placement={isRight ? 'bottomRight' : 'bottomLeft'}
+                {/* Bubble Container */}
+                <div
+                    style={{
+                        ...styles,
+                        padding: '10px 14px',
+                        minWidth: 60,
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                        position: 'relative',
+                        touchAction: 'manipulation'
+                    }}
+                    onDoubleClick={() => onReply && onReply(msg)}
                 >
-                    <div
-                        style={{
-                            ...styles,
-                            padding: '10px 14px',
-                            minWidth: 60,
-                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                            position: 'relative',
-                            touchAction: 'manipulation'
-                        }}
-                        onDoubleClick={() => onReply && onReply(msg)}
-                        onTouchStart={handleTouchStart}
-                        onTouchEnd={handleTouchEnd}
-                        onContextMenu={handleContextMenu}
-                    >
-                        {!isFromClient && (
-                            <div style={{
-                                fontSize: 10,
-                                fontWeight: 600,
-                                opacity: 0.9,
-                                marginBottom: 2,
-                                textAlign: isRight ? 'right' : 'left',
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.5px'
-                            }}>
-                                {(() => {
-                                    // Prioritize linked manager profile name, fallback to snapshot name
-                                    const rawName = msg.sender?.name || msg.user || 'Оператор';
-                                    return rawName?.includes('@') ? rawName.split('@')[0] : rawName;
-                                })()}
-                            </div>
-                        )}
+                    {!isFromClient && (
+                        <div style={{
+                            fontSize: 10,
+                            fontWeight: 600,
+                            opacity: 0.9,
+                            marginBottom: 2,
+                            textAlign: isRight ? 'right' : 'left',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px'
+                        }}>
+                            {(() => {
+                                // Prioritize linked manager profile name, fallback to snapshot name
+                                const rawName = msg.sender?.name || msg.user || 'Оператор';
+                                return rawName?.includes('@') ? rawName.split('@')[0] : rawName;
+                            })()}
+                        </div>
+                    )}
 
-                        {renderAttachment()}
+                    {renderAttachment()}
 
-                        {displayText && (
-                            <div style={{
-                                fontSize: 14,
-                                lineHeight: '1.5',
-                                whiteSpace: 'pre-wrap',
-                                wordBreak: 'break-word',
-                                marginTop: msg.file_url ? 8 : 0
-                            }}>
-                                {linkifyText(displayText)}
-                            </div>
-                        )}
+                    {displayText && (
+                        <div style={{
+                            fontSize: 14,
+                            lineHeight: '1.5',
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                            marginTop: msg.file_url ? 8 : 0
+                        }}>
+                            {linkifyText(displayText)}
+                        </div>
+                    )}
 
-                        {displayButtons && displayButtons.length > 0 && (
-                            <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4, opacity: 0.8 }}>
-                                {displayButtons.map((btn: any, idx: number) => (
-                                    <div key={idx} style={{
-                                        fontSize: 10,
-                                        padding: '2px 8px',
-                                        borderRadius: 4,
-                                        background: 'rgba(0,0,0,0.1)',
-                                        border: '1px solid rgba(0,0,0,0.1)'
-                                    }}>
-                                        [{btn.text}]
-                                    </div>
+                    {displayButtons && displayButtons.length > 0 && (
+                        <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4, opacity: 0.8 }}>
+                            {displayButtons.map((btn: any, idx: number) => (
+                                <div key={idx} style={{
+                                    fontSize: 10,
+                                    padding: '2px 8px',
+                                    borderRadius: 4,
+                                    background: 'rgba(0,0,0,0.1)',
+                                    border: '1px solid rgba(0,0,0,0.1)'
+                                }}>
+                                    [{btn.text}]
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                        alignItems: 'center',
+                        marginTop: 4,
+                        gap: 4,
+                        opacity: 0.7,
+                        fontSize: 10
+                    }}>
+                        {/* Reactions Display */}
+                        {msg.reactions && msg.reactions.length > 0 && (
+                            <div style={{ display: 'flex', gap: 2, marginRight: 4 }}>
+                                {msg.reactions.map((r, i) => (
+                                    <span key={i}>{typeof r === 'string' ? r : r.emoji || r}</span>
                                 ))}
                             </div>
                         )}
 
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'flex-end',
-                            alignItems: 'center',
-                            marginTop: 4,
-                            gap: 4,
-                            opacity: 0.7,
-                            fontSize: 10
-                        }}>
-                            {msg.reactions && msg.reactions.length > 0 && (
-                                <div style={{ display: 'flex', gap: 2, marginRight: 4 }}>
-                                    {msg.reactions.map((r, i) => (
-                                        <span key={i}>{typeof r === 'string' ? r : r.emoji || r}</span>
-                                    ))}
-                                </div>
-                            )}
-                            {formatTime(msg['Created Date'] || msg.created_at)}
-                            {isOwn && (
-                                <span>{msg.is_read ? '✓✓' : '✓'}</span>
-                            )}
-                        </div>
+                        {/* Date & Status */}
+                        {formatTime(msg['Created Date'] || msg.created_at)}
+                        {isOwn && (
+                            <span>{msg.is_read ? '✓✓' : '✓'}</span>
+                        )}
+
+                        {/* ACTIONS MENU TRIGGER */}
+                        <Popover
+                            content={contentMenu}
+                            trigger="click"
+                            open={menuOpen}
+                            onOpenChange={setMenuOpen}
+                            overlayInnerStyle={{ padding: 8, borderRadius: 8 }}
+                            placement="bottom"
+                        >
+                            <div
+                                style={{
+                                    cursor: 'pointer',
+                                    marginLeft: 4,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    opacity: 0.6,
+                                    padding: '0 4px'
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                ⋮
+                            </div>
+                        </Popover>
                     </div>
-                </Popover>
+                </div>
             </div>
         </div>
     );
