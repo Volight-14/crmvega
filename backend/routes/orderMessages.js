@@ -6,6 +6,7 @@ const axios = require('axios');
 const FormData = require('form-data');
 const { notifyErrorSubscribers } = require('../utils/notifyError');
 const { convertToOgg } = require('../utils/audioConverter');
+const { clearCache } = require('../utils/cache');
 
 const router = express.Router();
 const supabase = createClient(
@@ -371,6 +372,7 @@ router.post('/:orderId/client', auth, async (req, res) => {
         .from('contacts')
         .update({ last_message_at: new Date().toISOString() })
         .eq('id', order.contact_id);
+      clearCache('contacts');
     }
 
     const io = req.app.get('io');
@@ -391,6 +393,7 @@ router.post('/:orderId/client', auth, async (req, res) => {
             .rpc('mark_messages_read', { p_main_id: String(order.main_id) });
 
           if (!rpcError && io) {
+            if (updatedCount > 0) clearCache('orders');
             io.emit('messages_read', { orderId, mainId: order.main_id, all: false });
           }
         } catch (err) {
@@ -430,6 +433,8 @@ router.post('/:orderId/client/read', auth, async (req, res) => {
 
     console.log(`[ReadStatus] Order ${orderId}: RPC marked ${updatedCount} messages.`);
 
+    if (updatedCount > 0) clearCache('orders');
+
     // Socket.IO notification to update counters
     const io = req.app.get('io');
     if (io) {
@@ -461,6 +466,11 @@ router.post('/read-all', auth, async (req, res) => {
     if (error) throw error;
 
     console.log(`[OrderMessages] Marked ${count || 0} messages as read.`);
+
+    if (count > 0) {
+      clearCache('orders');
+      clearCache('messages');
+    }
 
     // 2. Отправляем сокет-событие, чтобы у всех обновились счетчики
     const io = req.app.get('io');
