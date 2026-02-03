@@ -116,11 +116,12 @@ const InboxPage: React.FC = () => {
                         ...c,
                         last_message: data.message,
                         last_message_at: data.message.created_at || data.message['Created Date'],
+                        last_active: data.message.created_at || data.message['Created Date'], // Update this too for the UI
                         unread_count: (selectedContact?.id === c.id) ? 0 : (c.unread_count || 0) + 1
                     };
                 }
                 return c;
-            }).sort((a, b) => new Date(b.last_message_at || 0).getTime() - new Date(a.last_message_at || 0).getTime()));
+            }).sort((a, b) => new Date(b.last_active || 0).getTime() - new Date(a.last_active || 0).getTime())); // Sort by last_active
 
             // Update current chat if open
             if (activeOrder && String(data.message.main_id) === String(activeOrder.main_id)) {
