@@ -360,5 +360,42 @@ router.delete('/:id', auth, async (req, res) => {
 
 
 
+const { clearCache } = require('../utils/cache');
+
+// ... existing code ...
+
+// Отметить все сообщения контакта как прочитанные
+router.post('/:id/read-messages', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 1. Get all orders for contact to find main_ids
+    const { data: orders, error: ordersError } = await supabase
+      .from('orders')
+      .select('main_id')
+      .eq('contact_id', id);
+
+    if (ordersError) throw ordersError;
+
+    const mainIds = orders?.map(o => o.main_id).filter(Boolean) || [];
+
+    if (mainIds.length > 0) {
+      // 2. Mark all as read using RPC
+      await Promise.all(mainIds.map(main_id =>
+        supabase.rpc('mark_messages_read', { p_main_id: String(main_id) })
+      ));
+    }
+
+    // 3. Clear Cache
+    clearCache('contacts');
+    clearCache('orders');
+
+    res.json({ success: true, processed: mainIds.length });
+  } catch (error) {
+    console.error('Error marking contact messages as read:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
 module.exports = router;
 

@@ -136,8 +136,14 @@ export const contactsAPI = {
   },
 
   getSummary: async (params?: { limit?: number; offset?: number; search?: string }): Promise<InboxContact[]> => {
-    const response = await api.get('/contacts/summary', { params });
+    // Add cache buster
+    const paramsWithCache = { ...params, _t: Date.now() };
+    const response = await api.get('/contacts/summary', { params: paramsWithCache });
     return response.data;
+  },
+
+  markMessagesAsRead: async (contactId: number): Promise<void> => {
+    await api.post(`/contacts/${contactId}/read-messages`);
   },
 };
 

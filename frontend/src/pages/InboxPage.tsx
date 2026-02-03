@@ -297,10 +297,10 @@ const InboxPage: React.FC = () => {
             }
         }
 
-        // Mark client messages as read
-        if (contact.latest_order_id && contact.unread_count && contact.unread_count > 0) {
+        // Mark client messages as read (GLOBAL for contact)
+        if (contact.unread_count && contact.unread_count > 0) {
             try {
-                await orderMessagesAPI.markClientMessagesAsRead(contact.latest_order_id);
+                await contactsAPI.markMessagesAsRead(contact.id);
                 // Update local state
                 setContacts(prev => {
                     if (showUnreadOnly) {
@@ -668,9 +668,10 @@ const InboxPage: React.FC = () => {
                                                 size="small"
                                                 onClick={async () => {
                                                     const orderId = activeOrder?.id || selectedContact.latest_order_id;
-                                                    if (orderId) {
+                                                    // Mark CONTACT as read to catch ghost orders
+                                                    if (selectedContact.id) {
                                                         try {
-                                                            await orderMessagesAPI.markClientMessagesAsRead(orderId);
+                                                            await contactsAPI.markMessagesAsRead(selectedContact.id);
                                                             antMessage.success('Все сообщения помечены прочитанными');
                                                             // Update local state is handled via sockets or manual refresh
                                                             setContacts(prev => {
