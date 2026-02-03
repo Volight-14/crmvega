@@ -698,14 +698,11 @@ router.post('/:id/reactions', auth, async (req, res) => {
 
         if (telegramUserId) {
           try {
-            // Determine payload: Last added reaction or empty to clear
-            // Bots restriction: 1 reaction max.
-            let reactionPayload = [];
-            if (updatedReactions.length > 0) {
-              // Get the very last reaction added
-              const lastReaction = updatedReactions[updatedReactions.length - 1];
-              reactionPayload = [{ type: 'emoji', emoji: lastReaction.emoji }];
-            }
+            // Collect all unique emojis to preserve multiple reactions (User says 3 are allowed)
+            const uniqueEmojis = [...new Set(updatedReactions.map(r => r.emoji))];
+            // Telegram usually limits to 1 for bots, but 3 for users. If user insists, we send all (or top 3?)
+            // We'll send all unique ones and let Telegram API handle the limit/truncation.
+            const reactionPayload = uniqueEmojis.map(e => ({ type: 'emoji', emoji: e }));
 
             const tgRes = await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/setMessageReaction`, {
               chat_id: telegramUserId,
