@@ -243,16 +243,26 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
 
       const io = req.app.get('io');
       if (io) {
-        if (lead_id) {
-          io.to(`lead_${lead_id}`).emit('new_message', result);
-          // Also emit to order room if linked
-          if (finalOrderId) io.to(`order_${finalOrderId}`).emit('new_client_message', result);
+        if (existingMessage) {
+          // It was an UPDATE (e.g. reaction)
+          if (lead_id) {
+            io.to(`lead_${lead_id}`).emit('message_updated', result);
+          }
+          io.emit('message_updated_bubble', result);
+          io.emit('message_updated', result);
+        } else {
+          // It was an INSERT
+          if (lead_id) {
+            io.to(`lead_${lead_id}`).emit('new_message', result);
+            // Also emit to order room if linked
+            if (finalOrderId) io.to(`order_${finalOrderId}`).emit('new_client_message', result);
+          }
+          io.emit('new_message_bubble', result);
+          // GLOBAL ALERT EMISSION
+          io.emit('new_message_global', socketPayload);
         }
-        io.emit('new_message_bubble', result);
-        // GLOBAL ALERT EMISSION
-        io.emit('new_message_global', socketPayload);
 
-        // Required for InboxPage sidebar update
+        // Required for InboxPage sidebar update (and potentially others)
         if (finalContactId) {
           io.emit('contact_message', {
             contact_id: finalContactId,
