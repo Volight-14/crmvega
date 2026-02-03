@@ -132,6 +132,34 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       console.warn('[Bubble] message no main_ID', telegram_user_id);
     }
 
+    // Resolve Contact and Order
+    if (finalMainId) {
+      const { data: order } = await supabase
+        .from('orders')
+        .select('id, contact_id')
+        .eq('main_id', finalMainId)
+        .maybeSingle();
+
+      if (order) {
+        finalOrderId = order.id;
+        if (order.contact_id) {
+          finalContactId = order.contact_id;
+        }
+      }
+    }
+
+    if (!finalContactId && telegram_user_id) {
+      const { data: contact } = await supabase
+        .from('contacts')
+        .select('id')
+        .eq('telegram_user_id', String(telegram_user_id))
+        .maybeSingle();
+
+      if (contact) {
+        finalContactId = contact.id;
+      }
+    }
+
     const safeContent = (processedContent === 'null' || !processedContent) ? '' : processedContent;
 
     const messageData = {
