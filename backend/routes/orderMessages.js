@@ -427,11 +427,12 @@ router.post('/read-all', auth, async (req, res) => {
     console.log('[OrderMessages] Marking ALL messages as read by user:', req.manager.email);
 
     // 1. Отмечаем все сообщения непрочитанные сообщения от клиентов как is_read=true
+    // Критерий: либо это известные типы клиентов, либо manager_id is null (входящие)
     const { data, error, count } = await supabase
       .from('messages')
       .update({ is_read: true })
       .eq('is_read', false)
-      .in('author_type', ['user', 'bubbleUser', 'Клиент', 'Client', 'customer'])
+      .or('manager_id.is.null,author_type.in.(user,bubbleUser,Клиент,Client,client,customer,User,Telegram)')
       .select('id', { count: 'exact' });
 
     if (error) throw error;
