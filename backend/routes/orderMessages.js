@@ -365,13 +365,33 @@ router.post('/:orderId/client', auth, async (req, res) => {
         message_id: message.id,
       }, { onConflict: 'order_id,message_id' });
 
-    // Socket.IO уведомление
     const io = req.app.get('io');
     if (io) {
       io.to(`order_${orderId}`).emit('new_client_message', message);
       if (order.main_id) {
         io.to(`lead_${order.main_id}`).emit('new_message', message);
       }
+    }
+
+    // AUTO-READ LOGIC: If manager replies, mark all previous client messages as read
+    if (order.main_id) {
+      // Run asynchronously to not block response
+      (async () => {
+        try {
+          const { error: updateError } = await supabase
+            .from('messages')
+            .update({ is_read: true })
+            .eq('main_id', order.main_id)
+            .eq('is_read', false)
+            .in('author_type', ['user', 'User', 'bubbleUser', 'customer', 'client', 'Client', 'Клиент', 'Telegram', 'bot', 'бот']);
+
+          if (!updateError && io) {
+            io.emit('messages_read', { orderId, mainId: order.main_id, all: false });
+          }
+        } catch (err) {
+          console.error('[OrderMessages] Auto-read update failed:', err);
+        }
+      })();
     }
 
     res.json(message);
