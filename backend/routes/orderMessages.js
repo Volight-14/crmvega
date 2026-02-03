@@ -386,14 +386,11 @@ router.post('/:orderId/client', auth, async (req, res) => {
       // Run asynchronously to not block response
       (async () => {
         try {
-          const { error: updateError } = await supabase
-            .from('messages')
-            .update({ is_read: true })
-            .eq('main_id', order.main_id)
-            .eq('is_read', false)
-            .in('author_type', ['user', 'User', 'bubbleUser', 'customer', 'client', 'Client', 'Клиент', 'Telegram', 'bot', 'бот']);
+          // Use the same robust RPC for auto-read
+          const { data: updatedCount, error: rpcError } = await supabase
+            .rpc('mark_messages_read', { p_main_id: String(order.main_id) });
 
-          if (!updateError && io) {
+          if (!rpcError && io) {
             io.emit('messages_read', { orderId, mainId: order.main_id, all: false });
           }
         } catch (err) {
@@ -424,18 +421,14 @@ router.post('/:orderId/client/read', auth, async (req, res) => {
     if (orderError) throw orderError;
     if (!order.main_id) return res.json({ success: true });
 
-    // Обновляем статус сообщений
-    const { error: updateError, count } = await supabase
-      .from('messages')
-      .update({ is_read: true })
-      .eq('main_id', order.main_id)
-      // Removed author_type filter to ensure ALL messages in this chat are marked read
-      .eq('is_read', false)
-      .select('id', { count: 'exact' });
+    // Используем RPC функцию с SECURITY DEFINER для обхода RLS
+    // Это гарантирует обновление, даже если не хватает прав у текущего токена
+    const { data: updatedCount, error: rpcError } = await supabase
+      .rpc('mark_messages_read', { p_main_id: String(order.main_id) });
 
-    console.log(`[ReadStatus] Order ${orderId} (Main ${order.main_id}): Marked ${count} messages as read.`);
+    if (rpcError) throw rpcError;
 
-    if (updateError) throw updateError;
+    console.log(`[ReadStatus] Order ${orderId}: RPC marked ${updatedCount} messages.`);
 
     // Socket.IO notification to update counters
     const io = req.app.get('io');
