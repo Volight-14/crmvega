@@ -722,21 +722,7 @@ router.post('/:id/reactions', auth, async (req, res) => {
             // So we just need to send the reaction we just saved for the manager (Bot).
 
             const myReaction = updatedReactions.find(r => r.author_id === req.manager.id);
-
-            // Map unsupported emojis to Telegram equivalents if needed
-            const TG_REACTION_MAP = {
-              '😮': '😱', // Wow -> Scream
-              '😔': '😢', // Sad -> Cry
-              '✅': '👌'  // Check -> Ok
-            };
-
-            let emojiToSend = myReaction ? myReaction.emoji : null;
-            if (emojiToSend && TG_REACTION_MAP[emojiToSend]) {
-              emojiToSend = TG_REACTION_MAP[emojiToSend];
-              console.log(`[Reaction] Mapped ${myReaction.emoji} to ${emojiToSend} for Telegram`);
-            }
-
-            const reactionPayload = emojiToSend ? [{ type: 'emoji', emoji: emojiToSend }] : [];
+            const reactionPayload = myReaction ? [{ type: 'emoji', emoji: myReaction.emoji }] : [];
 
             // NOTE: This call sets the BOT's reaction. It won't touch Client's reaction.
             const tgRes = await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/setMessageReaction`, {

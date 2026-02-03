@@ -28,7 +28,7 @@ interface UnifiedMessageBubbleProps {
     onRecall?: (msg: Message) => void; // Optional recall support
 }
 
-const DEFAULT_REACTIONS = ['👍', '❤️', '🔥', '😮', '😔', '🙏', '✅', '😇'];
+const DEFAULT_REACTIONS = ['👍', '❤️', '🔥', '😱', '😢', '🙏', '👌', '😇'];
 
 export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
     msg,
