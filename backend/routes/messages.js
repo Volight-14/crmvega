@@ -604,16 +604,26 @@ router.post('/:id/reactions', auth, async (req, res) => {
     }
     console.log('[Reaction] Fetched message:', message);
 
-    // 2. Добавляем новую реакцию
+    // 2. Добавляем или удаляем реакцию (Toggle logic)
     const currentReactions = message.reactions || [];
-    const newReaction = {
-      emoji,
-      author: req.manager.name,
-      author_id: req.manager.id,
-      created_at: new Date().toISOString()
-    };
+    const existingIndex = currentReactions.findIndex(r => r.emoji === emoji && r.author_id === req.manager.id);
 
-    const updatedReactions = [...currentReactions, newReaction];
+    let updatedReactions;
+    if (existingIndex >= 0) {
+      // Toggle OFF: Remove existing reaction from this user
+      updatedReactions = currentReactions.filter((_, i) => i !== existingIndex);
+      console.log('[Reaction] Removed existing reaction');
+    } else {
+      // Toggle ON: Add new reaction
+      const newReaction = {
+        emoji,
+        author: req.manager.name,
+        author_id: req.manager.id,
+        created_at: new Date().toISOString()
+      };
+      updatedReactions = [...currentReactions, newReaction];
+      console.log('[Reaction] Added new reaction');
+    }
 
     // 3. Обновляем БД
     const { data: updatedMessage, error: updateError } = await supabase
@@ -629,6 +639,9 @@ router.post('/:id/reactions', auth, async (req, res) => {
     }
 
     // 4. Отправляем реакцию в Telegram
+    // NOTE: Telegram Bots can only have ONE active reaction per message.
+    // We cannot display "User A liked, User B hearted". The Bot acts as one user.
+    // Strategy: We sync the LATEST persistent reaction to Telegram.
     if (message.message_id_tg && process.env.TELEGRAM_BOT_TOKEN) {
       console.log('[Reaction] Attempting to send to TG. MsgId:', message.message_id_tg, 'MainId:', message.main_id);
       try {
@@ -685,9 +698,14 @@ router.post('/:id/reactions', auth, async (req, res) => {
 
         if (telegramUserId) {
           try {
-            // Collect all unique emojis to preserve multiple reactions
-            const uniqueEmojis = [...new Set(updatedReactions.map(r => r.emoji))];
-            const reactionPayload = uniqueEmojis.map(e => ({ type: 'emoji', emoji: e }));
+            // Determine payload: Last added reaction or empty to clear
+            // Bots restriction: 1 reaction max.
+            let reactionPayload = [];
+            if (updatedReactions.length > 0) {
+              // Get the very last reaction added
+              const lastReaction = updatedReactions[updatedReactions.length - 1];
+              reactionPayload = [{ type: 'emoji', emoji: lastReaction.emoji }];
+            }
 
             const tgRes = await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/setMessageReaction`, {
               chat_id: telegramUserId,
