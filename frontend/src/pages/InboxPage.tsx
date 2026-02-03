@@ -644,9 +644,36 @@ const InboxPage: React.FC = () => {
                                 </div>
                                 <div style={{ display: 'flex', gap: 4 }}>
                                     {(activeOrder || selectedContact.latest_order_id) && (
-                                        <Link to={`/order/${activeOrder?.main_id || activeOrder?.id || selectedContact.latest_order_id}`}>
-                                            <Button type="link" size="small">{isMobile ? 'Сделка' : 'Открыть сделку'}</Button>
-                                        </Link>
+                                        <Space>
+                                            <Button
+                                                size="small"
+                                                onClick={async () => {
+                                                    const orderId = activeOrder?.id || selectedContact.latest_order_id;
+                                                    if (orderId) {
+                                                        try {
+                                                            await orderMessagesAPI.markClientMessagesAsRead(orderId);
+                                                            antMessage.success('Все сообщения помечены прочитанными');
+                                                            // Update local state is handled via sockets or manual refresh
+                                                            setContacts(prev => {
+                                                                if (showUnreadOnly) {
+                                                                    return prev.filter(c => c.id !== selectedContact.id);
+                                                                }
+                                                                return prev.map(c =>
+                                                                    c.id === selectedContact.id ? { ...c, unread_count: 0 } : c
+                                                                );
+                                                            });
+                                                        } catch (e) {
+                                                            antMessage.error('Ошибка при отметке прочитанным');
+                                                        }
+                                                    }
+                                                }}
+                                            >
+                                                Прочитано
+                                            </Button>
+                                            <Link to={`/order/${activeOrder?.main_id || activeOrder?.id || selectedContact.latest_order_id}`}>
+                                                <Button type="link" size="small">{isMobile ? 'Сделка' : 'Открыть сделку'}</Button>
+                                            </Link>
+                                        </Space>
                                     )}
                                 </div>
                             </div>
