@@ -433,7 +433,8 @@ router.post('/order', verifyWebhookToken, async (req, res) => {
       return isNaN(parsed) ? null : parsed;
     };
 
-    // ... inside the router.post('/order') ...
+    // Sync outer scope ID for final update
+    finalContactId = contactId;
 
     // 2. Prepare Order Data
     const orderData = {
