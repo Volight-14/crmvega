@@ -140,7 +140,14 @@ const InboxPage: React.FC = () => {
         };
 
         const handleMessageUpdated = (msg: Message) => {
-            setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, ...msg } : m));
+            setMessages(prev => prev.map(m => {
+                if (m.id === msg.id) {
+                    // Check content integrity
+                    const newContent = (msg.content !== undefined && msg.content !== null) ? msg.content : m.content;
+                    return { ...m, ...msg, content: newContent };
+                }
+                return m;
+            }));
         };
 
         const handleReconnect = () => {
