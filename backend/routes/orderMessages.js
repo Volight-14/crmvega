@@ -10,7 +10,7 @@ const { convertToOgg } = require('../utils/audioConverter');
 const router = express.Router();
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
 );
 
 // Настройка multer для загрузки файлов в память
@@ -425,12 +425,15 @@ router.post('/:orderId/client/read', auth, async (req, res) => {
     if (!order.main_id) return res.json({ success: true });
 
     // Обновляем статус сообщений
-    const { error: updateError } = await supabase
+    const { error: updateError, count } = await supabase
       .from('messages')
       .update({ is_read: true })
       .eq('main_id', order.main_id)
       // Removed author_type filter to ensure ALL messages in this chat are marked read
-      .eq('is_read', false);
+      .eq('is_read', false)
+      .select('id', { count: 'exact' });
+
+    console.log(`[ReadStatus] Order ${orderId} (Main ${order.main_id}): Marked ${count} messages as read.`);
 
     if (updateError) throw updateError;
 
