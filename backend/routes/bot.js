@@ -521,20 +521,34 @@ router.post('/webhook', async (req, res) => {
 
         const mergedReactions = [...otherReactions, ...clientReactions];
 
-        const { data: updatedMessage, error: updateError } = await supabase
+        const { error: updateError } = await supabase
           .from('messages')
           .update({ reactions: mergedReactions })
-          .eq('id', messageData.id)
-          .select('*') // Explicitly select all to ensure content is present
-          .single();
+          .eq('id', messageData.id);
 
-        if (!updateError && updatedMessage) {
-          console.log(`[bot.js] Updated reactions for message ${messageData.id}. Content present: ${!!updatedMessage.content}`);
-          const io = req.app.get('io');
-          if (io) {
-            io.emit('message_updated', updatedMessage);
-            if (updatedMessage.lead_id) {
-              io.to(`lead_${updatedMessage.lead_id}`).emit('message_updated', updatedMessage);
+        if (!updateError) {
+          // Fetch fresh message separately to ensure data integrity
+          const { data: freshMessage } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('id', messageData.id)
+            .single();
+
+          if (freshMessage) {
+            // Safety fallback: if fresh content is somehow missing/null, use original
+            if (!freshMessage.content && messageData.content) {
+              console.warn(`[bot.js] Content missing in fresh fetch! Restoring original content for msg ${messageData.id}`);
+              freshMessage.content = messageData.content;
+            }
+
+            console.log(`[bot.js] Updated reactions for message ${messageData.id}. Content: "${freshMessage.content}"`);
+
+            const io = req.app.get('io');
+            if (io) {
+              io.emit('message_updated', freshMessage);
+              if (freshMessage.lead_id) {
+                io.to(`lead_${freshMessage.lead_id}`).emit('message_updated', freshMessage);
+              }
             }
           }
         }
