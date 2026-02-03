@@ -264,7 +264,7 @@ router.get('/unread-count', auth, async (req, res) => {
     const { data: unreadData, error: msgError } = await supabase
       .from('messages')
       .select('main_id')
-      .neq('status', 'read') // Предполагаем, что прочитанные помечены как 'read'
+      .eq('is_read', false) // Correctly check boolean is_read column
       .in('author_type', ['user', 'customer', 'client', 'Client', 'Клиент']) // Use .in() for cleaner URL
       .not('main_id', 'is', null)
       .order('id', { ascending: false }) // Get latest messages first
