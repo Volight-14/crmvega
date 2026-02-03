@@ -525,11 +525,11 @@ router.post('/webhook', async (req, res) => {
           .from('messages')
           .update({ reactions: mergedReactions })
           .eq('id', messageData.id)
-          .select()
+          .select('*') // Explicitly select all to ensure content is present
           .single();
 
-        if (!updateError) {
-          console.log(`[bot.js] Updated reactions for message ${messageData.id}`);
+        if (!updateError && updatedMessage) {
+          console.log(`[bot.js] Updated reactions for message ${messageData.id}. Content present: ${!!updatedMessage.content}`);
           const io = req.app.get('io');
           if (io) {
             io.emit('message_updated', updatedMessage);

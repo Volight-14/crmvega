@@ -222,11 +222,19 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, mainId: propMainId, cont
 
     socketRef.current.on('message_updated', (updatedMsg: Message) => {
       setMessages(prev => prev.map(m => {
-        // Match by ID, ensuring we don't accidentally swap client/internal if IDs clash (though regular IDs shouldn't)
-        // Better to check ID match
         if (Number(m.id) === Number(updatedMsg.id)) {
-          // Preserve local props like source_type unless we want to fully replace
-          return { ...m, ...updatedMsg, reactions: updatedMsg.reactions };
+          // Preserve local props. Protect content.
+          // If updatedMsg key is missing or null, keep old one?
+          // Usually updates are full replacements.
+          // But if reaction update somehow stripped content, we want to be safe.
+          const newContent = updatedMsg.content !== undefined ? updatedMsg.content : m.content;
+
+          return {
+            ...m,
+            ...updatedMsg,
+            content: newContent,
+            reactions: updatedMsg.reactions
+          };
         }
         return m;
       }));
