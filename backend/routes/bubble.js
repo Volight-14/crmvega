@@ -261,9 +261,10 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
     // Обновляем last_message_at у контакта (если нашли его ранее)
     // Don't update time for reactions, as they shouldn't bump conversation
     if (finalContactId && message_type !== 'reaction') {
+      const lastActiveTime = createdDate || new Date().toISOString();
       await supabase
         .from('contacts')
-        .update({ last_message_at: new Date().toISOString() })
+        .update({ last_message_at: lastActiveTime })
         .eq('id', finalContactId);
     }
 
