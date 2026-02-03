@@ -160,7 +160,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
     if (message_id_amo && String(message_id_amo) !== 'null') {
       const { data: msgByAmo } = await supabase
         .from('messages')
-        .select('id, content')
+        .select('id, content, reactions')
         .eq('message_id_amo', message_id_amo)
         .maybeSingle();
       existingMessage = msgByAmo;
@@ -170,7 +170,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
     if (!existingMessage && message_id_tg && String(message_id_tg) !== '0') {
       const { data: msgByTg } = await supabase
         .from('messages')
-        .select('id, content')
+        .select('id, content, reactions')
         .eq('message_id_tg', message_id_tg)
         .maybeSingle();
       existingMessage = msgByTg;
@@ -180,10 +180,30 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
     if (existingMessage) {
       const payloadToUpdate = { ...messageData };
 
-      // Protect content from accidental erasure (e.g. reaction updates often lack content)
-      if (!payloadToUpdate.content && existingMessage.content) {
-        console.log(`[Bubble Webhook] Preserving existing content for msg ${existingMessage.id}`);
+      // Handle "reaction" type updates from Bubble
+      if (message_type === 'reaction') {
+        console.log(`[Bubble Webhook] Processing REACTION update for msg ${existingMessage.id}. Emoji: ${content}`);
+
+        const currentReactions = existingMessage.reactions || [];
+        const newReaction = {
+          emoji: content, // Content holds the emoji
+          author: 'Client',
+          created_at: new Date().toISOString()
+        };
+
+        // Update reactions list
+        payloadToUpdate.reactions = [...currentReactions, newReaction];
+
+        // Protect content and type from being overwritten by reaction data
         delete payloadToUpdate.content;
+        delete payloadToUpdate.message_type; // Keep original type (e.g. 'text')
+
+      } else {
+        // Standard update: Protect content from accidental erasure if missing in payload
+        if (!payloadToUpdate.content && existingMessage.content) {
+          console.log(`[Bubble Webhook] Preserving existing content for msg ${existingMessage.id}`);
+          delete payloadToUpdate.content;
+        }
       }
 
       const { data, error } = await supabase
