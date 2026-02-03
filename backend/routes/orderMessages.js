@@ -365,6 +365,14 @@ router.post('/:orderId/client', auth, async (req, res) => {
         message_id: message.id,
       }, { onConflict: 'order_id,message_id' });
 
+    // UPDATE CONTACT: Bump conv to top on manager reply
+    if (order.contact_id) {
+      await supabase
+        .from('contacts')
+        .update({ last_message_at: new Date().toISOString() })
+        .eq('id', order.contact_id);
+    }
+
     const io = req.app.get('io');
     if (io) {
       io.to(`order_${orderId}`).emit('new_client_message', message);
