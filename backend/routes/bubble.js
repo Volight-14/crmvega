@@ -160,7 +160,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
     if (message_id_amo && String(message_id_amo) !== 'null') {
       const { data: msgByAmo } = await supabase
         .from('messages')
-        .select('id')
+        .select('id, content')
         .eq('message_id_amo', message_id_amo)
         .maybeSingle();
       existingMessage = msgByAmo;
@@ -170,7 +170,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
     if (!existingMessage && message_id_tg && String(message_id_tg) !== '0') {
       const { data: msgByTg } = await supabase
         .from('messages')
-        .select('id')
+        .select('id, content')
         .eq('message_id_tg', message_id_tg)
         .maybeSingle();
       existingMessage = msgByTg;
@@ -178,9 +178,17 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
 
     let result;
     if (existingMessage) {
+      const payloadToUpdate = { ...messageData };
+
+      // Protect content from accidental erasure (e.g. reaction updates often lack content)
+      if (!payloadToUpdate.content && existingMessage.content) {
+        console.log(`[Bubble Webhook] Preserving existing content for msg ${existingMessage.id}`);
+        delete payloadToUpdate.content;
+      }
+
       const { data, error } = await supabase
         .from('messages')
-        .update(messageData)
+        .update(payloadToUpdate)
         .eq('id', existingMessage.id)
         .select()
         .single();
