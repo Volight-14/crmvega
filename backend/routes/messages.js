@@ -640,34 +640,50 @@ router.post('/:id/reactions', auth, async (req, res) => {
       console.log('[Reaction] Added new reaction');
     }
 
-    // 3. Обновляем БД
-    const { data: updatedMessage, error: updateError } = await supabase
+    // 3. Обновляем БД (без select)
+    const { error: updateError } = await supabase
       .from('messages')
       .update({ reactions: updatedReactions })
-      .eq('id', id)
-      .select()
-      .single();
+      .eq('id', id);
 
     if (updateError) {
       console.error('[Reaction] Update error:', updateError);
       throw updateError;
     }
 
-    // 4. Отправляем реакцию в Telegram
+    // 4. Получаем свежее сообщение для гарантии целостности
+    const { data: updatedMessage, error: fetchFreshError } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchFreshError || !updatedMessage) {
+      throw fetchFreshError || new Error('Failed to fetch updated message');
+    }
+
+    // Safety fallback: if fresh content is missing/null, restore original
+    if (!updatedMessage.content && message.content) {
+      console.warn(`[Reaction] Content missing in fresh fetch! Restoring original for msg ${id}`);
+      updatedMessage.content = message.content;
+    }
+
+
+    // 5. Отправляем реакцию в Telegram
     // NOTE: Telegram Bots can only have ONE active reaction per message.
     // We cannot display "User A liked, User B hearted". The Bot acts as one user.
     // Strategy: We sync the LATEST persistent reaction to Telegram.
-    if (message.message_id_tg && process.env.TELEGRAM_BOT_TOKEN) {
-      console.log('[Reaction] Attempting to send to TG. MsgId:', message.message_id_tg, 'MainId:', message.main_id);
+    if (updatedMessage.message_id_tg && process.env.TELEGRAM_BOT_TOKEN) {
+      console.log('[Reaction] Attempting to send to TG. MsgId:', updatedMessage.message_id_tg, 'MainId:', updatedMessage.main_id);
       try {
         let telegramUserId = null;
 
         // Strategy 1: Find via main_id (Orders)
-        if (message.main_id) {
+        if (updatedMessage.main_id) {
           const { data: orderData } = await supabase
             .from('orders')
             .select('contact_id')
-            .eq('main_id', message.main_id)
+            .eq('main_id', updatedMessage.main_id)
             .limit(1)
             .single();
 
@@ -727,7 +743,7 @@ router.post('/:id/reactions', auth, async (req, res) => {
             // NOTE: This call sets the BOT's reaction. It won't touch Client's reaction.
             const tgRes = await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/setMessageReaction`, {
               chat_id: telegramUserId,
-              message_id: message.message_id_tg,
+              message_id: updatedMessage.message_id_tg,
               reaction: reactionPayload
             });
             console.log('[Reaction] TG Response success:', tgRes.data?.ok);
@@ -746,17 +762,20 @@ router.post('/:id/reactions', auth, async (req, res) => {
       }
     } else {
       console.log('[Reaction] Skip TG. Conditions not met:');
-      console.log('- has message_id_tg:', !!message.message_id_tg);
+      console.log('- has message_id_tg:', !!updatedMessage.message_id_tg);
       console.log('- has BOT_TOKEN:', !!process.env.TELEGRAM_BOT_TOKEN);
     }
 
-    // 5. Socket Emit
+    // 6. Socket Emit
     const io = req.app.get('io');
     if (io) {
-      if (message.main_id) {
-        console.log('[Reaction] Emitting socket to lead_', message.main_id);
-        io.to(`lead_${message.main_id}`).emit('message_updated', updatedMessage);
+      if (updatedMessage.main_id) {
+        console.log('[Reaction] Emitting socket to lead_', updatedMessage.main_id);
+        io.to(`lead_${updatedMessage.main_id}`).emit('message_updated', updatedMessage);
       }
+      // Also emit to order room if needed? Usually lead room is enough if configured.
+      // But let's check legacy rooms.
+      // The frontend joins lead_XXX.
     }
 
     res.json(updatedMessage);
