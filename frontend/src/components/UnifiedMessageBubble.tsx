@@ -401,8 +401,6 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
                             minWidth: 60,
                             boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
                             position: 'relative',
-                            userSelect: 'none',
-                            WebkitUserSelect: 'none',
                             touchAction: 'manipulation'
                         }}
                         onDoubleClick={() => onReply && onReply(msg)}
