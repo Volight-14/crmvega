@@ -265,7 +265,7 @@ router.get('/unread-count', auth, async (req, res) => {
       .from('messages')
       .select('main_id')
       .eq('is_read', false) // Correctly check boolean is_read column
-      .in('author_type', ['user', 'customer', 'client', 'Client', 'Клиент']) // Use .in() for cleaner URL
+      .in('author_type', ['user', 'User', 'bubbleUser', 'customer', 'client', 'Client', 'Клиент', 'Telegram', 'bot', 'бот']) // Expanded list
       .not('main_id', 'is', null)
       .order('id', { ascending: false }) // Get latest messages first
       .limit(500); // Limit data size to prevent HeadersOverflowError and performance issues
