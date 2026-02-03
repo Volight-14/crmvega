@@ -251,6 +251,14 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
         io.emit('new_message_bubble', result);
         // GLOBAL ALERT EMISSION
         io.emit('new_message_global', socketPayload);
+
+        // Required for InboxPage sidebar update
+        if (finalContactId) {
+          io.emit('contact_message', {
+            contact_id: finalContactId,
+            message: result
+          });
+        }
       }
 
       runAutomations('message_received', result, { io }).catch(err => {
