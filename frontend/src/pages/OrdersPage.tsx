@@ -360,7 +360,7 @@ const OrdersPage: React.FC = () => {
 
   // --- Column Visibility Optimization ---
   const DEFAULT_VISIBLE_STATUSES = Object.keys(ORDER_STATUSES).filter(
-    key => !['completed', 'duplicate', 'scammer', 'client_rejected'].includes(key)
+    key => !['completed', 'duplicate'].includes(key)
   ) as OrderStatus[];
 
   const [visibleStatuses, setVisibleStatuses] = useState<OrderStatus[]>(() => {
