@@ -213,11 +213,18 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
     };
 
     const renderAttachment = () => {
-        if (msg.file_url) {
-            const isImage = msg.file_url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
-            const isVideo = msg.file_url.match(/\.(mp4|webm|mov)$/i);
-            const isPdf = msg.file_url.match(/\.pdf$/i);
-            const isVoice = msg.message_type === 'voice' || msg.file_url.endsWith('.ogg') || msg.file_url.endsWith('.wav');
+        // Fallback for files sent as plain links in content (common in Bubble)
+        const effectiveFileUrl = msg.file_url || (
+            (/^https?:\/\/[^\s]+$/i.test(msg.content?.trim() || ''))
+                ? msg.content?.trim()
+                : null
+        );
+
+        if (effectiveFileUrl) {
+            const isImage = effectiveFileUrl.match(/\.(jpg|jpeg|png|gif|webp|heic)$/i) || (effectiveFileUrl.includes('bubble.io') && !effectiveFileUrl.includes('.') && !msg.file_name);
+            const isVideo = effectiveFileUrl.match(/\.(mp4|webm|mov)$/i);
+            const isPdf = effectiveFileUrl.match(/\.pdf$/i);
+            const isVoice = msg.message_type === 'voice' || effectiveFileUrl.endsWith('.ogg') || effectiveFileUrl.endsWith('.wav');
 
             const fileName = msg.file_name || 'file';
 
@@ -232,7 +239,7 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
                         </div>
                         <audio
                             ref={audioRef}
-                            src={msg.file_url}
+                            src={effectiveFileUrl}
                             onEnded={() => setIsPlaying(false)}
                             style={{ display: 'none' }}
                         />
@@ -242,17 +249,14 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
             }
 
             if (isImage) {
-                // Use Ant Design Image for Lightbox preview - nice on mobile
                 return (
                     <div onClick={(e) => e.stopPropagation()} style={{ marginTop: 4 }}>
                         <Image
                             width="100%"
-                            src={msg.file_url}
+                            src={effectiveFileUrl}
                             alt="attachment"
                             style={{ borderRadius: 8, maxHeight: 300, objectFit: 'cover' }}
-                            preview={{
-                                mask: false // Don't show confusing mask on mobile
-                            }}
+                            preview={{ mask: false }}
                         />
                     </div>
                 );
@@ -261,7 +265,7 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
             if (isVideo) {
                 return (
                     <div style={{ marginTop: 4 }}>
-                        <video src={msg.file_url} controls style={{ maxWidth: '100%', borderRadius: 8 }} />
+                        <video src={effectiveFileUrl} controls style={{ maxWidth: '100%', borderRadius: 8 }} />
                     </div>
                 );
             }
@@ -270,7 +274,7 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
                 return (
                     <div
                         style={{ marginTop: 8, cursor: 'pointer' }}
-                        onClick={(e) => { e.stopPropagation(); handleDownload(msg.file_url!, fileName); }}
+                        onClick={(e) => { e.stopPropagation(); handleDownload(effectiveFileUrl!, fileName); }}
                     >
                         <div style={{
                             width: '240px',
@@ -306,22 +310,22 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
                 );
             }
 
-            // Generic File
-            return (
-                <div
-                    onClick={(e) => { e.stopPropagation(); handleDownload(msg.file_url!, fileName); }}
-                    style={{ color: styles.linkColor, textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, cursor: 'pointer' }}
-                >
-                    <DownloadOutlined /> {msg.file_name || 'Скачать файл'}
-                </div>
-            );
+            if (effectiveFileUrl.startsWith('http')) {
+                return (
+                    <div
+                        onClick={(e) => { e.stopPropagation(); handleDownload(effectiveFileUrl!, fileName); }}
+                        style={{ color: styles.linkColor, textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, cursor: 'pointer' }}
+                    >
+                        <DownloadOutlined /> {msg.file_name || 'Скачать файл'}
+                    </div>
+                );
+            }
         }
         return null;
     };
 
     const parseContent = (content: string) => {
         try {
-            // If content looks like JSON
             if (content.trim().startsWith('{') && content.trim().endsWith('}')) {
                 const parsed = JSON.parse(content);
                 if (parsed && (parsed.text !== undefined || parsed.buttons !== undefined)) {
@@ -332,13 +336,15 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
                     };
                 }
             }
-        } catch (e) {
-            // ignore
-        }
+        } catch (e) { }
         return { text: content, buttons: [], isJson: false };
     };
 
-    const { text: displayText, buttons: displayButtons } = msg.content ? parseContent(msg.content) : { text: '', buttons: [] };
+    const { text: rawText, buttons: displayButtons } = msg.content ? parseContent(msg.content) : { text: '', buttons: [] };
+
+    // Auto-detect if rawText is just a file link to avoid duplication
+    const isPureFileLink = /^https?:\/\/[^\s]+$/i.test(rawText.trim()) && (msg.file_url || rawText.trim().match(/\.(jpg|jpeg|png|gif|webp|pdf|mp4|webm|mov|ogg|wav)$/i));
+    const displayText = isPureFileLink ? '' : rawText;
 
     return (
         <div style={{

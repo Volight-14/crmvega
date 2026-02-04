@@ -162,13 +162,29 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
 
     const safeContent = (processedContent === 'null' || !processedContent) ? '' : processedContent;
 
+    // AUTO-DETECT FILE LINKS IN CONTENT (Bubble often sends files as links in text field)
+    let autoFileUrl = finalFileUrl;
+    let autoMessageType = finalMessageType;
+    let finalPayloadContent = safeContent;
+
+    const fileRegex = /\.(jpg|jpeg|png|gif|webp|pdf|mp4|webm|mov|ogg|wav)$/i;
+    const isPureLink = /^https?:\/\/[^\s]+$/i.test(safeContent.trim());
+
+    if (!autoFileUrl && isPureLink && fileRegex.test(safeContent.trim())) {
+      console.log(`[Bubble Webhook] Auto-detected file link in content: ${safeContent}`);
+      autoFileUrl = safeContent.trim();
+      autoMessageType = 'file';
+      // If it's a pure link, we can clear the text content to only show the attachment preview
+      finalPayloadContent = '';
+    }
+
     const messageData = {
       lead_id: sanitizeNumeric(lead_id) || (finalMainId ? String(finalMainId).trim() : null),
       main_id: finalMainId,
-      content: safeContent,
+      content: finalPayloadContent,
       'Created Date': createdDate || new Date().toISOString(),
       author_type: normalizedAuthorType,
-      message_type: finalMessageType,
+      message_type: autoMessageType,
       message_id_tg: sanitizeNumeric(message_id_tg),
       timestamp: cleanNull(timestamp),
       'Modified Date': modifiedDate || new Date().toISOString(),
@@ -179,7 +195,7 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       reply_to_mess_id_tg: sanitizeNumeric(reply_to_mess_id_tg),
       caption: cleanNull(caption),
       order_status: order_status || null,
-      file_url: finalFileUrl,
+      file_url: autoFileUrl,
       file_name: finalFileName,
       ...(finalReactions !== undefined && { reactions: finalReactions }),
     };
