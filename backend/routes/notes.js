@@ -108,32 +108,6 @@ router.post('/', auth, async (req, res) => {
     // VEG-64: Create system message if note is for an order
     if (order_id) {
       try {
-        // IMPORTANT: order_id from frontend might actually be main_id
-        // We need to resolve it to the actual order.id
-        let actualOrderId = order_id;
-
-        // Try to find order by id first
-        const { data: orderData } = await supabase
-          .from('orders')
-          .select('id, main_id')
-          .eq('id', order_id)
-          .single();
-
-        // If not found by id, it's probably main_id - get the latest order
-        if (!orderData) {
-          const { data: orderByMainId } = await supabase
-            .from('orders')
-            .select('id, main_id')
-            .eq('main_id', order_id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
-
-          if (orderByMainId) {
-            actualOrderId = orderByMainId.id;
-          }
-        }
-
         const managerName = req.manager.name || req.manager.email;
 
         // Format timestamp
@@ -154,7 +128,7 @@ router.post('/', auth, async (req, res) => {
         const { data: sysMsg, error: sysMsgError } = await supabase
           .from('internal_messages')
           .insert({
-            order_id: actualOrderId, // Use actual order.id, not main_id
+            order_id: order_id,
             sender_id: req.manager.id,
             content: systemContent,
             is_read: false,
@@ -164,10 +138,10 @@ router.post('/', auth, async (req, res) => {
           .single();
 
         if (!sysMsgError && sysMsg) {
-          // Emit socket event to specific order room
+          // Emit socket event
           const io = req.app.get('io');
           if (io) {
-            io.to(`order_${actualOrderId}`).emit('new_internal_message', sysMsg);
+            io.to(`order_${order_id}`).emit('new_internal_message', sysMsg);
           }
         }
       } catch (e) {

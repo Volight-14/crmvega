@@ -964,7 +964,11 @@ router.get('/:orderId/timeline', auth, async (req, res) => {
     }
 
     // 4. Запрос внутренних сообщений (Internal Messages)
-    let internalQuery = supabase
+    // ВАЖНО: Системные сообщения (attachment_type='system') должны быть только для текущего ордера!
+    // Обычные внутренние сообщения - для всех ордеров контакта
+
+    // 4a. Обычные внутренние сообщения (для всех ордеров контакта)
+    let regularInternalQuery = supabase
       .from('internal_messages')
       .select(`
         *,
@@ -976,24 +980,52 @@ router.get('/:orderId/timeline', auth, async (req, res) => {
         )
       `)
       .in('order_id', allOrderIds)
+      .or('attachment_type.is.null,attachment_type.neq.system') // Только НЕ системные
       .order('created_at', { ascending: false })
       .limit(limitNum);
 
     if (before) {
-      internalQuery = internalQuery.lt('created_at', before);
+      regularInternalQuery = regularInternalQuery.lt('created_at', before);
+    }
+
+    // 4b. Системные сообщения (ТОЛЬКО для текущего ордера)
+    let systemMessagesQuery = supabase
+      .from('internal_messages')
+      .select(`
+        *,
+        sender:managers(id, name, email),
+        reply_to:internal_messages!reply_to_id(
+          id,
+          content,
+          sender:managers(name)
+        )
+      `)
+      .eq('order_id', parseInt(orderId)) // ТОЛЬКО текущий ордер!
+      .eq('attachment_type', 'system')
+      .order('created_at', { ascending: false })
+      .limit(limitNum);
+
+    if (before) {
+      systemMessagesQuery = systemMessagesQuery.lt('created_at', before);
     }
 
     // Выполняем запросы параллельно
-    const [clientRes, internalRes] = await Promise.all([
+    const [clientRes, regularInternalRes, systemMessagesRes] = await Promise.all([
       allMainIds.length > 0 ? clientQuery : { data: [] },
-      allOrderIds.length > 0 ? internalQuery : { data: [] }
+      allOrderIds.length > 0 ? regularInternalQuery : { data: [] },
+      systemMessagesQuery
     ]);
 
     if (clientRes.error) console.error('[Timeline] Client error:', clientRes.error);
-    if (internalRes.error) console.error('[Timeline] Internal error:', internalRes.error);
+    if (regularInternalRes.error) console.error('[Timeline] Regular Internal error:', regularInternalRes.error);
+    if (systemMessagesRes.error) console.error('[Timeline] System Messages error:', systemMessagesRes.error);
 
     const clientMsgs = clientRes.data || [];
-    const internalMsgs = internalRes.data || [];
+    const regularInternalMsgs = regularInternalRes.data || [];
+    const systemMsgs = systemMessagesRes.data || [];
+
+    // Объединяем обычные и системные internal messages
+    const internalMsgs = [...regularInternalMsgs, ...systemMsgs];
 
     // 5. Нормализация и объединение
     const normalizedClient = clientMsgs.map(m => ({
