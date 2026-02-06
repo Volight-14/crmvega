@@ -12,6 +12,20 @@ const supabase = createClient(
 router.get('/contact/:contactId', auth, async (req, res) => {
   try {
     const { contactId } = req.params;
+    let targetContactId = contactId;
+    if (parseInt(contactId) > 2147483647) {
+      const { data: contactResolve } = await supabase
+        .from('contacts')
+        .select('id')
+        .eq('telegram_user_id', contactId)
+        .maybeSingle();
+
+      if (contactResolve) {
+        targetContactId = contactResolve.id;
+      } else {
+        return res.json([]);
+      }
+    }
 
     const { data, error } = await supabase
       .from('notes')
@@ -19,7 +33,7 @@ router.get('/contact/:contactId', auth, async (req, res) => {
         *,
         manager:managers!notes_manager_id_fkey(name)
       `)
-      .eq('contact_id', contactId)
+      .eq('contact_id', targetContactId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;

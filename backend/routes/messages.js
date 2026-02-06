@@ -85,6 +85,25 @@ router.get('/contact/:contactId', auth, async (req, res) => {
   try {
     const { contactId } = req.params;
     const { limit = 200, offset = 0 } = req.query;
+    let targetContactId = contactId;
+
+    // Check for potential Telegram ID usage (BigIntish value)
+    if (parseInt(contactId) > 2147483647) {
+      console.log(`[ContactMessages] Detected large ID ${contactId}, resolving via telegram_user_id...`);
+      const { data: contactResolve } = await supabase
+        .from('contacts')
+        .select('id')
+        .eq('telegram_user_id', contactId)
+        .maybeSingle();
+
+      if (contactResolve) {
+        targetContactId = contactResolve.id;
+        console.log(`[ContactMessages] Resolved to internal ID: ${targetContactId}`);
+      } else {
+        console.log(`[ContactMessages] No contact found for telegram_user_id ${contactId}`);
+        return res.json({ messages: [], total: 0 });
+      }
+    }
 
     // Оптимизированный запрос: получаем контакт с заявками одним запросом
     const { data: contact, error: contactError } = await supabase
@@ -94,7 +113,7 @@ router.get('/contact/:contactId', auth, async (req, res) => {
         telegram_user_id,
         orders(id, main_id, OrderName)
       `)
-      .eq('id', contactId)
+      .eq('id', targetContactId)
       .single();
 
     if (contactError) throw contactError;
@@ -164,11 +183,18 @@ router.post('/contact/:contactId', auth, async (req, res) => {
     const { contactId } = req.params;
     const { content, sender_type = 'manager' } = req.body;
 
+    let targetContactId = contactId;
+    if (parseInt(contactId) > 2147483647) {
+      const { data: contactResolve } = await supabase.from('contacts').select('id').eq('telegram_user_id', contactId).maybeSingle();
+      if (contactResolve) targetContactId = contactResolve.id;
+      else return res.status(404).json({ error: 'Contact not found' });
+    }
+
     // Находим активную заявку контакта или создаем новую
     const { data: activeOrder } = await supabase
       .from('orders')
       .select('id, main_id')
-      .eq('contact_id', contactId)
+      .eq('contact_id', targetContactId)
       .in('status', ['unsorted', 'new', 'negotiation', 'waiting', 'ready_to_close'])
       .order('created_at', { ascending: false })
       .limit(1)
@@ -182,7 +208,7 @@ router.post('/contact/:contactId', auth, async (req, res) => {
       const { data: newOrder, error: orderError } = await supabase
         .from('orders')
         .insert({
-          contact_id: parseInt(contactId),
+          contact_id: parseInt(targetContactId),
           title: `Сообщение от ${new Date().toLocaleDateString('ru-RU')}`,
           status: 'new',
           type: 'inquiry',
@@ -216,7 +242,7 @@ router.post('/contact/:contactId', auth, async (req, res) => {
       const { data: contact } = await supabase
         .from('contacts')
         .select('telegram_user_id')
-        .eq('id', contactId)
+        .eq('id', targetContactId)
         .single();
 
       if (contact && contact.telegram_user_id) {
@@ -283,7 +309,7 @@ router.post('/contact/:contactId', auth, async (req, res) => {
     if (messageError) throw messageError;
 
     // Обновляем last_message_at у контакта
-    await supabase.from('contacts').update({ last_message_at: new Date().toISOString() }).eq('id', contactId);
+    await supabase.from('contacts').update({ last_message_at: new Date().toISOString() }).eq('id', targetContactId);
 
     // Связываем сообщение с заявкой
     if (orderId && message && message.id) {
@@ -300,7 +326,7 @@ router.post('/contact/:contactId', auth, async (req, res) => {
     if (io) {
       if (leadId) io.to(`lead_${leadId}`).emit('new_message', message);
       io.to(`order_${orderId}`).emit('new_message', message);
-      io.emit('contact_message', { contact_id: contactId, message });
+      io.emit('contact_message', { contact_id: targetContactId, message });
     }
 
     res.json(message);
@@ -316,6 +342,13 @@ router.post('/contact/:contactId/voice', auth, upload.single('voice'), async (re
     const { contactId } = req.params;
     const { duration } = req.body;
 
+    let targetContactId = contactId;
+    if (parseInt(contactId) > 2147483647) {
+      const { data: contactResolve } = await supabase.from('contacts').select('id').eq('telegram_user_id', contactId).maybeSingle();
+      if (contactResolve) targetContactId = contactResolve.id;
+      else return res.status(404).json({ error: 'Contact not found' });
+    }
+
     if (!req.file) {
       return res.status(400).json({ error: 'Файл не найден' });
     }
@@ -324,7 +357,7 @@ router.post('/contact/:contactId/voice', auth, upload.single('voice'), async (re
     const { data: activeOrder } = await supabase
       .from('orders')
       .select('id, main_id')
-      .eq('contact_id', contactId)
+      .eq('contact_id', targetContactId)
       .in('status', ['unsorted', 'new', 'negotiation', 'waiting', 'ready_to_close'])
       .order('created_at', { ascending: false })
       .limit(1)
@@ -337,7 +370,7 @@ router.post('/contact/:contactId/voice', auth, upload.single('voice'), async (re
       const { data: newOrder, error: orderError } = await supabase
         .from('orders')
         .insert({
-          contact_id: parseInt(contactId),
+          contact_id: parseInt(targetContactId),
           title: `Сообщение от ${new Date().toLocaleDateString('ru-RU')}`,
           status: 'new',
           type: 'inquiry',
@@ -380,7 +413,7 @@ router.post('/contact/:contactId/voice', auth, upload.single('voice'), async (re
 
     // 4. Send to Telegram
     let telegramMessageId = null;
-    const { data: contact } = await supabase.from('contacts').select('telegram_user_id').eq('id', contactId).single();
+    const { data: contact } = await supabase.from('contacts').select('telegram_user_id').eq('id', targetContactId).single();
 
     if (contact && contact.telegram_user_id && process.env.TELEGRAM_BOT_TOKEN) {
       const form = new FormData();
@@ -428,14 +461,14 @@ router.post('/contact/:contactId/voice', auth, upload.single('voice'), async (re
       }, { onConflict: 'order_id,message_id' });
 
     // Update contact last message
-    await supabase.from('contacts').update({ last_message_at: new Date().toISOString() }).eq('id', contactId);
+    await supabase.from('contacts').update({ last_message_at: new Date().toISOString() }).eq('id', targetContactId);
 
     // Socket Emit
     const io = req.app.get('io');
     if (io) {
       if (leadId) io.to(`lead_${leadId}`).emit('new_message', message);
       io.to(`order_${orderId}`).emit('new_message', message);
-      io.emit('contact_message', { contact_id: contactId, message });
+      io.emit('contact_message', { contact_id: targetContactId, message });
     }
 
     res.json(message);
@@ -452,6 +485,13 @@ router.post('/contact/:contactId/file', auth, upload.single('file'), async (req,
     const { contactId } = req.params;
     const { caption } = req.body;
 
+    let targetContactId = contactId;
+    if (parseInt(contactId) > 2147483647) {
+      const { data: contactResolve } = await supabase.from('contacts').select('id').eq('telegram_user_id', contactId).maybeSingle();
+      if (contactResolve) targetContactId = contactResolve.id;
+      else return res.status(404).json({ error: 'Contact not found' });
+    }
+
     if (!req.file) {
       return res.status(400).json({ error: 'Файл не найден' });
     }
@@ -460,7 +500,7 @@ router.post('/contact/:contactId/file', auth, upload.single('file'), async (req,
     const { data: activeOrder } = await supabase
       .from('orders')
       .select('id, main_id')
-      .eq('contact_id', contactId)
+      .eq('contact_id', targetContactId)
       .in('status', ['unsorted', 'new', 'negotiation', 'waiting', 'ready_to_close'])
       .order('created_at', { ascending: false })
       .limit(1)
@@ -473,7 +513,7 @@ router.post('/contact/:contactId/file', auth, upload.single('file'), async (req,
       const { data: newOrder, error: orderError } = await supabase
         .from('orders')
         .insert({
-          contact_id: parseInt(contactId),
+          contact_id: parseInt(targetContactId),
           title: `Сообщение от ${new Date().toLocaleDateString('ru-RU')}`,
           status: 'new',
           type: 'inquiry',
@@ -511,7 +551,7 @@ router.post('/contact/:contactId/file', auth, upload.single('file'), async (req,
 
     // 3. Send to Telegram
     let telegramMessageId = null;
-    const { data: contact } = await supabase.from('contacts').select('telegram_user_id').eq('id', contactId).single();
+    const { data: contact } = await supabase.from('contacts').select('telegram_user_id').eq('id', targetContactId).single();
 
     if (contact && contact.telegram_user_id && process.env.TELEGRAM_BOT_TOKEN) {
       const form = new FormData();
