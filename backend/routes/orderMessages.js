@@ -40,13 +40,19 @@ async function createAndEmitSystemMessage(supabase, io, orderId, mainId, content
 
     // 3. Emit socket event
     if (io) {
+      console.log(`[SystemMessage] Emitting events for Order ${orderId}, Main ${mainId}, Contact ${contactId}`);
       io.to(`order_${orderId}`).emit('new_client_message', sysMsg);
       if (mainId) {
         io.to(`lead_${mainId}`).emit('new_message', sysMsg);
       }
       if (contactId) {
+        console.log(`[SystemMessage] Emitting contact_message to contact ${contactId}`);
         io.emit('contact_message', { contact_id: contactId, message: sysMsg });
+      } else {
+        console.warn(`[SystemMessage] NO contactId provided, skipping contact_message emit`);
       }
+    } else {
+      console.error(`[SystemMessage] IO instance missing!`);
     }
   } catch (err) {
     console.error('[SystemMessage] Error creating system message:', err);
