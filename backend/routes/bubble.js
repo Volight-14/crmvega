@@ -222,6 +222,12 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       existingMessage = msgByTg;
     }
 
+    // Debug logging for reactions
+    if (message_type === 'reaction') {
+      console.log(`[Bubble Webhook] REACTION received - AMO ID: ${message_id_amo}, TG ID: ${message_id_tg}, Emoji: ${content}`);
+      console.log(`[Bubble Webhook] REACTION - Existing message found: ${!!existingMessage}, ID: ${existingMessage?.id}`);
+    }
+
     let result;
     if (existingMessage) {
       const payloadToUpdate = { ...messageData };
