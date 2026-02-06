@@ -105,6 +105,51 @@ router.post('/', auth, async (req, res) => {
 
     if (error) throw error;
 
+    // VEG-64: Create system message if note is for an order
+    if (order_id) {
+      try {
+        const managerName = req.manager.name || req.manager.email;
+
+        // Format timestamp
+        const now = new Date();
+        const timestamp = now.toLocaleString('ru-RU', {
+          year: '2-digit',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        }).replace(',', '');
+
+        // Truncate content if too long for system message
+        const shortContent = content.length > 50 ? content.substring(0, 50) + '...' : content;
+        const systemContent = `📝 ${managerName} создал заметку: "${shortContent}" ${timestamp}`;
+
+        const { data: sysMsg, error: sysMsgError } = await supabase
+          .from('internal_messages')
+          .insert({
+            order_id: order_id,
+            sender_id: req.manager.id,
+            content: systemContent,
+            is_read: false,
+            attachment_type: 'system'
+          })
+          .select()
+          .single();
+
+        if (!sysMsgError && sysMsg) {
+          // Emit socket event
+          const io = req.app.get('io');
+          if (io) {
+            io.to(`order_${order_id}`).emit('new_internal_message', sysMsg);
+          }
+        }
+      } catch (e) {
+        console.error('Error creating system message for note:', e);
+        // Don't fail the main operation if system message fails
+      }
+    }
+
     res.json(data);
   } catch (error) {
     console.error('Error creating note:', error);

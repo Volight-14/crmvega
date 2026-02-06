@@ -418,6 +418,43 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
+    // VEG-64: Create system message for order creation
+    try {
+      const managerName = req.manager.name || req.manager.email;
+
+      // Format timestamp
+      const now = new Date();
+      const timestamp = now.toLocaleString('ru-RU', {
+        year: '2-digit',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      }).replace(',', '');
+
+      const systemContent = `✨ ${managerName} создал заявку ${timestamp}`;
+
+      const { data: sysMsg, error: sysMsgError } = await supabase
+        .from('internal_messages')
+        .insert({
+          order_id: data.id,
+          sender_id: req.manager.id,
+          content: systemContent,
+          is_read: false,
+          attachment_type: 'system'
+        })
+        .select()
+        .single();
+
+      if (!sysMsgError && sysMsg && io) {
+        io.to(`order_${data.id}`).emit('new_internal_message', sysMsg);
+      }
+    } catch (e) {
+      console.error('Error creating system message for order creation:', e);
+      // Don't fail the main operation if system message fails
+    }
+
     // Отправляем Socket.IO событие
     if (io) {
       io.emit('new_order', data);
@@ -456,22 +493,19 @@ router.patch('/:id', auth, async (req, res) => {
       lookupValue = numericId;
     }
 
-    // Если меняется статус, получаем старый статус для вебхука
-    let oldOrder = null;
+    // Get OLD order data for comparison (fetch ALL fields we might track)
+    const { data: oldOrder, error: fetchError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq(lookupField, lookupValue)
+      .maybeSingle();
+
+    if (fetchError || !oldOrder) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    // AUTO-TRACK: Set closed_by_manager_id if moving to a final status
     if (updateData.status) {
-      const { data: existingOrder } = await supabase
-        .from('orders')
-        .select('id, status, main_id')
-        .eq(lookupField, lookupValue)
-        .maybeSingle();
-
-      if (!existingOrder) {
-        return res.status(404).json({ error: 'Order not found' });
-      }
-
-      oldOrder = existingOrder;
-
-      // AUTO-TRACK: Set closed_by_manager_id if moving to a final status
       const FINAL_STATUSES = ['completed', 'client_rejected', 'scammer', 'partially_completed', 'postponed'];
       if (FINAL_STATUSES.includes(updateData.status) && oldOrder && !FINAL_STATUSES.includes(oldOrder.status)) {
         updateData.closed_by_manager_id = req.manager.id;
@@ -493,17 +527,9 @@ router.patch('/:id', auth, async (req, res) => {
     // Получаем io для уведомлений
     const io = req.app.get('io');
 
-    // Если изменился статус, запускаем автоматизации и отправляем вебхук на Bubble
-    if (updateData.status && oldOrder && updateData.status !== oldOrder.status) {
-      // 1. Создаем системное сообщение во внутреннем чате
+    // Helper function to create system message
+    const createSystemMessage = async (content) => {
       try {
-        const { ORDER_STATUSES } = require('../utils/statuses');
-
-        const oldLabel = ORDER_STATUSES[oldOrder.status]?.label || oldOrder.status;
-        const newLabel = ORDER_STATUSES[updateData.status]?.label || updateData.status;
-        const managerName = req.manager.name || req.manager.email;
-
-        // Format timestamp as DD.MM.YY HH:MM:SS
         const now = new Date();
         const timestamp = now.toLocaleString('ru-RU', {
           year: '2-digit',
@@ -514,35 +540,46 @@ router.patch('/:id', auth, async (req, res) => {
           second: '2-digit'
         }).replace(',', '');
 
-        // Format: "🔄 Анна смена этапа: Передано Никите (было: Принято Анна) 03.02.26 12:05:31"
-        const systemContent = `🔄 ${managerName} смена этапа: ${newLabel} (было: ${oldLabel}) ${timestamp}`;
+        const fullContent = `${content} ${timestamp}`;
 
         const { data: sysMsg, error: sysMsgError } = await supabase
           .from('internal_messages')
           .insert({
-            order_id: data.id, // Use actual internal ID from database
-            sender_id: req.manager.id, // Or a special system bot ID if preferred
-            content: systemContent,
+            order_id: data.id,
+            sender_id: req.manager.id,
+            content: fullContent,
             is_read: false,
-            attachment_type: 'system' // Use attachment_type as message_type column likely misses in DB
+            attachment_type: 'system'
           })
           .select()
           .single();
 
-        if (!sysMsgError && io) {
+        if (!sysMsgError && sysMsg && io) {
           io.to(`order_${data.id}`).emit('new_internal_message', sysMsg);
         }
-
-      } catch (sysErr) {
-        console.error('Error creating system status message:', sysErr);
+      } catch (e) {
+        console.error('Error creating system message:', e);
       }
+    };
 
-      // 2. Запускаем автоматизации
+    const managerName = req.manager.name || req.manager.email;
+
+    // Track all field changes
+    const changes = [];
+
+    // 1. Status change
+    if (updateData.status && updateData.status !== oldOrder.status) {
+      const { ORDER_STATUSES } = require('../utils/statuses');
+      const oldLabel = ORDER_STATUSES[oldOrder.status]?.label || oldOrder.status;
+      const newLabel = ORDER_STATUSES[updateData.status]?.label || updateData.status;
+
+      await createSystemMessage(`🔄 ${managerName} смена этапа: ${newLabel} (было: ${oldLabel})`);
+
+      // Run automations and webhook for status change
       runAutomations('order_status_changed', data, { io }).catch(err => {
         console.error('Error running automations for order_status_changed:', err);
       });
 
-      // 3. Отправляем вебхук на Bubble
       if (data.main_id) {
         sendBubbleStatusWebhook({
           mainId: data.main_id,
@@ -551,9 +588,73 @@ router.patch('/:id', auth, async (req, res) => {
         }).catch(err => {
           console.error('Error sending Bubble webhook:', err);
         });
-      } else {
-        console.warn('[Bubble Webhook] Skipping: main_id is missing for order', id);
       }
+    }
+
+    // 2. Amount change (SumInput)
+    if (updateData.SumInput !== undefined && parseFloat(updateData.SumInput) !== parseFloat(oldOrder.SumInput)) {
+      const oldAmount = oldOrder.SumInput || 0;
+      const newAmount = updateData.SumInput;
+      await createSystemMessage(`💰 ${managerName} изменил сумму: ${newAmount} (было: ${oldAmount})`);
+    }
+
+    // 3. Currency change (CurrPair1)
+    if (updateData.CurrPair1 && updateData.CurrPair1 !== oldOrder.CurrPair1) {
+      await createSystemMessage(`💱 ${managerName} изменил валюту отдачи: ${updateData.CurrPair1} (было: ${oldOrder.CurrPair1 || 'не указано'})`);
+    }
+
+    // 4. Output currency change (CurrPair2)
+    if (updateData.CurrPair2 && updateData.CurrPair2 !== oldOrder.CurrPair2) {
+      await createSystemMessage(`💱 ${managerName} изменил валюту получения: ${updateData.CurrPair2} (было: ${oldOrder.CurrPair2 || 'не указано'})`);
+    }
+
+    // 5. Output amount change (SumOutput)
+    if (updateData.SumOutput !== undefined && parseFloat(updateData.SumOutput) !== parseFloat(oldOrder.SumOutput)) {
+      const oldAmount = oldOrder.SumOutput || 0;
+      const newAmount = updateData.SumOutput;
+      await createSystemMessage(`💰 ${managerName} изменил сумму получения: ${newAmount} (было: ${oldAmount})`);
+    }
+
+    // 6. City change (CityEsp02)
+    if (updateData.CityEsp02 && updateData.CityEsp02 !== oldOrder.CityEsp02) {
+      await createSystemMessage(`📍 ${managerName} изменил город: ${updateData.CityEsp02} (было: ${oldOrder.CityEsp02 || 'не указано'})`);
+    }
+
+    // 7. Delivery time change (DeliveryTime)
+    if (updateData.DeliveryTime && updateData.DeliveryTime !== oldOrder.DeliveryTime) {
+      await createSystemMessage(`⏰ ${managerName} изменил время доставки: ${updateData.DeliveryTime} (было: ${oldOrder.DeliveryTime || 'не указано'})`);
+    }
+
+    // 8. Bank change (BankRus01, BankRus02)
+    if (updateData.BankRus01 && updateData.BankRus01 !== oldOrder.BankRus01) {
+      await createSystemMessage(`🏦 ${managerName} изменил банк (RUS): ${updateData.BankRus01} (было: ${oldOrder.BankRus01 || 'не указано'})`);
+    }
+    if (updateData.BankRus02 && updateData.BankRus02 !== oldOrder.BankRus02) {
+      await createSystemMessage(`🏦 ${managerName} изменил банк 2 (RUS): ${updateData.BankRus02} (было: ${oldOrder.BankRus02 || 'не указано'})`);
+    }
+
+    // 9. Manager assignment
+    if (updateData.manager_id && updateData.manager_id !== oldOrder.manager_id) {
+      // Get manager names
+      const [oldManager, newManager] = await Promise.all([
+        oldOrder.manager_id ? supabase.from('managers').select('name').eq('id', oldOrder.manager_id).single() : null,
+        supabase.from('managers').select('name').eq('id', updateData.manager_id).single()
+      ]);
+
+      const oldManagerName = oldManager?.data?.name || 'не назначен';
+      const newManagerName = newManager?.data?.name || 'не указан';
+
+      await createSystemMessage(`👤 ${managerName} назначил ответственного: ${newManagerName} (было: ${oldManagerName})`);
+    }
+
+    // 10. Order name change
+    if (updateData.OrderName && updateData.OrderName !== oldOrder.OrderName) {
+      await createSystemMessage(`📝 ${managerName} изменил название: "${updateData.OrderName}" (было: "${oldOrder.OrderName || 'не указано'}")`);
+    }
+
+    // 11. Comment change
+    if (updateData.Comment && updateData.Comment !== oldOrder.Comment) {
+      await createSystemMessage(`💬 ${managerName} изменил комментарий`);
     }
 
     if (io) {
