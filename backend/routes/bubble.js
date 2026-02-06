@@ -244,11 +244,18 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
         };
 
         // Update reactions list
-        payloadToUpdate.reactions = [...currentReactions, newReaction];
+        const updatedReactions = [...currentReactions, newReaction];
 
-        // Protect content and type from being overwritten by reaction data
-        delete payloadToUpdate.content;
-        delete payloadToUpdate.message_type; // Keep original type (e.g. 'text')
+        // CRITICAL: Only update reactions field, don't touch anything else!
+        // If we use payloadToUpdate with all fields, author_type will be overwritten
+        Object.keys(payloadToUpdate).forEach(key => {
+          if (key !== 'reactions') {
+            delete payloadToUpdate[key];
+          }
+        });
+        payloadToUpdate.reactions = updatedReactions;
+
+        console.log(`[Bubble Webhook] REACTION - Only updating reactions, preserving author_type and all other fields`);
 
       } else {
         // Standard update: Protect content from accidental erasure if missing in payload
