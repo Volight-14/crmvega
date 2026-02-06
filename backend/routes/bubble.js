@@ -299,7 +299,9 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
     // Socket.IO emissions - OUTSIDE if/else to work for both new messages and updates
     const socketPayload = {
       ...result,
-      order_status: order_status || orderStatusFromDb || 'unsorted'
+      order_status: order_status || orderStatusFromDb || 'unsorted',
+      contact_id: finalContactId,
+      main_id: result.main_id || main_ID
     };
 
     const io = req.app.get('io');
@@ -309,36 +311,36 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
         console.log(`[Bubble Webhook] Emitting message_updated for msg ${result.id}`);
 
         if (finalContactId) {
-          io.to(`contact_${finalContactId}`).emit('message_updated', result);
+          io.to(`contact_${finalContactId}`).emit('message_updated', socketPayload);
         }
 
         // Keep order emission for backward compatibility
         if (finalOrderId) {
-          io.to(`order_${finalOrderId}`).emit('message_updated', result);
+          io.to(`order_${finalOrderId}`).emit('message_updated', socketPayload);
         }
 
-        io.emit('message_updated_bubble', result);
-        io.emit('message_updated', result);
+        io.emit('message_updated_bubble', socketPayload);
+        io.emit('message_updated', socketPayload);
       } else {
         // It was an INSERT
         console.log(`[Bubble Webhook] Emitting new_client_message for msg ${result.id}`);
 
         if (lead_id) {
-          io.to(`lead_${lead_id}`).emit('new_message', result);
+          io.to(`lead_${lead_id}`).emit('new_message', socketPayload);
         }
 
         // IMPORTANT: Emit to contact room - most reliable for cross-order sync
         if (finalContactId) {
           console.log(`[Bubble Webhook] Emitting to contact_${finalContactId}`);
-          io.to(`contact_${finalContactId}`).emit('new_client_message', result);
+          io.to(`contact_${finalContactId}`).emit('new_client_message', socketPayload);
         }
 
         // Keep order emission 
         if (finalOrderId) {
           console.log(`[Bubble Webhook] Emitting to order_${finalOrderId}`);
-          io.to(`order_${finalOrderId}`).emit('new_client_message', result);
+          io.to(`order_${finalOrderId}`).emit('new_client_message', socketPayload);
         }
-        io.emit('new_message_bubble', result);
+        io.emit('new_message_bubble', socketPayload);
         // GLOBAL ALERT EMISSION
         io.emit('new_message_global', socketPayload);
       }
