@@ -11,7 +11,8 @@ const { clearCache } = require('../utils/cache');
 const router = express.Router();
 
 // Helper to create and emit system message
-async function createAndEmitSystemMessage(supabase, io, orderId, mainId, content) {
+// Helper to create and emit system message
+async function createAndEmitSystemMessage(supabase, io, orderId, mainId, content, contactId = null) {
   try {
     // 1. Insert into messages
     const { data: sysMsg, error } = await supabase
@@ -42,6 +43,9 @@ async function createAndEmitSystemMessage(supabase, io, orderId, mainId, content
       io.to(`order_${orderId}`).emit('new_client_message', sysMsg);
       if (mainId) {
         io.to(`lead_${mainId}`).emit('new_message', sysMsg);
+      }
+      if (contactId) {
+        io.emit('contact_message', { contact_id: contactId, message: sysMsg });
       }
     }
   } catch (err) {
@@ -424,6 +428,9 @@ router.post('/:orderId/client', auth, async (req, res) => {
       if (order.main_id) {
         io.to(`lead_${order.main_id}`).emit('new_message', message);
       }
+      if (order.contact_id) {
+        io.emit('contact_message', { contact_id: order.contact_id, message });
+      }
     }
 
     // AUTO-READ LOGIC: If manager replies, mark all previous client messages as read
@@ -447,7 +454,7 @@ router.post('/:orderId/client', auth, async (req, res) => {
 
     // Send System Message if error occurred
     if (systemErrorContent) {
-      await createAndEmitSystemMessage(supabase, req.app.get('io'), orderId, order.main_id, systemErrorContent);
+      await createAndEmitSystemMessage(supabase, req.app.get('io'), orderId, order.main_id, systemErrorContent, order.contact_id);
     }
 
     res.json(message);
@@ -706,10 +713,13 @@ router.post('/:orderId/client/file', auth, upload.single('file'), async (req, re
 
     const io = req.app.get('io');
     io.to(`order_${orderId}`).emit('new_client_message', message);
+    if (order.contact_id) {
+      io.emit('contact_message', { contact_id: order.contact_id, message });
+    }
     console.log(`[OrderMessages File] ✅ Socket event emitted`);
 
     if (systemErrorContent) {
-      await createAndEmitSystemMessage(supabase, io, orderId, order.main_id, systemErrorContent);
+      await createAndEmitSystemMessage(supabase, io, orderId, order.main_id, systemErrorContent, order.contact_id);
     }
 
     console.log(`[OrderMessages File] ✅ File send complete`);
@@ -855,10 +865,13 @@ router.post('/:orderId/client/voice', auth, (req, res, next) => {
       if (order.main_id) {
         io.to(`lead_${order.main_id}`).emit('new_message', message);
       }
+      if (order.contact_id) {
+        io.emit('contact_message', { contact_id: order.contact_id, message });
+      }
     }
 
     if (systemErrorContent) {
-      await createAndEmitSystemMessage(supabase, io, orderId, order.main_id, systemErrorContent);
+      await createAndEmitSystemMessage(supabase, io, orderId, order.main_id, systemErrorContent, order.contact_id);
     }
 
     res.json(message);
