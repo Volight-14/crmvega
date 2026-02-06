@@ -251,26 +251,6 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, mainId: propMainId, cont
   const handleSendText = async (text: string) => {
     if (sending) return;
     setSending(true);
-
-    // Optimistic UI update - show message immediately
-    const optimisticId = Date.now();
-    const optimisticMessage: TimelineMessage = {
-      id: optimisticId,
-      content: text,
-      created_at: new Date().toISOString(),
-      source_type: inputMode === 'client' ? 'client' : 'internal',
-      sort_date: new Date().toISOString(),
-      author_type: 'Manager',
-      sender: inputMode === 'internal' ? {
-        id: manager?.id || 0,
-        name: manager?.name || 'Вы',
-        email: manager?.email || ''
-      } : undefined,
-      is_read: false,
-    } as any;
-
-    setMessages(prev => [...prev, optimisticMessage]);
-    setTimeout(() => scrollToBottom(), 50);
     try {
       if (inputMode === 'client') {
         const replyId = replyTo && 'message_id_tg' in replyTo ? replyTo.message_id_tg as number : undefined;
@@ -284,8 +264,6 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, mainId: propMainId, cont
     } catch (error) {
       console.error('Error sending message:', error);
       antMessage.error('Ошибка отправки');
-      // Remove optimistic message on error
-      setMessages(prev => prev.filter(m => m.id !== optimisticId));
     } finally {
       setSending(false);
     }

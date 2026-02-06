@@ -304,17 +304,9 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
       if (io) {
         if (existingMessage) {
           // It was an UPDATE (e.g. reaction)
-          console.log(`[Bubble Webhook] Emitting message_updated for msg ${result.id} to lead_${lead_id} and order_${finalOrderId}`);
-
           if (lead_id) {
             io.to(`lead_${lead_id}`).emit('message_updated', result);
           }
-
-          // IMPORTANT: Also emit to order room for real-time updates in OrderChat
-          if (finalOrderId) {
-            io.to(`order_${finalOrderId}`).emit('message_updated', result);
-          }
-
           io.emit('message_updated_bubble', result);
           io.emit('message_updated', result);
         } else {
