@@ -58,8 +58,14 @@ const ContactDetailPage: React.FC = () => {
   const [form] = Form.useForm();
   const [noteForm] = Form.useForm();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const contactRef = useRef<Contact | null>(null);
+
+  useEffect(() => {
+    contactRef.current = contact;
+  }, [contact]);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
+
 
   useEffect(() => {
     if (id) {
@@ -102,8 +108,10 @@ const ContactDetailPage: React.FC = () => {
       const currentContactId = String(id || '0');
       const incomingContactId = String(data.contact_id);
 
-      // Relaxed comparison (string vs string)
-      if (incomingContactId === currentContactId) {
+      // Check against URL param OR resolved internal ID from contact object
+      const isMatch = incomingContactId === currentContactId || (contactRef.current && String(contactRef.current.id) === incomingContactId);
+
+      if (isMatch) {
         console.log('[ContactDetail] Processing contact_message:', data);
         setMessages(prev => {
           const isDuplicate = prev.some(msg => String(msg.id) === String(data.message.id));
