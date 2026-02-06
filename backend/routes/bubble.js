@@ -294,42 +294,56 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
           else console.log(`[Bubble Webhook] Linked message ${result.id} to order ${finalOrderId}`);
         });
       }
+    }
 
-      const socketPayload = {
-        ...result,
-        order_status: order_status || orderStatusFromDb || 'unsorted'
-      };
+    // Socket.IO emissions - OUTSIDE if/else to work for both new messages and updates
+    const socketPayload = {
+      ...result,
+      order_status: order_status || orderStatusFromDb || 'unsorted'
+    };
 
-      const io = req.app.get('io');
-      if (io) {
-        if (existingMessage) {
-          // It was an UPDATE (e.g. reaction)
-          if (lead_id) {
-            io.to(`lead_${lead_id}`).emit('message_updated', result);
-          }
-          io.emit('message_updated_bubble', result);
-          io.emit('message_updated', result);
-        } else {
-          // It was an INSERT
-          if (lead_id) {
-            io.to(`lead_${lead_id}`).emit('new_message', result);
-            // Also emit to order room if linked
-            if (finalOrderId) io.to(`order_${finalOrderId}`).emit('new_client_message', result);
-          }
-          io.emit('new_message_bubble', result);
-          // GLOBAL ALERT EMISSION
-          io.emit('new_message_global', socketPayload);
+    const io = req.app.get('io');
+    if (io) {
+      if (existingMessage) {
+        // It was an UPDATE (e.g. reaction)
+        console.log(`[Bubble Webhook] Emitting message_updated for msg ${result.id}`);
+
+        if (lead_id) {
+          io.to(`lead_${lead_id}`).emit('message_updated', result);
         }
 
-        // Required for InboxPage sidebar update (and potentially others)
-        if (finalContactId) {
-          io.emit('contact_message', {
-            contact_id: finalContactId,
-            message: result
-          });
+        // IMPORTANT: Also emit to order room
+        if (finalOrderId) {
+          io.to(`order_${finalOrderId}`).emit('message_updated', result);
         }
+
+        io.emit('message_updated_bubble', result);
+        io.emit('message_updated', result);
+      } else {
+        // It was an INSERT
+        console.log(`[Bubble Webhook] Emitting new_client_message for msg ${result.id}`);
+
+        if (lead_id) {
+          io.to(`lead_${lead_id}`).emit('new_message', result);
+          // Also emit to order room if linked
+          if (finalOrderId) io.to(`order_${finalOrderId}`).emit('new_client_message', result);
+        }
+        io.emit('new_message_bubble', result);
+        // GLOBAL ALERT EMISSION
+        io.emit('new_message_global', socketPayload);
       }
 
+      // Required for InboxPage sidebar update (and potentially others)
+      if (finalContactId) {
+        io.emit('contact_message', {
+          contact_id: finalContactId,
+          message: result
+        });
+      }
+    }
+
+    // Run automations only for new messages
+    if (!existingMessage) {
       runAutomations('message_received', result, { io }).catch(err => {
         console.error('Error running automations for message_received:', err);
       });
