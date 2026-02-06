@@ -58,6 +58,7 @@ const ContactDetailPage: React.FC = () => {
   const [form] = Form.useForm();
   const [noteForm] = Form.useForm();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
@@ -100,22 +101,32 @@ const ContactDetailPage: React.FC = () => {
     socketRef.current.on('contact_message', (data: { contact_id: number; message: Message }) => {
       console.log('[ContactDetail] Received contact_message:', data);
       const currentContactId = parseInt(id || '0');
+
       if (data.contact_id === currentContactId) {
         setMessages(prev => {
-          // Check for duplicate by ID or temporary ID
-          if (prev.some(msg => msg.id === data.message.id)) return prev;
-          // Sort logic will handle order, just append
-          return [...prev, data.message].sort((a, b) => {
+          // Robust duplicate check (convert to String to be safe)
+          const isDuplicate = prev.some(msg => String(msg.id) === String(data.message.id));
+
+          if (isDuplicate) {
+            console.log('[ContactDetail] Message already exists, skipping:', data.message.id);
+            return prev;
+          }
+
+          console.log('[ContactDetail] Adding new message:', data.message.id);
+          // Sort logic to ensure correct order
+          const newMessages = [...prev, data.message].sort((a, b) => {
             const dateA = new Date(a['Created Date'] || a.created_at || 0).getTime();
             const dateB = new Date(b['Created Date'] || b.created_at || 0).getTime();
             return dateA - dateB;
           });
+
+          return newMessages;
         });
       }
     });
 
     socketRef.current.on('message_updated', (msg: Message) => {
-      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, ...msg } : m));
+      setMessages(prev => prev.map(m => String(m.id) === String(msg.id) ? { ...m, ...msg } : m));
     });
 
     const handleReconnect = () => {
@@ -144,10 +155,13 @@ const ContactDetailPage: React.FC = () => {
   };
 
   const scrollToBottom = () => {
-    // Small timeout to ensure DOM is rendered (especially when switching tabs)
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
-    }, 100);
+    if (messagesContainerRef.current) {
+      setTimeout(() => {
+        // Use container scroll for better reliability
+        const { scrollHeight, clientHeight } = messagesContainerRef.current!;
+        messagesContainerRef.current!.scrollTop = scrollHeight - clientHeight + 100; // +100 to force bottom
+      }, 50);
+    }
   };
 
   const fetchContact = async () => {
@@ -528,7 +542,10 @@ const ContactDetailPage: React.FC = () => {
                   background: '#fff',
                   margin: isMobile ? 0 : 0
                 }}>
-                  <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+                  <div
+                    ref={messagesContainerRef}
+                    style={{ flex: 1, overflowY: 'auto', padding: 16 }}
+                  >
                     {messages.length === 0 ? (
                       <Empty description="Нет сообщений" style={{ marginTop: 40 }} />
                     ) : (
