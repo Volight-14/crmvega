@@ -10,7 +10,7 @@ import {
   UserOutlined,
   TeamOutlined,
   LockOutlined,
-  GlobalOutlined
+  GlobalOutlined,
 } from '@ant-design/icons';
 import { Message, Order } from '../types';
 import { orderMessagesAPI, messagesAPI, ordersAPI } from '../services/api';
@@ -351,8 +351,6 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, mainId: propMainId, cont
 
   const renderList = () => {
     // Messages are DESC (Newest first). We need to reverse for display (Oldest at top).
-    // But we process grouping first?
-    // Better to reverse locally for rendering loop.
     const displayList = [...messages].reverse();
 
     const groupedMessages: { date: string, msgs: TimelineMessage[] }[] = [];
@@ -394,12 +392,34 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, mainId: propMainId, cont
               <span style={{ background: '#f5f5f5', padding: '4px 12px', borderRadius: 12 }}>{group.date}</span>
             </div>
             {group.msgs.map(msg => {
-              // Logic for bubble variant
+              // System Message Render - визуально отличается от обычных сообщений
+              if (msg.is_system) {
+                return (
+                  <div key={`${msg.source_type}_${msg.id}`} style={{
+                    textAlign: 'center',
+                    margin: '12px 0',
+                  }}>
+                    <div style={{
+                      background: '#f0f0f0',
+                      display: 'inline-block',
+                      padding: '6px 14px',
+                      borderRadius: 16,
+                      fontSize: 12,
+                      color: '#8c8c8c',
+                      maxWidth: '80%',
+                      wordWrap: 'break-word'
+                    }}>
+                      {msg.content}
+                    </div>
+                  </div>
+                );
+              }
+
+              // Regular message rendering
               let variant: 'client' | 'internal' = 'client';
-              const isSystem = msg.is_system;
 
               // Internal messages (not system) get special color
-              if (msg.source_type === 'internal' && !isSystem) {
+              if (msg.source_type === 'internal') {
                 variant = 'internal';
               }
 
@@ -428,17 +448,6 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, mainId: propMainId, cont
                 replyCtx = messages.find(m => m.message_id_tg === msg.reply_to_mess_id_tg);
               } else if ((msg as any).reply_to_id) { // internal reply
                 replyCtx = messages.find(m => m.id === (msg as any).reply_to_id && m.source_type === 'internal');
-              }
-
-              // System Message Render
-              if (isSystem) {
-                return (
-                  <div key={`${msg.source_type}_${msg.id}`} style={{ textAlign: 'center', margin: '8px 0', color: '#888', fontSize: 12 }}>
-                    <div style={{ background: '#f9f9f9', display: 'inline-block', padding: '4px 12px', borderRadius: 12, border: '1px solid #eee' }}>
-                      {msg.content}
-                    </div>
-                  </div>
-                );
               }
 
               return (
