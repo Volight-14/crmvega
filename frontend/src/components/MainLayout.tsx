@@ -95,6 +95,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       key: 'profile',
       icon: <UserOutlined />,
       label: 'Профиль',
+      onClick: () => navigate('/settings?tab=profile'),
     },
     {
       type: 'divider',
