@@ -350,7 +350,10 @@ const ContactDetailPage: React.FC = () => {
       // Отправляем через рабочий API из OrderChat
       const newMsg = await orderMessagesAPI.sendClientMessage(activeOrder.id, text);
       // Оптимистичное обновление как в OrderChat
-      setMessages(prev => [...prev, newMsg]);
+      setMessages(prev => {
+        if (prev.some(m => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg];
+      });
       scrollToBottom();
     } catch (error: any) {
       console.error('Error sending message:', error);
@@ -374,7 +377,10 @@ const ContactDetailPage: React.FC = () => {
       }
 
       const newMsg = await orderMessagesAPI.sendClientVoice(activeOrder.id, voice, duration);
-      setMessages(prev => [...prev, newMsg]);
+      setMessages(prev => {
+        if (prev.some(m => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg];
+      });
       scrollToBottom();
     } catch (error: any) {
       console.error('Error sending voice:', error);
@@ -398,7 +404,10 @@ const ContactDetailPage: React.FC = () => {
       }
 
       const newMsg = await orderMessagesAPI.sendClientFile(activeOrder.id, file, caption);
-      setMessages(prev => [...prev, newMsg]);
+      setMessages(prev => {
+        if (prev.some(m => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg];
+      });
       scrollToBottom();
     } catch (error: any) {
       console.error('Error sending file:', error);
