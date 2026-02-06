@@ -54,7 +54,9 @@ router.get('/', (req, res) => {
       message: 'POST /api/webhook/bubble/message',
       order: 'POST /api/webhook/bubble/order',
       contact: 'POST /api/webhook/bubble/contact',
-      updateMessage: 'PATCH /api/webhook/bubble/message/:id'
+      updateMessage: 'PATCH /api/webhook/bubble/message/:id',
+      noteToUser: 'POST /api/webhook/bubble/note_to_user',
+      noteToOrder: 'POST /api/webhook/bubble/note_to_order'
     },
     note: 'All POST/PATCH endpoints require X-Webhook-Token header'
   });
@@ -862,6 +864,247 @@ router.post('/status', verifyWebhookToken, async (req, res) => {
 
   } catch (error) {
     console.error('[Bubble Webhook] Error processing status update:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// VEG-64: Webhook для создания заметки пользователю (во все ордера + в заметки контакта)
+router.post('/note_to_user', verifyWebhookToken, async (req, res) => {
+  try {
+    const { user, note } = req.body;
+
+    console.log('[Bubble Webhook] POST /note_to_user - User:', user, 'Note:', note);
+
+    if (!user || !note) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: user, note'
+      });
+    }
+
+    // 1. Resolve contact by user (try telegram_user_id first, then bubble user id)
+    let contactId = null;
+    let telegramId = null;
+
+    // Try as direct Telegram ID (numeric)
+    const cleanDigits = String(user).replace(/\D/g, '');
+    if (cleanDigits.length >= 5) {
+      telegramId = cleanDigits;
+      const { data: contact } = await supabase
+        .from('contacts')
+        .select('id')
+        .eq('telegram_user_id', telegramId)
+        .maybeSingle();
+
+      if (contact) {
+        contactId = contact.id;
+        console.log(`[Bubble Webhook] Found contact ${contactId} by Telegram ID ${telegramId}`);
+      }
+    }
+
+    // If not found, try as Bubble User ID
+    if (!contactId && String(user).length > 15) {
+      try {
+        const axios = require('axios');
+        const userRes = await axios.get(`https://vega-ex.com/version-live/api/1.1/obj/User/${user}`, {
+          headers: { Authorization: `Bearer ${process.env.BUBBLE_API_TOKEN || 'b897577858b2a032515db52f77e15e38'}` }
+        });
+
+        if (userRes.data?.response?.TelegramID) {
+          telegramId = userRes.data.response.TelegramID;
+          const { data: contact } = await supabase
+            .from('contacts')
+            .select('id')
+            .eq('telegram_user_id', telegramId)
+            .maybeSingle();
+
+          if (contact) {
+            contactId = contact.id;
+            console.log(`[Bubble Webhook] Found contact ${contactId} via Bubble API`);
+          }
+        }
+      } catch (e) {
+        console.error('[Bubble Webhook] Error fetching user from Bubble:', e.message);
+      }
+    }
+
+    if (!contactId) {
+      return res.status(404).json({
+        success: false,
+        error: 'Contact not found for user: ' + user
+      });
+    }
+
+    // 2. Get all orders for this contact
+    const { data: orders, error: ordersError } = await supabase
+      .from('orders')
+      .select('id, main_id, OrderName')
+      .eq('contact_id', contactId);
+
+    if (ordersError) throw ordersError;
+
+    console.log(`[Bubble Webhook] Found ${orders?.length || 0} orders for contact ${contactId}`);
+
+    // 3. Create system message in internal_messages for EACH order
+    const io = req.app.get('io');
+    const createdMessages = [];
+
+    // Format timestamp
+    const now = new Date();
+    const timestamp = now.toLocaleString('ru-RU', {
+      year: '2-digit',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    }).replace(',', '');
+
+    const systemContent = `📝 Заметка: ${note} ${timestamp}`;
+
+    if (orders && orders.length > 0) {
+      for (const order of orders) {
+        try {
+          const { data: sysMsg, error: sysMsgError } = await supabase
+            .from('internal_messages')
+            .insert({
+              order_id: order.id,
+              sender_id: null, // System message, no specific sender
+              content: systemContent,
+              is_read: false,
+              attachment_type: 'system'
+            })
+            .select()
+            .single();
+
+          if (!sysMsgError && sysMsg) {
+            createdMessages.push(sysMsg);
+
+            // Emit socket event for this order
+            if (io) {
+              io.to(`order_${order.id}`).emit('new_internal_message', sysMsg);
+            }
+          } else {
+            console.error(`[Bubble Webhook] Error creating system msg for order ${order.id}:`, sysMsgError);
+          }
+        } catch (e) {
+          console.error(`[Bubble Webhook] Exception creating system msg for order ${order.id}:`, e);
+        }
+      }
+    }
+
+    // 4. Create note in notes table for the contact
+    const { data: noteData, error: noteError } = await supabase
+      .from('notes')
+      .insert({
+        contact_id: contactId,
+        content: note,
+        priority: 'info',
+        manager_id: null // System-generated note
+      })
+      .select()
+      .single();
+
+    if (noteError) {
+      console.error('[Bubble Webhook] Error creating contact note:', noteError);
+    } else {
+      console.log(`[Bubble Webhook] Created contact note ${noteData.id}`);
+    }
+
+    res.json({
+      success: true,
+      contact_id: contactId,
+      messages_created: createdMessages.length,
+      note_created: !!noteData
+    });
+
+  } catch (error) {
+    console.error('[Bubble Webhook] Error in note_to_user:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// VEG-64: Webhook для создания заметки к конкретному ордеру (только в этот ордер)
+router.post('/note_to_order', verifyWebhookToken, async (req, res) => {
+  try {
+    const { main_id, note } = req.body;
+
+    console.log('[Bubble Webhook] POST /note_to_order - Main ID:', main_id, 'Note:', note);
+
+    if (!main_id || !note) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: main_id, note'
+      });
+    }
+
+    // 1. Find order by main_id
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('id, contact_id, OrderName')
+      .eq('main_id', main_id)
+      .maybeSingle();
+
+    if (orderError) throw orderError;
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        error: 'Order not found for main_id: ' + main_id
+      });
+    }
+
+    console.log(`[Bubble Webhook] Found order ${order.id} for main_id ${main_id}`);
+
+    // 2. Create system message ONLY for this specific order
+    const now = new Date();
+    const timestamp = now.toLocaleString('ru-RU', {
+      year: '2-digit',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    }).replace(',', '');
+
+    const systemContent = `📝 Заметка: ${note} ${timestamp}`;
+
+    const { data: sysMsg, error: sysMsgError } = await supabase
+      .from('internal_messages')
+      .insert({
+        order_id: order.id,
+        sender_id: null, // System message
+        content: systemContent,
+        is_read: false,
+        attachment_type: 'system'
+      })
+      .select()
+      .single();
+
+    if (sysMsgError) throw sysMsgError;
+
+    console.log(`[Bubble Webhook] Created system message ${sysMsg.id} for order ${order.id}`);
+
+    // 3. Emit socket event ONLY for this order
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`order_${order.id}`).emit('new_internal_message', sysMsg);
+    }
+
+    res.json({
+      success: true,
+      order_id: order.id,
+      message_id: sysMsg.id
+    });
+
+  } catch (error) {
+    console.error('[Bubble Webhook] Error in note_to_order:', error);
     res.status(500).json({
       success: false,
       error: error.message

@@ -214,6 +214,13 @@ router.post('/order/:orderId/assign', auth, async (req, res) => {
         const { orderId } = req.params;
         const { tag_id } = req.body;
 
+        // Get tag name for system message
+        const { data: tag } = await supabase
+            .from('tags')
+            .select('name')
+            .eq('id', tag_id)
+            .single();
+
         const { data, error } = await supabase
             .from('order_tags')
             .insert({ order_id: orderId, tag_id })
@@ -224,6 +231,49 @@ router.post('/order/:orderId/assign', auth, async (req, res) => {
                 return res.json({ success: true, message: 'Tag already assigned' });
             }
             throw error;
+        }
+
+        // VEG-64: Create system message for tag addition
+        if (tag && data && data.length > 0) {
+            try {
+                const managerName = req.manager.name || req.manager.email;
+
+                // Format timestamp
+                const now = new Date();
+                const timestamp = now.toLocaleString('ru-RU', {
+                    year: '2-digit',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                }).replace(',', '');
+
+                const systemContent = `🏷️ ${managerName} добавил тег "${tag.name}" ${timestamp}`;
+
+                const { data: sysMsg, error: sysMsgError } = await supabase
+                    .from('internal_messages')
+                    .insert({
+                        order_id: orderId,
+                        sender_id: req.manager.id,
+                        content: systemContent,
+                        is_read: false,
+                        attachment_type: 'system'
+                    })
+                    .select()
+                    .single();
+
+                if (!sysMsgError && sysMsg) {
+                    // Emit socket event
+                    const io = req.app.get('io');
+                    if (io) {
+                        io.to(`order_${orderId}`).emit('new_internal_message', sysMsg);
+                    }
+                }
+            } catch (e) {
+                console.error('Error creating system message for tag addition:', e);
+                // Don't fail the main operation if system message fails
+            }
         }
 
         clearCache('orders');
@@ -239,6 +289,13 @@ router.delete('/order/:orderId/remove/:tagId', auth, async (req, res) => {
     try {
         const { orderId, tagId } = req.params;
 
+        // Get tag name for system message BEFORE deletion
+        const { data: tag } = await supabase
+            .from('tags')
+            .select('name')
+            .eq('id', tagId)
+            .single();
+
         const { error } = await supabase
             .from('order_tags')
             .delete()
@@ -246,6 +303,50 @@ router.delete('/order/:orderId/remove/:tagId', auth, async (req, res) => {
             .eq('tag_id', tagId);
 
         if (error) throw error;
+
+        // VEG-64: Create system message for tag removal
+        if (tag) {
+            try {
+                const managerName = req.manager.name || req.manager.email;
+
+                // Format timestamp
+                const now = new Date();
+                const timestamp = now.toLocaleString('ru-RU', {
+                    year: '2-digit',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                }).replace(',', '');
+
+                const systemContent = `🏷️ ${managerName} удалил тег "${tag.name}" ${timestamp}`;
+
+                const { data: sysMsg, error: sysMsgError } = await supabase
+                    .from('internal_messages')
+                    .insert({
+                        order_id: orderId,
+                        sender_id: req.manager.id,
+                        content: systemContent,
+                        is_read: false,
+                        attachment_type: 'system'
+                    })
+                    .select()
+                    .single();
+
+                if (!sysMsgError && sysMsg) {
+                    // Emit socket event
+                    const io = req.app.get('io');
+                    if (io) {
+                        io.to(`order_${orderId}`).emit('new_internal_message', sysMsg);
+                    }
+                }
+            } catch (e) {
+                console.error('Error creating system message for tag removal:', e);
+                // Don't fail the main operation if system message fails
+            }
+        }
+
         clearCache('orders');
         res.json({ success: true });
     } catch (error) {

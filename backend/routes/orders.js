@@ -503,8 +503,19 @@ router.patch('/:id', auth, async (req, res) => {
         const newLabel = ORDER_STATUSES[updateData.status]?.label || updateData.status;
         const managerName = req.manager.name || req.manager.email;
 
-        // Format: "🔄 Анна смена этапа: Передано Никите (было: Принято Анна)"
-        const systemContent = `🔄 ${managerName} смена этапа: ${newLabel} (было: ${oldLabel})`;
+        // Format timestamp as DD.MM.YY HH:MM:SS
+        const now = new Date();
+        const timestamp = now.toLocaleString('ru-RU', {
+          year: '2-digit',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        }).replace(',', '');
+
+        // Format: "🔄 Анна смена этапа: Передано Никите (было: Принято Анна) 03.02.26 12:05:31"
+        const systemContent = `🔄 ${managerName} смена этапа: ${newLabel} (было: ${oldLabel}) ${timestamp}`;
 
         const { data: sysMsg, error: sysMsgError } = await supabase
           .from('internal_messages')
@@ -655,7 +666,19 @@ router.post('/bulk/status', auth, async (req, res) => {
         try {
           const oldLabel = ORDER_STATUSES[oldOrder.status]?.label || oldOrder.status;
           const newLabel = ORDER_STATUSES[status]?.label || status;
-          const systemContent = `🔄 ${managerName} смена этапа (массово): ${newLabel} (было: ${oldLabel})`;
+
+          // Format timestamp as DD.MM.YY HH:MM:SS
+          const now = new Date();
+          const timestamp = now.toLocaleString('ru-RU', {
+            year: '2-digit',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+          }).replace(',', '');
+
+          const systemContent = `🔄 ${managerName} смена этапа (массово): ${newLabel} (было: ${oldLabel}) ${timestamp}`;
 
           const { data: sysMsg } = await supabase
             .from('internal_messages')
