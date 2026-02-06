@@ -166,12 +166,12 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, mainId: propMainId, cont
 
     socketRef.current.on('connect', () => {
       socketRef.current?.emit('join_order', orderId.toString());
-      if (mainId) socketRef.current?.emit('join_lead', mainId);
+      if (mainId) socketRef.current?.emit('join_main', mainId);
       if (contactId) socketRef.current?.emit('join_contact', contactId.toString());
     });
 
     if (socketRef.current.connected) {
-      if (mainId) socketRef.current.emit('join_lead', mainId);
+      if (mainId) socketRef.current.emit('join_main', mainId);
       if (contactId) socketRef.current.emit('join_contact', contactId.toString());
     }
 

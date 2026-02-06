@@ -325,8 +325,8 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
         // It was an INSERT
         console.log(`[Bubble Webhook] Emitting new_client_message for msg ${result.id}`);
 
-        if (lead_id) {
-          io.to(`lead_${lead_id}`).emit('new_message', socketPayload);
+        if (socketPayload.main_id) {
+          io.to(`main_${socketPayload.main_id}`).emit('new_client_message', socketPayload);
         }
 
         // IMPORTANT: Emit to contact room - most reliable for cross-order sync
@@ -403,10 +403,14 @@ router.patch('/message/:id', verifyWebhookToken, async (req, res) => {
 
     const io = req.app.get('io');
     if (io) {
-      if (data.lead_id) {
-        io.to(`lead_${data.lead_id}`).emit('message_updated', data);
+      if (data.main_id) {
+        io.to(`main_${data.main_id}`).emit('message_updated', data);
+      }
+      if (data.contact_id) {
+        io.to(`contact_${data.contact_id}`).emit('message_updated', data);
       }
       io.emit('message_updated_bubble', data);
+      io.emit('message_updated', data);
     }
 
     res.json({ success: true, data });

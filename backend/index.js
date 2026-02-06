@@ -112,12 +112,10 @@ io.on('connection', (socket) => {
     socket.join(`user_${userId}`);
   });
 
-  // Присоединение к комнате заявки
-  // Formerly join_lead, but if we assume 'lead' is 'order'...
-  // Keeping join_lead for legacy compatibility if messages use it?
-  // Messages use lead_id. 
-  socket.on('join_lead', (leadId) => {
-    socket.join(`lead_${leadId}`);
+  // Присоединение к комнате main_id (Bubble deal ID)
+  socket.on('join_main', (mainId) => {
+    socket.join(`main_${mainId}`);
+    console.log(`Socket ${socket.id} joined main_${mainId}`);
   });
 
   // Присоединение к комнате ордера (бывшая сделка)
@@ -156,8 +154,10 @@ io.on('connection', (socket) => {
 
       if (error) throw error;
 
-      // Отправляем сообщение всем в комнате лида (main_id)
-      io.to(`lead_${leadId}`).emit('new_message', savedMessage);
+      // Отправляем сообщение всем в комнате main_id
+      if (mainId) {
+        io.to(`main_${mainId}`).emit('new_message', savedMessage);
+      }
 
     } catch (error) {
       console.error('Error sending message:', error);

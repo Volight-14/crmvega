@@ -45,7 +45,8 @@ async function createAndEmitSystemMessage(supabase, io, orderId, mainId, content
       console.log(`[SystemMessage] Emitting events for Order ${orderId}, Main ${mainId}, Contact ${contactId}`);
       io.to(`order_${orderId}`).emit('new_client_message', sysMsg);
       if (mainId) {
-        io.to(`lead_${mainId}`).emit('new_message', sysMsg);
+        if (mainId) io.to(`main_${mainId}`).emit('new_client_message', sysMsg);
+        if (order.contact_id) io.to(`contact_${order.contact_id}`).emit('new_client_message', sysMsg);
       }
       if (contactId) {
         console.log(`[SystemMessage] Emitting contact_message to contact ${contactId}`);
@@ -443,7 +444,8 @@ router.post('/:orderId/client', auth, async (req, res) => {
     if (io) {
       io.to(`order_${orderId}`).emit('new_client_message', message);
       if (order.main_id) {
-        io.to(`lead_${order.main_id}`).emit('new_message', message);
+        io.to(`main_${order.main_id}`).emit('new_client_message', message);
+        if (order.contact_id) io.to(`contact_${order.contact_id}`).emit('new_client_message', message);
       }
       if (order.contact_id) {
         io.emit('contact_message', { contact_id: order.contact_id, message });
@@ -880,7 +882,8 @@ router.post('/:orderId/client/voice', auth, (req, res, next) => {
     if (io) {
       io.to(`order_${orderId}`).emit('new_client_message', message);
       if (order.main_id) {
-        io.to(`lead_${order.main_id}`).emit('new_message', message);
+        io.to(`main_${order.main_id}`).emit('new_client_message', message);
+        if (order.contact_id) io.to(`contact_${order.contact_id}`).emit('new_client_message', message);
       }
       if (order.contact_id) {
         io.emit('contact_message', { contact_id: order.contact_id, message });
