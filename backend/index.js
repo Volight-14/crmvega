@@ -134,6 +134,7 @@ io.on('connection', (socket) => {
   // Присоединение к комнате контакта
   socket.on('join_contact', (contactId) => {
     socket.join(`contact_${contactId}`);
+    console.log(`Socket ${socket.id} joined contact_${contactId}`);
   });
 
   // Отправка сообщения

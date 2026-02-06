@@ -248,7 +248,7 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, mainId: propMainId, cont
       socketRef.current?.emit('leave_order', orderId.toString());
       socketRef.current?.disconnect();
     };
-  }, [orderId, manager?.id, mainId, scrollToBottom]);
+  }, [orderId, manager?.id, mainId, contactId, scrollToBottom]);
 
 
   // Actions
