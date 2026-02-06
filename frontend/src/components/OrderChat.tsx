@@ -50,6 +50,7 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, mainId: propMainId, cont
   const [sending, setSending] = useState(false);
   const [order, setOrder] = useState<Order | null>(null);
   const [mainId, setMainId] = useState<string | undefined>(propMainId ? String(propMainId) : undefined);
+  const [contactId, setContactId] = useState<number | undefined>(undefined);
 
   // Reply state
   const [replyTo, setReplyTo] = useState<TimelineMessage | null>(null);
@@ -71,6 +72,7 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, mainId: propMainId, cont
       const data = await ordersAPI.getById(Number(targetId));
       setOrder(data);
       if (data.main_id) setMainId(String(data.main_id));
+      if (data.contact_id) setContactId(data.contact_id);
     } catch (e) {
       console.error('Failed to fetch order in chat', e);
     }
@@ -165,10 +167,12 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, mainId: propMainId, cont
     socketRef.current.on('connect', () => {
       socketRef.current?.emit('join_order', orderId.toString());
       if (mainId) socketRef.current?.emit('join_lead', mainId);
+      if (contactId) socketRef.current?.emit('join_contact', contactId.toString());
     });
 
-    if (socketRef.current.connected && mainId) {
-      socketRef.current.emit('join_lead', mainId);
+    if (socketRef.current.connected) {
+      if (mainId) socketRef.current.emit('join_lead', mainId);
+      if (contactId) socketRef.current.emit('join_contact', contactId.toString());
     }
 
     const handleNewMessage = (msg: TimelineMessage) => {
@@ -188,13 +192,13 @@ const OrderChat: React.FC<OrderChatProps> = ({ orderId, mainId: propMainId, cont
       scrollToBottom();
     };
 
-    socketRef.current.on('new_client_message', (msg: Message) => {
-      // Validate if message belongs to this order context (by main_id)
+    socketRef.current.on('new_client_message', (msg: any) => {
+      // Validate if message belongs to this order context (by main_id or contact_id)
       const matchesMainId = mainId && msg.main_id && String(msg.main_id) === String(mainId);
+      const matchesContactId = contactId && msg.contact_id && Number(msg.contact_id) === Number(contactId);
 
-      // If we don't have mainId yet, or strict match fails, we shouldn't show it to avoid "ghost" messages
-      if (matchesMainId) {
-        handleNewMessage({ ...msg, source_type: 'client', sort_date: msg['Created Date'], display_author: 'Клиент' });
+      if (matchesMainId || matchesContactId) {
+        handleNewMessage({ ...msg, source_type: 'client', sort_date: msg['Created Date'] || msg.created_at, display_author: 'Клиент' });
       }
     });
 

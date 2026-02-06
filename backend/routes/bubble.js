@@ -308,11 +308,11 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
         // It was an UPDATE (e.g. reaction)
         console.log(`[Bubble Webhook] Emitting message_updated for msg ${result.id}`);
 
-        if (lead_id) {
-          io.to(`lead_${lead_id}`).emit('message_updated', result);
+        if (finalContactId) {
+          io.to(`contact_${finalContactId}`).emit('message_updated', result);
         }
 
-        // IMPORTANT: Also emit to order room
+        // Keep order emission for backward compatibility
         if (finalOrderId) {
           io.to(`order_${finalOrderId}`).emit('message_updated', result);
         }
@@ -325,11 +325,15 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
 
         if (lead_id) {
           io.to(`lead_${lead_id}`).emit('new_message', result);
-          // NEW: Ensure all orders for this lead get the message regardless of which order is open
-          io.to(`lead_${lead_id}`).emit('new_client_message', result);
         }
 
-        // IMPORTANT: Emit to order room INDEPENDENTLY of lead_id
+        // IMPORTANT: Emit to contact room - most reliable for cross-order sync
+        if (finalContactId) {
+          console.log(`[Bubble Webhook] Emitting to contact_${finalContactId}`);
+          io.to(`contact_${finalContactId}`).emit('new_client_message', result);
+        }
+
+        // Keep order emission 
         if (finalOrderId) {
           console.log(`[Bubble Webhook] Emitting to order_${finalOrderId}`);
           io.to(`order_${finalOrderId}`).emit('new_client_message', result);
