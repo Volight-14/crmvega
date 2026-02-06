@@ -98,29 +98,22 @@ const ContactDetailPage: React.FC = () => {
     });
 
     // Listen for messages specifically for this contact
-    socketRef.current.on('contact_message', (data: { contact_id: number; message: Message }) => {
-      console.log('[ContactDetail] Received contact_message:', data);
-      const currentContactId = parseInt(id || '0');
+    socketRef.current.on('contact_message', (data: { contact_id: number | string; message: Message }) => {
+      const currentContactId = String(id || '0');
+      const incomingContactId = String(data.contact_id);
 
-      if (data.contact_id === currentContactId) {
+      // Relaxed comparison (string vs string)
+      if (incomingContactId === currentContactId) {
+        console.log('[ContactDetail] Processing contact_message:', data);
         setMessages(prev => {
-          // Robust duplicate check (convert to String to be safe)
           const isDuplicate = prev.some(msg => String(msg.id) === String(data.message.id));
+          if (isDuplicate) return prev;
 
-          if (isDuplicate) {
-            console.log('[ContactDetail] Message already exists, skipping:', data.message.id);
-            return prev;
-          }
-
-          console.log('[ContactDetail] Adding new message:', data.message.id);
-          // Sort logic to ensure correct order
-          const newMessages = [...prev, data.message].sort((a, b) => {
+          return [...prev, data.message].sort((a, b) => {
             const dateA = new Date(a['Created Date'] || a.created_at || 0).getTime();
             const dateB = new Date(b['Created Date'] || b.created_at || 0).getTime();
             return dateA - dateB;
           });
-
-          return newMessages;
         });
       }
     });
