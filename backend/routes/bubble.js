@@ -325,8 +325,12 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
 
         if (lead_id) {
           io.to(`lead_${lead_id}`).emit('new_message', result);
-          // Also emit to order room if linked
-          if (finalOrderId) io.to(`order_${finalOrderId}`).emit('new_client_message', result);
+        }
+
+        // IMPORTANT: Emit to order room INDEPENDENTLY of lead_id
+        if (finalOrderId) {
+          console.log(`[Bubble Webhook] Emitting to order_${finalOrderId}`);
+          io.to(`order_${finalOrderId}`).emit('new_client_message', result);
         }
         io.emit('new_message_bubble', result);
         // GLOBAL ALERT EMISSION
