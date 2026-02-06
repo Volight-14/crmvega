@@ -9,6 +9,45 @@ const { convertToOgg } = require('../utils/audioConverter');
 const { clearCache } = require('../utils/cache');
 
 const router = express.Router();
+
+// Helper to create and emit system message
+async function createAndEmitSystemMessage(supabase, io, orderId, mainId, content) {
+  try {
+    // 1. Insert into messages
+    const { data: sysMsg, error } = await supabase
+      .from('messages')
+      .insert({
+        main_id: mainId,
+        content: content,
+        author_type: 'system',
+        message_type: 'system',
+        'Created Date': new Date().toISOString(),
+        user: 'System',
+        is_read: true,
+        status: 'delivered'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // 2. Link to order
+    await supabase.from('order_messages').upsert({
+      order_id: parseInt(orderId),
+      message_id: sysMsg.id
+    }, { onConflict: 'order_id,message_id' });
+
+    // 3. Emit socket event
+    if (io) {
+      io.to(`order_${orderId}`).emit('new_client_message', sysMsg);
+      if (mainId) {
+        io.to(`lead_${mainId}`).emit('new_message', sysMsg);
+      }
+    }
+  } catch (err) {
+    console.error('[SystemMessage] Error creating system message:', err);
+  }
+}
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
@@ -146,6 +185,7 @@ router.post('/:orderId/client', auth, async (req, res) => {
     let telegramMessageId = null;
     let messageStatus = 'delivered';
     let errorMessage = null;
+    let systemErrorContent = null;
 
     if (TELEGRAM_BOT_TOKEN) {
       try {
@@ -303,12 +343,15 @@ router.post('/:orderId/client', auth, async (req, res) => {
           if (errorCode === 403) {
             messageStatus = 'blocked';
             errorMessage = 'Пользователь заблокировал бота';
+            systemErrorContent = '🚫 Пользователь заблокировал бота (403)';
           } else if (errorCode === 400) {
             messageStatus = 'deleted_chat';
             errorMessage = 'Пользователь удалил чат с ботом';
+            systemErrorContent = '💔 Пользователь удалил чат с ботом (400 или другая ошибка)';
           } else {
             messageStatus = 'error';
             errorMessage = tgError.response?.data?.description || tgError.message;
+            systemErrorContent = '💔 Пользователь удалил чат с ботом (400 или другая ошибка)';
           }
           notifyErrorSubscribers(`🔴 Ошибка отправки SMS (Order ${orderId}):\n${errorMessage}`);
         }
@@ -400,6 +443,11 @@ router.post('/:orderId/client', auth, async (req, res) => {
           console.error('[OrderMessages] Auto-read update failed:', err);
         }
       })();
+    }
+
+    // Send System Message if error occurred
+    if (systemErrorContent) {
+      await createAndEmitSystemMessage(supabase, req.app.get('io'), orderId, order.main_id, systemErrorContent);
     }
 
     res.json(message);
@@ -564,6 +612,7 @@ router.post('/:orderId/client/file', auth, upload.single('file'), async (req, re
     // Отправляем в Telegram
     const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
     let telegramMessageId = null;
+    let systemErrorContent = null;
 
     if (TELEGRAM_BOT_TOKEN) {
       try {
@@ -594,6 +643,15 @@ router.post('/:orderId/client/file', auth, upload.single('file'), async (req, re
         console.log(`[OrderMessages File] ✅ Sent to Telegram, message_id: ${telegramMessageId}`);
       } catch (tgError) {
         console.error('[OrderMessages File] ❌ Telegram send error:', tgError.response?.data || tgError.message);
+
+        const errorCode = tgError.response?.data?.error_code;
+        if (errorCode === 403) {
+          systemErrorContent = '🚫 Пользователь заблокировал бота (403)';
+        } else {
+          // Default to generic error message for 400 or others
+          systemErrorContent = '💔 Пользователь удалил чат с ботом (400 или другая ошибка)';
+        }
+
         // Don't return here - we still want to save to DB even if TG fails
         // But we'll note the error
         console.warn('[OrderMessages File] Continuing to save in DB despite TG error...');
@@ -647,9 +705,11 @@ router.post('/:orderId/client/file', auth, upload.single('file'), async (req, re
       }, { onConflict: 'order_id,message_id' });
 
     const io = req.app.get('io');
-    if (io) {
-      io.to(`order_${orderId}`).emit('new_client_message', message);
-      console.log(`[OrderMessages File] ✅ Socket event emitted`);
+    io.to(`order_${orderId}`).emit('new_client_message', message);
+    console.log(`[OrderMessages File] ✅ Socket event emitted`);
+
+    if (systemErrorContent) {
+      await createAndEmitSystemMessage(supabase, io, orderId, order.main_id, systemErrorContent);
     }
 
     console.log(`[OrderMessages File] ✅ File send complete`);
@@ -710,6 +770,7 @@ router.post('/:orderId/client/voice', auth, (req, res, next) => {
     let telegramUserId = null;
     let messageStatus = 'delivered';
     let errorMessage = null;
+    let systemErrorContent = null;
 
     if (order.contact_id) {
       const { data: c } = await supabase.from('contacts').select('telegram_user_id').eq('id', order.contact_id).single();
@@ -737,12 +798,15 @@ router.post('/:orderId/client/voice', auth, (req, res, next) => {
         if (errorCode === 403) {
           messageStatus = 'blocked';
           errorMessage = 'Пользователь заблокировал бота';
+          systemErrorContent = '🚫 Пользователь заблокировал бота (403)';
         } else if (errorCode === 400) {
           messageStatus = 'deleted_chat';
           errorMessage = 'Пользователь удалил чат с ботом';
+          systemErrorContent = '💔 Пользователь удалил чат с ботом (400 или другая ошибка)';
         } else {
           messageStatus = 'error';
           errorMessage = tgError.response?.data?.description || tgError.message;
+          systemErrorContent = '💔 Пользователь удалил чат с ботом (400 или другая ошибка)';
         }
         notifyErrorSubscribers(`🔴 Ошибка отправки Voice (Order ${orderId}):\n${errorMessage}`);
       }
@@ -791,6 +855,10 @@ router.post('/:orderId/client/voice', auth, (req, res, next) => {
       if (order.main_id) {
         io.to(`lead_${order.main_id}`).emit('new_message', message);
       }
+    }
+
+    if (systemErrorContent) {
+      await createAndEmitSystemMessage(supabase, io, orderId, order.main_id, systemErrorContent);
     }
 
     res.json(message);

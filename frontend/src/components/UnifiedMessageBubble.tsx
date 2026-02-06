@@ -473,7 +473,7 @@ export const UnifiedMessageBubble: React.FC<UnifiedMessageBubbleProps> = ({
                         {/* Date & Status */}
                         {formatTime(msg['Created Date'] || msg.created_at)}
                         {isOwn && (
-                            <span>{msg.is_read ? '✓✓' : '✓'}</span>
+                            <span>✓</span>
                         )}
 
                         {/* ACTIONS MENU TRIGGER */}
