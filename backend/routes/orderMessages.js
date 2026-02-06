@@ -6,7 +6,9 @@ const axios = require('axios');
 const FormData = require('form-data');
 const { notifyErrorSubscribers } = require('../utils/notifyError');
 const { convertToOgg } = require('../utils/audioConverter');
+const { convertToOgg } = require('../utils/audioConverter');
 const { clearCache } = require('../utils/cache');
+const { logError } = require('../utils/logger');
 
 const router = express.Router();
 
@@ -363,6 +365,15 @@ router.post('/:orderId/client', auth, async (req, res) => {
             errorMessage = tgError.response?.data?.description || tgError.message;
             systemErrorContent = '💔 Пользователь удалил чат с ботом (400 или другая ошибка)';
           }
+
+          // Log error to DB
+          logError('order_messages', `Telegram Send Error: ${errorMessage}`, {
+            orderId,
+            errorCode,
+            telegramUserId,
+            fullError: tgError.response?.data
+          });
+
           notifyErrorSubscribers(`🔴 Ошибка отправки SMS (Order ${orderId}):\n${errorMessage}`);
         }
       }
