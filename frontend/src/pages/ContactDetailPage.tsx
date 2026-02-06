@@ -76,8 +76,10 @@ const ContactDetailPage: React.FC = () => {
   }, [id]);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (activeTab === 'messages') {
+      scrollToBottom();
+    }
+  }, [messages, activeTab]);
 
   const setupSocket = () => {
     if (!id || !manager) return;
@@ -96,10 +98,18 @@ const ContactDetailPage: React.FC = () => {
 
     // Listen for messages specifically for this contact
     socketRef.current.on('contact_message', (data: { contact_id: number; message: Message }) => {
-      if (data.contact_id === parseInt(id || '0')) {
+      console.log('[ContactDetail] Received contact_message:', data);
+      const currentContactId = parseInt(id || '0');
+      if (data.contact_id === currentContactId) {
         setMessages(prev => {
+          // Check for duplicate by ID or temporary ID
           if (prev.some(msg => msg.id === data.message.id)) return prev;
-          return [...prev, data.message];
+          // Sort logic will handle order, just append
+          return [...prev, data.message].sort((a, b) => {
+            const dateA = new Date(a['Created Date'] || a.created_at || 0).getTime();
+            const dateB = new Date(b['Created Date'] || b.created_at || 0).getTime();
+            return dateA - dateB;
+          });
         });
       }
     });
@@ -134,7 +144,10 @@ const ContactDetailPage: React.FC = () => {
   };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Small timeout to ensure DOM is rendered (especially when switching tabs)
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+    }, 100);
   };
 
   const fetchContact = async () => {
