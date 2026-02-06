@@ -13,7 +13,7 @@ router.get('/contact/:contactId', auth, async (req, res) => {
   try {
     const { contactId } = req.params;
     let targetContactId = contactId;
-    if (parseInt(contactId) > 2147483647) {
+    if (parseInt(contactId) > 100000) {
       const { data: contactResolve } = await supabase
         .from('contacts')
         .select('id')

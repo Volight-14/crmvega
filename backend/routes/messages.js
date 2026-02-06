@@ -88,7 +88,7 @@ router.get('/contact/:contactId', auth, async (req, res) => {
     let targetContactId = contactId;
 
     // Check for potential Telegram ID usage (BigIntish value)
-    if (parseInt(contactId) > 2147483647) {
+    if (parseInt(contactId) > 100000) {
       console.log(`[ContactMessages] Detected large ID ${contactId}, resolving via telegram_user_id...`);
       const { data: contactResolve } = await supabase
         .from('contacts')
@@ -184,7 +184,7 @@ router.post('/contact/:contactId', auth, async (req, res) => {
     const { content, sender_type = 'manager' } = req.body;
 
     let targetContactId = contactId;
-    if (parseInt(contactId) > 2147483647) {
+    if (parseInt(contactId) > 100000) {
       const { data: contactResolve } = await supabase.from('contacts').select('id').eq('telegram_user_id', contactId).maybeSingle();
       if (contactResolve) targetContactId = contactResolve.id;
       else return res.status(404).json({ error: 'Contact not found' });
@@ -343,7 +343,7 @@ router.post('/contact/:contactId/voice', auth, upload.single('voice'), async (re
     const { duration } = req.body;
 
     let targetContactId = contactId;
-    if (parseInt(contactId) > 2147483647) {
+    if (parseInt(contactId) > 100000) {
       const { data: contactResolve } = await supabase.from('contacts').select('id').eq('telegram_user_id', contactId).maybeSingle();
       if (contactResolve) targetContactId = contactResolve.id;
       else return res.status(404).json({ error: 'Contact not found' });
@@ -486,7 +486,7 @@ router.post('/contact/:contactId/file', auth, upload.single('file'), async (req,
     const { caption } = req.body;
 
     let targetContactId = contactId;
-    if (parseInt(contactId) > 2147483647) {
+    if (parseInt(contactId) > 100000) {
       const { data: contactResolve } = await supabase.from('contacts').select('id').eq('telegram_user_id', contactId).maybeSingle();
       if (contactResolve) targetContactId = contactResolve.id;
       else return res.status(404).json({ error: 'Contact not found' });

@@ -60,7 +60,7 @@ router.get('/', auth, async (req, res) => {
     }
 
     if (contact_id) {
-      if (parseInt(contact_id) > 2147483647) {
+      if (parseInt(contact_id) > 100000) {
         // Resolve Telegram ID to internal ID
         const { data: contactResolve } = await supabase
           .from('contacts')
