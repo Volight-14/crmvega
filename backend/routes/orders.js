@@ -60,21 +60,15 @@ router.get('/', auth, async (req, res) => {
     }
 
     if (contact_id) {
-      if (parseInt(contact_id) > 100000) {
-        // Resolve Telegram ID to internal ID
-        const { data: contactResolve } = await supabase
-          .from('contacts')
-          .select('id')
-          .eq('telegram_user_id', contact_id)
-          .maybeSingle();
+      // Always try to resolve Telegram ID first
+      const { data: contactResolve } = await supabase
+        .from('contacts')
+        .select('id')
+        .eq('telegram_user_id', contact_id)
+        .maybeSingle();
 
-        if (contactResolve) {
-          query = query.eq('contact_id', contactResolve.id);
-        } else {
-          // Not found - ensure query returns empty
-          // Using an impossible condition
-          query = query.eq('id', -1);
-        }
+      if (contactResolve) {
+        query = query.eq('contact_id', contactResolve.id);
       } else {
         query = query.eq('contact_id', contact_id);
       }

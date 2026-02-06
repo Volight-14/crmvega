@@ -88,21 +88,17 @@ router.get('/contact/:contactId', auth, async (req, res) => {
     let targetContactId = contactId;
 
     // Check for potential Telegram ID usage (BigIntish value)
-    if (parseInt(contactId) > 100000) {
-      console.log(`[ContactMessages] Detected large ID ${contactId}, resolving via telegram_user_id...`);
-      const { data: contactResolve } = await supabase
-        .from('contacts')
-        .select('id')
-        .eq('telegram_user_id', contactId)
-        .maybeSingle();
+    // Always try to resolve Telegram ID to internal ID first
+    // (User scenario: URL always contains Telegram ID)
+    const { data: contactResolve } = await supabase
+      .from('contacts')
+      .select('id')
+      .eq('telegram_user_id', contactId)
+      .maybeSingle();
 
-      if (contactResolve) {
-        targetContactId = contactResolve.id;
-        console.log(`[ContactMessages] Resolved to internal ID: ${targetContactId}`);
-      } else {
-        console.log(`[ContactMessages] No contact found for telegram_user_id ${contactId}`);
-        return res.json({ messages: [], total: 0 });
-      }
+    if (contactResolve) {
+      targetContactId = contactResolve.id;
+      console.log(`[ContactMessages] Resolved Telegram ID ${contactId} to internal ID: ${targetContactId}`);
     }
 
     // Оптимизированный запрос: получаем контакт с заявками одним запросом
@@ -184,11 +180,9 @@ router.post('/contact/:contactId', auth, async (req, res) => {
     const { content, sender_type = 'manager' } = req.body;
 
     let targetContactId = contactId;
-    if (parseInt(contactId) > 100000) {
-      const { data: contactResolve } = await supabase.from('contacts').select('id').eq('telegram_user_id', contactId).maybeSingle();
-      if (contactResolve) targetContactId = contactResolve.id;
-      else return res.status(404).json({ error: 'Contact not found' });
-    }
+    // Resolve Telegram ID
+    const { data: contactResolve } = await supabase.from('contacts').select('id').eq('telegram_user_id', contactId).maybeSingle();
+    if (contactResolve) targetContactId = contactResolve.id;
 
     // Находим активную заявку контакта или создаем новую
     const { data: activeOrder } = await supabase
@@ -343,11 +337,9 @@ router.post('/contact/:contactId/voice', auth, upload.single('voice'), async (re
     const { duration } = req.body;
 
     let targetContactId = contactId;
-    if (parseInt(contactId) > 100000) {
-      const { data: contactResolve } = await supabase.from('contacts').select('id').eq('telegram_user_id', contactId).maybeSingle();
-      if (contactResolve) targetContactId = contactResolve.id;
-      else return res.status(404).json({ error: 'Contact not found' });
-    }
+    // Resolve Telegram ID
+    const { data: contactResolve } = await supabase.from('contacts').select('id').eq('telegram_user_id', contactId).maybeSingle();
+    if (contactResolve) targetContactId = contactResolve.id;
 
     if (!req.file) {
       return res.status(400).json({ error: 'Файл не найден' });
@@ -486,11 +478,9 @@ router.post('/contact/:contactId/file', auth, upload.single('file'), async (req,
     const { caption } = req.body;
 
     let targetContactId = contactId;
-    if (parseInt(contactId) > 100000) {
-      const { data: contactResolve } = await supabase.from('contacts').select('id').eq('telegram_user_id', contactId).maybeSingle();
-      if (contactResolve) targetContactId = contactResolve.id;
-      else return res.status(404).json({ error: 'Contact not found' });
-    }
+    // Resolve Telegram ID
+    const { data: contactResolve } = await supabase.from('contacts').select('id').eq('telegram_user_id', contactId).maybeSingle();
+    if (contactResolve) targetContactId = contactResolve.id;
 
     if (!req.file) {
       return res.status(400).json({ error: 'Файл не найден' });

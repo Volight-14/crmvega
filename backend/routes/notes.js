@@ -13,18 +13,15 @@ router.get('/contact/:contactId', auth, async (req, res) => {
   try {
     const { contactId } = req.params;
     let targetContactId = contactId;
-    if (parseInt(contactId) > 100000) {
-      const { data: contactResolve } = await supabase
-        .from('contacts')
-        .select('id')
-        .eq('telegram_user_id', contactId)
-        .maybeSingle();
+    // Always try to resolve Telegram ID first
+    const { data: contactResolve } = await supabase
+      .from('contacts')
+      .select('id')
+      .eq('telegram_user_id', contactId)
+      .maybeSingle();
 
-      if (contactResolve) {
-        targetContactId = contactResolve.id;
-      } else {
-        return res.json([]);
-      }
+    if (contactResolve) {
+      targetContactId = contactResolve.id;
     }
 
     const { data, error } = await supabase
