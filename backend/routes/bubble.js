@@ -325,6 +325,8 @@ router.post('/message', verifyWebhookToken, async (req, res) => {
 
         if (lead_id) {
           io.to(`lead_${lead_id}`).emit('new_message', result);
+          // NEW: Ensure all orders for this lead get the message regardless of which order is open
+          io.to(`lead_${lead_id}`).emit('new_client_message', result);
         }
 
         // IMPORTANT: Emit to order room INDEPENDENTLY of lead_id
